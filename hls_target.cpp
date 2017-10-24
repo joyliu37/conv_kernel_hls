@@ -19,8 +19,8 @@ uint16_t *arg_0,//[32*124*32],
 uint8_t *arg_1,//[34*126*32],
 uint8_t *arg_2,
 uint8_t Ksz,
-uint8_t X_n, uint8_t X_r,
-uint8_t Y_n, uint8_t Y_r,
+uint8_t X_n,
+uint8_t Y_n,
 uint8_t Cin_n, uint8_t Cin_r,
 uint8_t Cout_n, uint8_t Cout_r)
 
@@ -39,8 +39,8 @@ uint8_t Cout_n, uint8_t Cout_r)
  //uint16_t Xpad_SZ = X_SZ + Ksz - 1;
  //uint16_t Ypad_SZ = Y_SZ + Ksz - 1;
 
- uint16_t Width = X_SZ*(X_n) + X_r;
- uint16_t Height = Y_SZ*(Y_n) + Y_r;
+ uint16_t Width = X_SZ*(X_n);
+ uint16_t Height = Y_SZ*(Y_n);
 
  uint16_t Anchor = (Ksz - 1) >> 1;
 
@@ -89,6 +89,8 @@ uint8_t Cout_n, uint8_t Cout_r)
     	  {
 #pragma HLS PIPELINE II=1
 
+    		  //Note: add a actual Cin size, just change the DDR addr
+
     		  int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + Ksz -1);
     		  //32 should be changed as the channel number and 2048 should be changed to the channelSZ * tiling width
     		  /*int32_t _235 = _p2_clamped_buf_copy_s0_y;
@@ -102,11 +104,12 @@ uint8_t Cout_n, uint8_t Cout_r)
 
     		  //Xpad_SZ-1 << 1need to be changed after deleting the padding
     		  int32_t ddrAddr = input_c +\
-    				  ddrX * Cin_SZ +\
-					  ddrY * Cin_SZ * Width;
+    				  ddrX * Cin_r +\
+					  ddrY * Cin_r * Width;
     		  //32 = channelSZ;	4032 = channelSZ*width;	 	32*62 = channelSz*(tilingIDx*tilingWidth - pad)
     		  //4032*16 = channelSz*width*(tilling IDx *tilingheight- pad)
-    		  _p2_clamped_buf_copya0[buffAddr] = ((uint8_t *)_clamped)[ddrAddr];
+    		  _p2_clamped_buf_copya0[buffAddr] = ( (input_c < Cin_r) ? \
+    				  ((uint8_t *)_clamped)[ddrAddr] : 0);
 
       } // for _p2_clamped_buf_copy_s0_x
      } // for _p2_clamped_buf_copy_s0_y
@@ -133,9 +136,12 @@ uint8_t Cout_n, uint8_t Cout_r)
     	//int32_t input_x = _p2_weight_buf_copy_s0_c;
     	//int32_t output_c = _p2_weight_buf_copy_s0_k;
 
+    	//Note: add a actual Cin size, just change the DDR addr
     	int32_t bramBlkAddr = input_c + Cin_SZ*input_y + Cin_SZ * Ksz * input_x;
-    	int32_t ddrAddr = bramBlkAddr + (output_c + tilingIDc*Cout_SZ) * Cin_SZ * Ksz * Ksz;
-    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ((uint8_t *)_weight)[ddrAddr];
+    	int32_t ddrAddr = input_c + Cin_r*input_y + Cin_r *Ksz*input_x\
+    			+ (output_c + tilingIDc*Cout_SZ) * Cin_r * Ksz * Ksz;
+    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ( (input_c < Cin_r) ? \
+    			((uint8_t *)_weight)[ddrAddr] : 0 );
     	//32 = inputChNum, 16 = output Channel tiling size
         /*int32_t _250 = _p2_weight_buf_copy_s0_y * 32;
         int32_t _251 = _p2_weight_buf_copy_s0_x + _250;
