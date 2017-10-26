@@ -21,8 +21,10 @@ uint8_t *arg_2,
 uint8_t Ksz,
 uint8_t X_n,
 uint8_t Y_n,
-uint8_t Cin_n, uint8_t Cin_r,
-uint8_t Cout_n, uint8_t Cout_r)
+uint8_t Cin_n,
+uint8_t Cin_r,//remaining channel chunk in the last tile of input
+uint8_t Cout_n,
+uint8_t Cout_r)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
@@ -35,14 +37,13 @@ uint8_t Cout_n, uint8_t Cout_r)
  uint16_t *_output = arg_0;
  uint8_t *_weight = arg_2;
 
- //no need for pad
- //uint16_t Xpad_SZ = X_SZ + Ksz - 1;
- //uint16_t Ypad_SZ = Y_SZ + Ksz - 1;
-
+ //optimization bit shift
  uint16_t Width = X_SZ*(X_n);
  uint16_t Height = Y_SZ*(Y_n);
 
+ //for kernel center
  uint16_t Anchor = (Ksz - 1) >> 1;
+
 
  uint16_t Cin_Iter = (Cin_SZ) >> P_CIN_bit ;
  uint16_t Cin_Rem =  (Cin_SZ) - (Cin_Iter << P_CIN_bit);
@@ -63,6 +64,8 @@ uint8_t Cout_n, uint8_t Cout_r)
 
 #pragma HLS DATAFLOW
     uint8_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
+    uint16_t Cin_cmp_iter = (Cin_r < Cin_Iter) ? Cin_r : Cin_Iter;
+    uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
 
 
 #pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya0 cyclic factor=8 dim=1
@@ -77,21 +80,22 @@ uint8_t Cout_n, uint8_t Cout_r)
       int32_t ddrX = input_x - Anchor + tilingIDx*X_SZ;
       int32_t ddrY = input_y - Anchor + tilingIDy*Y_SZ;
       if((ddrX < 0) || (ddrY <0) || (ddrX >= Width) ||(ddrY >= Height)){
-    	for (int input_c = 0; input_c < 0+Cin_SZ; input_c++){
+    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len ); input_c++){
+#pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
-    		int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + Ksz -1);
+    		int32_t buffAddr = input_c + input_x*Cin_cmp_len + input_y*Cin_cmp_len*(X_SZ + Ksz -1);
     		_p2_clamped_buf_copya0[buffAddr] = 0;
     	}
       }
 
       else
-    	  for (int input_c = 0; input_c < 0 + Cin_SZ; input_c++)
-    	  {
+    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len); input_c++){
+#pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
 
     		  //Note: add a actual Cin size, just change the DDR addr
 
-    		  int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + Ksz -1);
+    		  int32_t buffAddr = input_c + input_x*Cin_cmp_len + input_y*Cin_cmp_len*(X_SZ + Ksz -1);
     		  //32 should be changed as the channel number and 2048 should be changed to the channelSZ * tiling width
     		  /*int32_t _235 = _p2_clamped_buf_copy_s0_y;
        int32_t _236 = _235 * 32;
@@ -104,13 +108,13 @@ uint8_t Cout_n, uint8_t Cout_r)
 
     		  //Xpad_SZ-1 << 1need to be changed after deleting the padding
     		  int32_t ddrAddr = input_c +\
-    				  ddrX * Cin_r +\
-					  ddrY * Cin_r * Width;
-    		  //32 = channelSZ;	4032 = channelSZ*width;	 	32*62 = channelSz*(tilingIDx*tilingWidth - pad)
-    		  //4032*16 = channelSz*width*(tilling IDx *tilingheight- pad)
-    		  _p2_clamped_buf_copya0[buffAddr] = ( (input_c < Cin_r) ? \
+    				  ddrX * Cin_cmp_len +\
+					  ddrY * Cin_cmp_len * Width;
+    		  //Pad 0 version
+    		  //_p2_clamped_buf_copya0[buffAddr] = ( (input_c < Cin_r) ? \
     				  ((uint8_t *)_clamped)[ddrAddr] : 0);
-
+    		  //Non-pad version, regarding pre-pad
+    		  _p2_clamped_buf_copya0[buffAddr] = ((uint8_t *)_clamped)[ddrAddr];
       } // for _p2_clamped_buf_copy_s0_x
      } // for _p2_clamped_buf_copy_s0_y
     } // for _p2_clamped_buf_copy_s0_c
@@ -128,20 +132,18 @@ uint8_t Cout_n, uint8_t Cout_r)
       for (int input_y = 0; input_y < 0 + Ksz; input_y++)
       {
 #pragma HLS LOOP_TRIPCOUNT max=3
-       for (int input_c = 0; input_c < 0 + Cin_SZ; input_c++)
+       for (int input_c = 0; input_c < 0 + Cin_cmp_len; input_c++)
        {
 #pragma HLS PIPELINE II=1
-    	//int32_t input_c = _p2_weight_buf_copy_s0_x;
-    	//int32_t input_y = _p2_weight_buf_copy_s0_y;
-    	//int32_t input_x = _p2_weight_buf_copy_s0_c;
-    	//int32_t output_c = _p2_weight_buf_copy_s0_k;
 
     	//Note: add a actual Cin size, just change the DDR addr
-    	int32_t bramBlkAddr = input_c + Cin_SZ*input_y + Cin_SZ * Ksz * input_x;
-    	int32_t ddrAddr = input_c + Cin_r*input_y + Cin_r *Ksz*input_x\
-    			+ (output_c + tilingIDc*Cout_SZ) * Cin_r * Ksz * Ksz;
-    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ( (input_c < Cin_r) ? \
+    	int32_t bramBlkAddr = input_c + Cin_cmp_len*input_y + Cin_cmp_len * Ksz * input_x;
+    	int32_t ddrAddr = input_c + Cin_cmp_len*input_y + Cin_cmp_len *Ksz*input_x\
+    			+ (output_c + tilingIDc*Cout_SZ) * Cin_cmp_len * Ksz * Ksz;
+    	//Pad 0 version
+    	//_p2_weight_buf_copya1[output_c][bramBlkAddr] = ( (input_c < Cin_r) ? \
     			((uint8_t *)_weight)[ddrAddr] : 0 );
+    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ((uint8_t *)_weight)[ddrAddr];
     	//32 = inputChNum, 16 = output Channel tiling size
         /*int32_t _250 = _p2_weight_buf_copy_s0_y * 32;
         int32_t _251 = _p2_weight_buf_copy_s0_x + _250;
@@ -163,9 +165,8 @@ uint8_t Cout_n, uint8_t Cout_r)
     uint16_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
 #pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=8 dim=1
     // produce conv1
-    computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
+    computation:for (int cinBlk = 0; cinBlk < 0 + Cin_cmp_iter; cinBlk++)
     {
-
 #pragma HLS LOOP_TRIPCOUNT max=4
    for (int yOffset = 0; yOffset < 0 + Ksz; yOffset++)
      {
@@ -201,10 +202,10 @@ uint8_t Cout_n, uint8_t Cout_r)
         	*/
         	int32_t cinOffset = cinIter + cinBlk * P_CIN;
         	int32_t featureBuffAddr = cinOffset\
-        			+ (xIter + xOffset) * Cin_SZ\
-					+ (yIter + yOffset) * Cin_SZ * (X_SZ+Ksz-1);
+        			+ (xIter + xOffset) * Cin_cmp_len\
+					+ (yIter + yOffset) * Cin_cmp_len * (X_SZ+Ksz-1);
 
-        	int32_t weightBuffAddr = cinOffset + xOffset*Cin_SZ + yOffset*Cin_SZ*Ksz;
+        	int32_t weightBuffAddr = cinOffset + xOffset * Cin_cmp_len + yOffset * Cin_cmp_len * Ksz;
         	/*
         	int32_t coutBlk = _conv1_stencil_s1_c_co;
         	int32_t coutIter = _conv1_stencil_s1_c_ci;
