@@ -6,7 +6,7 @@
 
 #define ROWS 8 //68
 #define COLS 8 //68
-#define ICH 8 //32
+#define ICH 56 //32
 #define OCH 24
 #define FS 3
 
@@ -38,7 +38,7 @@ int main()
 
 #ifdef HW_COSIM
 
-	hls_target(res, image, weight_0, 3, 2, 2, 1, 1, 2, 1);
+	hls_target(res, image, weight_0, 3, 2, 2, 2, 3, 2, 1);
 	/*uint16_t *arg_0,//[32*124*32],
 	uint8_t *arg_1,//[34*126*32],
 	uint8_t *arg_2,
