@@ -4,21 +4,21 @@
 #define HW_COSIM
 
 
-#define ROWS 8 //68
-#define COLS 8 //68
+#define ROWS 128 //68
+#define COLS 128 //68
 #define ICH 56 //32
 #define OCH 24
 #define FS 3
 
-typedef uint8_t t;
-typedef uint16_t rt;
+typedef uint16_t t;
+typedef uint32_t rt;
 using namespace std;
 
 int main()
 {
 	static t image[(ROWS)*(COLS)*ICH];
 	static rt res[ROWS * COLS * OCH];
-	static t weight_0[FS*FS*ICH*OCH];
+	static int16_t weight_0[FS*FS*ICH*OCH];
 
 	for (int c = 0; c < ICH; c++)
 	for (int j = 0; j < ROWS; j++)
@@ -30,7 +30,7 @@ int main()
 	for (int idx1 = 0; idx1 < FS; idx1++)
 	for (int idx2 = 0; idx2 < ICH; idx2++)
 	for (int idx3 = 0; idx3 < OCH; idx3++) {
-		weight_0[idx3*FS*FS*ICH + idx2*FS*FS + idx1*FS + idx0] = abs(idx0-idx1);
+		weight_0[idx3*FS*FS*ICH + idx2*FS*FS + idx1*FS + idx0] = idx0-idx1;
 	}
 
 
@@ -38,7 +38,7 @@ int main()
 
 #ifdef HW_COSIM
 
-	hls_target(res, image, weight_0, 3, 2, 2, 2, 3, 2, 1);
+	hls_target(res, image, weight_0, 3, 4, 4, 2, 3, 2, 1);
 	/*uint16_t *arg_0,//[32*124*32],
 	uint8_t *arg_1,//[34*126*32],
 	uint8_t *arg_2,
@@ -47,7 +47,7 @@ int main()
 	uint8_t Y_n, uint8_t Y_r,
 	uint8_t Cout_n, uint8_t Cout_r*/
 
-    static rt res_sw_0[ROWS * COLS * OCH];
+    static int32_t res_sw_0[ROWS * COLS * OCH];
     for (int i = 0 ; i < ROWS * COLS * OCH; i++)
     	res_sw_0[i] = 0;
 
@@ -62,6 +62,9 @@ int main()
     		  }
     		}
     	  }
+    	  //add ReLU
+    	  if (res_sw_0[ y*COLS*OCH+x*OCH + k] < 0 )
+    		  res_sw_0[ y*COLS*OCH+x*OCH + k] = 0;
     	}
       }
     }
@@ -101,7 +104,7 @@ int main()
 
     for (int i = 0; i < ROWS * COLS * OCH; i++) {
     	if(res[i] != res_sw_0[i]) {
-    		cout << "pos: " << i << " res: " << unsigned(res[i]) << " " << unsigned(res_sw_0[i]) << endl;
+    		cout << "pos: " << i << " res: " << res[i] << " " << res_sw_0[i] << endl;
     		err_cnt++;
     	}
     }

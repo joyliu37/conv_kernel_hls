@@ -1,8 +1,8 @@
 /*syn:782518, cosim:628318 */
 #include "hls_target.h"
 //#include <hls_video.h>
-#define X_SZ 4
-#define Y_SZ 4
+#define X_SZ 32
+#define Y_SZ 32
 #define K_SZ 5
 
 #define Cin_SZ 32
@@ -18,9 +18,9 @@
 //#include "Linebuffer.h"
 //#include "halide_math.h"
 void hls_target(
-uint16_t *arg_0,//[32*124*32],
-uint8_t *arg_1,//[34*126*32],
-uint8_t *arg_2,
+uint32_t *arg_0,//[32*124*32],output
+uint16_t *arg_1,//[34*126*32],input_FM
+int16_t *arg_2,//input weight
 uint8_t Ksz,
 uint8_t X_n,
 uint8_t Y_n,
@@ -33,14 +33,14 @@ uint8_t Cout_r)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 4096 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 13824 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 393216 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 917504 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 12096 port=arg_2
 
  // alias the arguments
- uint8_t *_clamped = arg_1;
- uint16_t *_output = arg_0;
- uint8_t *_weight = arg_2;
+ uint16_t *_clamped = arg_1;
+ uint32_t *_output = arg_0;
+ int16_t *_weight = arg_2;
 
  //note: optimization bit shift
  uint16_t Width = X_SZ*(X_n);
@@ -72,7 +72,7 @@ uint8_t Cout_r)
 	    uint16_t Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;
 	    //assign the output buffer
 	    //**possible bug** we need double buffer, do we need to put in the dataflow
-	    uint16_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
+	    int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
 
 	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
 	{
@@ -90,14 +90,13 @@ uint8_t Cout_r)
 
     load_feature:for (int input_y = 0; input_y < Y_SZ + Ksz -1; input_y++)
     {
-#pragma HLS LOOP_TRIPCOUNT max=6//18
+#pragma HLS LOOP_TRIPCOUNT max=34
      for (int input_x = 0; input_x < X_SZ + Ksz -1; input_x++)
      {
-#pragma HLS LOOP_TRIPCOUNT max=6//64
+#pragma HLS LOOP_TRIPCOUNT max=34
 
       int32_t ddrX = input_x - Anchor + tilingIDx*X_SZ;
       int32_t ddrY = input_y - Anchor + tilingIDy*Y_SZ;
-
       //padding 0 to the edge
       if((ddrX < 0) || (ddrY <0) || (ddrX >= Width) ||(ddrY >= Height)){
     	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len ); input_c++){
@@ -126,7 +125,7 @@ uint8_t Cout_r)
     				  ((uint8_t *)_clamped)[ddrAddr] : 0);
 
     		  //Non-pad version, regarding pre-pad
-    		  _p2_clamped_buf_copya0[buffAddr] = ((uint8_t *)_clamped)[ddrAddr];
+    		  _p2_clamped_buf_copya0[buffAddr] = ((uint16_t *)_clamped)[ddrAddr];
       } // for _p2_clamped_buf_copy_s0_x
      } // for _p2_clamped_buf_copy_s0_y
     } // for _p2_clamped_buf_copy_s0_c
@@ -134,7 +133,7 @@ uint8_t Cout_r)
 
     //Note: need to change the size of weight buffer according to the max usage
     //		in other situation, it will be under utilized
-    uint8_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
+    int8_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
 
 #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
 #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
@@ -149,6 +148,7 @@ uint8_t Cout_r)
 #pragma HLS LOOP_TRIPCOUNT max=3
        for (int input_c = 0; input_c < 0 + Cin_cmp_len; input_c++)
        {
+#pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
 
     	int32_t bramBlkAddr = input_c +\
@@ -163,7 +163,7 @@ uint8_t Cout_r)
     			((uint8_t *)_weight)[ddrAddr] : 0 );
 
     	//non-pad version
-    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ((uint8_t *)_weight)[ddrAddr];
+    	_p2_weight_buf_copya1[output_c][bramBlkAddr] = ((int16_t *)_weight)[ddrAddr];
     	//32 = inputChNum, 16 = output Channel tiling size
        } // for _p2_weight_buf_copy_s0_x
       } // for _p2_weight_buf_copy_s0_y
@@ -194,7 +194,7 @@ uint8_t Cout_r)
 #pragma HLS PIPELINE II=1
           for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
           {
-           uint16_t _conv1_acc;
+           int32_t _conv1_acc;
            // produce conv1.acc
            _conv1_acc = 0;
            // update conv1.acc
@@ -210,8 +210,8 @@ uint8_t Cout_r)
 
         	int32_t weightBuffId = coutBlk*P_COUT + coutIter;
 
-        	uint16_t feature =  _p2_clamped_buf_copya0[featureBuffAddr];
-        	uint16_t weight = _p2_weight_buf_copya1[weightBuffId][weightBuffAddr];
+        	int16_t feature =  (int16_t)_p2_clamped_buf_copya0[featureBuffAddr];
+        	int16_t weight = _p2_weight_buf_copya1[weightBuffId][weightBuffAddr];
         	_conv1_acc += feature*weight;
 
 
@@ -253,7 +253,7 @@ uint8_t Cout_r)
 			   (tilingIDy*Y_SZ + output_y)*Chout*X_SZ*X_n;
        int32_t outBuffAddr = output_c + output_x*Cout_SZ + output_y*Cout_SZ*X_SZ;
 
-       (( uint16_t *)_output)[outputAddr] = _conv1a2[outBuffAddr];
+       (( uint32_t *)_output)[outputAddr] = (_conv1a2[outBuffAddr] > 0)? _conv1a2[outBuffAddr]: 0;
       } // for _output_s0_c_ci
      } // for _output_s0_x_xi
     } // for _output_s0_y_yi
