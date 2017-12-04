@@ -19,7 +19,7 @@
 //#include "halide_math.h"
 void hls_target(
 uint32_t *arg_0,//[32*124*32],output
-uint16_t *arg_1,//[34*126*32],input_FM
+uint32_t *arg_1,//[34*126*32],input_FM
 int16_t *arg_2,//input weight
 uint8_t Ksz,
 uint8_t X_n,
@@ -29,16 +29,17 @@ uint8_t Y_n,
 uint8_t Cin_n,
 uint8_t Cin_r,
 uint8_t Cout_n,
-uint8_t Cout_r)
+uint8_t Cout_r,
+bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 393216 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 524288 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 917504 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 12096 port=arg_2
 
  // alias the arguments
- uint16_t *_clamped = arg_1;
+ uint32_t *_clamped = arg_1;
  uint32_t *_output = arg_0;
  int16_t *_weight = arg_2;
 
@@ -80,7 +81,7 @@ uint8_t Cout_r)
 
 
 #pragma HLS DATAFLOW
-    uint8_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
+    uint32_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
 
     uint16_t Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
     uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
@@ -125,7 +126,7 @@ uint8_t Cout_r)
     				  ((uint8_t *)_clamped)[ddrAddr] : 0);
 
     		  //Non-pad version, regarding pre-pad
-    		  _p2_clamped_buf_copya0[buffAddr] = ((uint16_t *)_clamped)[ddrAddr];
+    		  _p2_clamped_buf_copya0[buffAddr] = ((uint32_t *)_clamped)[ddrAddr];
       } // for _p2_clamped_buf_copy_s0_x
      } // for _p2_clamped_buf_copy_s0_y
     } // for _p2_clamped_buf_copy_s0_c
@@ -210,7 +211,7 @@ uint8_t Cout_r)
 
         	int32_t weightBuffId = coutBlk*P_COUT + coutIter;
 
-        	int16_t feature =  (int16_t)_p2_clamped_buf_copya0[featureBuffAddr];
+        	int32_t feature =  (int32_t)_p2_clamped_buf_copya0[featureBuffAddr];
         	int16_t weight = _p2_weight_buf_copya1[weightBuffId][weightBuffAddr];
         	_conv1_acc += feature*weight;
 
@@ -239,24 +240,57 @@ uint8_t Cout_r)
 
 	 }//for tiling Input channel
 
+	//TODO: write into inline function
 	//write back after all the input channel is counted
-    write_back:for (int output_y = 0; output_y < 0 + Y_SZ; output_y++)
-    {
-     for (int output_x = 0; output_x < 0 + X_SZ; output_x++)
-     {
-      for (int output_c = 0; output_c < 0 + Cout_cmp_len; output_c++)
-      {
-#pragma HLS LOOP_TRIPCOUNT max=2
+    if (pool){
+    	write_back_with_pool:for (int output_y = 0; output_y < (Y_SZ>>1); output_y++){
+    		for (int output_x = 0; output_x < (X_SZ>>1); output_x++){
+    			for(int output_c = 0; output_c < Cout_cmp_iter; output_c ++){
+#pragma HLS DEPENDENCE variable=_conv1a2 inter false
 #pragma HLS PIPELINE II=1
-       int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c +\
-    		   (tilingIDx*X_SZ + output_x)*Chout +\
-			   (tilingIDy*Y_SZ + output_y)*Chout*X_SZ*X_n;
-       int32_t outBuffAddr = output_c + output_x*Cout_SZ + output_y*Cout_SZ*X_SZ;
+    					//we could change P_COUT to other parameter value
+    				for(int coutIter = 0; coutIter < 0 + P_COUT; coutIter++){
+    					int32_t max_pool = 0;
+    		    		for(int pool_off_x = 0; pool_off_x < 2; pool_off_x ++)
+    		   				for(int pool_off_y = 0; pool_off_y < 2; pool_off_y ++){
+    		   					int32_t outBuffAddr_x = pool_off_x + (output_x<<1);
+    							int32_t outBuffAddr_y = pool_off_y + (output_y<<1);
+    							int32_t outBuffAddr = coutIter + output_c * P_COUT +\
+    								outBuffAddr_x * Cout_SZ + outBuffAddr_y * Cout_SZ * X_SZ;
+    							max_pool = (_conv1a2[outBuffAddr] > max_pool)? \
+    									_conv1a2[outBuffAddr] : max_pool;
+    		   				}
+    		    		//printf("%d\n", max_pool);
+    					int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c*P_COUT + coutIter +\
+    							(tilingIDx * (X_SZ>>1) + output_x) * Chout +\
+								(tilingIDy * (Y_SZ>>1) + output_y) * Chout * (X_SZ>>1)*X_n;
+    					//printf("pos:%d res:%d\n", outputAddr, max_pool);
+    					(( uint32_t *)_output)[outputAddr] = (uint32_t)max_pool;
+    				}
+    			}
+    		}
+    	}
+    }
+    else{
+    	write_back_without_pool:for (int output_y = 0; output_y < 0 + Y_SZ; output_y++)
+        {
+         for (int output_x = 0; output_x < 0 + X_SZ; output_x++)
+         {
+          for (int output_c = 0; output_c < 0 + Cout_cmp_len; output_c++)
+          {
+    #pragma HLS LOOP_TRIPCOUNT max=2
+    #pragma HLS PIPELINE II=1
+           int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c +\
+        		   (tilingIDx*X_SZ + output_x)*Chout +\
+    			   (tilingIDy*Y_SZ + output_y)*Chout*X_SZ*X_n;
+           int32_t outBuffAddr = output_c + output_x*Cout_SZ + output_y*Cout_SZ*X_SZ;
 
-       (( uint32_t *)_output)[outputAddr] = (_conv1a2[outBuffAddr] > 0)? _conv1a2[outBuffAddr]: 0;
-      } // for _output_s0_c_ci
-     } // for _output_s0_x_xi
-    } // for _output_s0_y_yi
+           (( uint32_t *)_output)[outputAddr] = (_conv1a2[outBuffAddr] > 0)? _conv1a2[outBuffAddr]: 0;
+          } // for _output_s0_c_ci
+         } // for _output_s0_x_xi
+        } // for _output_s0_y_yi
+    }
+
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
