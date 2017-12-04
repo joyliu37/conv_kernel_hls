@@ -18,6 +18,7 @@ int32_t max(int32_t a, int32_t b);
 void conv_sw(int32_t*, int16_t*, int32_t*, int, int, int, int, int, bool);
 void initial_buf(int32_t* ,int);
 void initial_weight(int16_t* weight, int fs, int iCh, int oCh);
+void initial_input(rt*, int, int, int);
 void check_err(rt* res, int32_t* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt);
 
 
@@ -31,23 +32,13 @@ int main()
 	static rt res_pool[(ROWS>>1) * (COLS>>1) * OCH];
 	static rt res[ROWS * COLS * OCH];
 
-	for (int c = 0; c < ICH; c++)
-	for (int j = 0; j < ROWS; j++)
-	for (int i = 0; i < COLS; i++)
-		image[c*(ROWS)*(COLS) + j*(COLS) + i] = (abs(j-i)+c);
-
+	initial_input(image, ROWS, COLS, ICH);
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
 	hls_target(res, image, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
 	hls_target(res_pool, res, weight_0, 3, 4, 4, 1, 4, 2, 2, true);
-	/*uint16_t *arg_0,//[32*124*32],
-	uint8_t *arg_1,//[34*126*32],
-	uint8_t *arg_2,
-	uint8_t Ksz,
-	uint8_t X_n, uint8_t X_r,
-	uint8_t Y_n, uint8_t Y_r,
-	uint8_t Cout_n, uint8_t Cout_r*/
+
     static int32_t res_sw_0[ROWS * COLS * OCH];
     initial_buf(res_sw_0, ROWS * COLS * OCH);
 
@@ -178,6 +169,12 @@ void initial_weight(int16_t* weight, int fs, int iCh, int oCh){
 				}
 }
 
+void initial_input(rt* image, int rows, int cols, int iCh){
+	for (int c = 0; c < iCh; c++)
+		for (int j = 0; j < rows; j++)
+			for (int i = 0; i < cols; i++)
+				image[c*(rows)*(cols) + j*(cols) + i] = (abs(j-i)+c);
+}
 
 void conv_sw(int32_t* input, int16_t* weight, int32_t* res, \
 		int rows, int cols, int oCh, int iCh, int fs, bool pool){
