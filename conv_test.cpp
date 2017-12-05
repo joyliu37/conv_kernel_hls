@@ -30,14 +30,16 @@ int main()
 	static rt image[(ROWS)*(COLS)*ICH];
 	static int16_t weight_0[FS*FS*ICH*OCH];
 	static rt res_pool[(ROWS>>1) * (COLS>>1) * OCH];
-	static rt res[ROWS * COLS * OCH];
+	static rt res_0[ROWS * COLS * OCH];
+	static rt res_1[ROWS * COLS * OCH];
 
 	initial_input(image, ROWS, COLS, ICH);
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res, image, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
-	hls_target(res_pool, res, weight_0, 3, 4, 4, 1, 4, 2, 2, true);
+	hls_target(res_0, image, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
+	hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
+	//hls_target(res_pool, res, weight_0, 3, 4, 4, 1, 4, 2, 2, true);
 
     static int32_t res_sw_0[ROWS * COLS * OCH];
     initial_buf(res_sw_0, ROWS * COLS * OCH);
@@ -49,7 +51,8 @@ int main()
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
     conv_sw((int32_t*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
-    conv_sw(res_sw_0, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
+    conv_sw(res_sw_0, weight_0, res_sw_1, ROWS, COLS, OCH, ICH, FS, false);
+    //conv_sw(res_sw_0, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
     /*for (int k = 0; k < OCH; k++) {
       for (int y = 0; y < ROWS; y++) {
@@ -140,7 +143,7 @@ int main()
     	   		err_cnt++;
     	   	}
     	}*/
-   check_err(res_pool, res_sw_pool, ROWS, COLS, OCH, 0, err_cnt);
+   check_err(res_1, res_sw_1, ROWS, COLS, OCH, 0, err_cnt);
 
    if (err_cnt)
       cout << "ERROR: " << err_cnt << " mismatches detected!" << endl;

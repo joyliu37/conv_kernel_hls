@@ -74,6 +74,7 @@ bool pool)
 	    //assign the output buffer
 	    //**possible bug** we need double buffer, do we need to put in the dataflow
 	    int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
+#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=8 dim=1
 
 	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
 	{
