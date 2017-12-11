@@ -3,17 +3,17 @@
 //#include <hls_video.h>
 #define X_SZ 32
 #define Y_SZ 32
-#define K_SZ 5
+#define K_SZ 3
 
 #define Cin_SZ 32
 #define Cin_SZ_bit 5
-#define Cout_SZ 16
-#define Cout_SZ_bit 4
+#define Cout_SZ 32
+#define Cout_SZ_bit 5
 
 #define P_CIN 8
 #define P_CIN_bit 3
-#define P_COUT 8
-#define P_COUT_bit 3
+#define P_COUT 16
+#define P_COUT_bit 4
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"
@@ -34,9 +34,9 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 524288 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 917504 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 12096 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 131072 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 131072 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
 
  // alias the arguments
  uint32_t *_clamped = arg_1;
@@ -74,7 +74,7 @@ bool pool)
 	    //assign the output buffer
 	    //**possible bug** we need double buffer, do we need to put in the dataflow
 	    int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
-#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=16 dim=1
 
 	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
 	{
@@ -137,7 +137,7 @@ bool pool)
     //		in other situation, it will be under utilized
     int8_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
 
-#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=16 dim=1
 #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
     load_weight:for (int output_c = 0; output_c <  Cout_cmp_len; output_c++)
     {
@@ -174,7 +174,6 @@ bool pool)
     // consume p2:weight_buf_copy
     //15872 = outputCH*tiling W*H aka. tiling size
 
-#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=8 dim=1
     // produce conv1
     computation:for (int cinBlk = 0; cinBlk < 0 + Cin_cmp_iter; cinBlk++)
     {
@@ -191,7 +190,7 @@ bool pool)
         {
          for (int coutBlk = 0; coutBlk < 0 + Cout_cmp_iter; coutBlk++)
          {
-#pragma HLS LOOP_TRIPCOUNT max=2
+#pragma HLS LOOP_TRIPCOUNT max=1
 #pragma HLS DEPENDENCE variable=_conv1a2 inter false
 #pragma HLS PIPELINE II=1
           for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
