@@ -12,8 +12,8 @@
 
 #define P_CIN 8
 #define P_CIN_bit 3
-#define P_COUT 16
-#define P_COUT_bit 4
+#define P_COUT 8
+#define P_COUT_bit 3
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"
@@ -34,8 +34,8 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 131072 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 131072 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 524288 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 524288 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
 
  // alias the arguments
@@ -74,7 +74,7 @@ bool pool)
 	    //assign the output buffer
 	    //**possible bug** we need double buffer, do we need to put in the dataflow
 	    int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ];
-#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=16 dim=1
+#pragma HLS ARRAY_PARTITION variable=_conv1a2 cyclic factor=8 dim=1
 
 	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
 	{
@@ -137,11 +137,11 @@ bool pool)
     //		in other situation, it will be under utilized
     int8_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
 
-#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=16 dim=1
+#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
 #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
     load_weight:for (int output_c = 0; output_c <  Cout_cmp_len; output_c++)
     {
-#pragma HLS LOOP_TRIPCOUNT max=16
+#pragma HLS LOOP_TRIPCOUNT max=8
      for (int offset_x = 0; offset_x < 0 + Ksz; offset_x++)
      {
 #pragma HLS LOOP_TRIPCOUNT max=3

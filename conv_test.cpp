@@ -37,7 +37,7 @@ int main()
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_0, image, weight_0, 3, 2, 2, 1, 4, 1, 2, false);
+	hls_target(res_0, image, weight_0, 3, 2, 2, 1, 4, 1, 4, false);
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
 	//hls_target(res_pool, res, weight_0, 3, 4, 4, 1, 4, 2, 2, true);
 
