@@ -10,7 +10,7 @@
 
 //#include "Stencil.h"
 
-
+//main cnn_kernel
 void hls_target(
 		uint32_t *arg_0,//[32*124*32],
 		uint32_t *arg_1,//[34*126*32],
@@ -22,5 +22,12 @@ void hls_target(
 		uint8_t Cout_n, uint8_t Cout_r,
 		bool pool
 );
+
+//write back block include pooling
+void write_back(int32_t* _conv1a2, uint32_t* _output,\
+		int tilingIDx, int tilingIDy, int tilingIDc_o,\
+		uint16_t Chout, uint16_t Cout_cmp_len, uint8_t X_n,\
+		bool pool);
+
 #endif
 

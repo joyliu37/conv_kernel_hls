@@ -243,10 +243,11 @@ bool pool)
 
 	//TODO: write into inline function
 	//write back after all the input channel is counted
-    if (pool){
+    write_back(_conv1a2,_output, tilingIDx, tilingIDy, tilingIDc_o, Chout, Cout_cmp_len, X_n, pool);
+	/*if (pool){
     	write_back_with_pool:for (int output_y = 0; output_y < Y_SZ; output_y += 2){
     		for (int output_x = 0; output_x < X_SZ; output_x += 2){
-    			for(int output_c = 0; output_c < Cout_SZ; output_c ++){
+    			for(int output_c = 0; output_c < Cout_cmp_len; output_c ++){
 #pragma HLS DEPENDENCE variable=_conv1a2 inter false
 #pragma HLS PIPELINE II=1
 
@@ -288,11 +289,64 @@ bool pool)
           } // for _output_s0_c_ci
          } // for _output_s0_x_xi
         } // for _output_s0_y_yi
-    }
+    }*/
 
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
 } // kernel hls_target_hls_target
 
+void write_back(int32_t* _conv1a2, uint32_t* _output,\
+		int tilingIDx, int tilingIDy, int tilingIDc_o,\
+		uint16_t Chout, uint16_t Cout_cmp_len, uint8_t X_n,\
+		bool pool){
+	if(pool){
+		write_back_with_pool:for (int output_y = 0; output_y < Y_SZ; output_y += 2){
+			for (int output_x = 0; output_x < X_SZ; output_x += 2){
+				for(int output_c = 0; output_c < Cout_cmp_len; output_c ++){
+#pragma HLS DEPENDENCE variable=_conv1a2 inter false
+#pragma HLS PIPELINE II=1
 
+					int32_t max_pool = 0;
+		    		for(int pool_off_x = 0; pool_off_x < 2; pool_off_x ++)
+		   				for(int pool_off_y = 0; pool_off_y < 2; pool_off_y ++){
+		   					int32_t outBuffAddr_x = pool_off_x + output_x;
+							int32_t outBuffAddr_y = pool_off_y + output_y;
+							int32_t outBuffAddr = output_c +\
+								outBuffAddr_x * Cout_SZ + outBuffAddr_y * Cout_SZ * X_SZ;
+							//printf("%d ", _conv1a2[outBuffAddr]);
+							max_pool = (_conv1a2[outBuffAddr] > max_pool)? \
+									_conv1a2[outBuffAddr] : max_pool;
+		   				}
+					int32_t outputAddr = output_c +\
+							(tilingIDx * (X_SZ>>1) + (output_x>>1) ) * Chout +\
+							(tilingIDy * (Y_SZ>>1) + (output_y>>1) ) * Chout * (X_SZ>>1)*X_n;
+					//printf("\n pos:%d res:%d\n", outputAddr, max_pool);
+					(( uint32_t *)_output)[outputAddr] = (uint32_t)max_pool;
+				}
+			}
+		}
+	}
+
+	else{
+    	write_back_without_pool:for (int output_y = 0; output_y < 0 + Y_SZ; output_y++)
+        {
+         for (int output_x = 0; output_x < 0 + X_SZ; output_x++)
+         {
+          for (int output_c = 0; output_c < 0 + Cout_cmp_len; output_c++)
+          {
+    #pragma HLS LOOP_TRIPCOUNT max=2
+    #pragma HLS PIPELINE II=1
+           int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c +\
+        		   (tilingIDx*X_SZ + output_x)*Chout +\
+    			   (tilingIDy*Y_SZ + output_y)*Chout*X_SZ*X_n;
+           int32_t outBuffAddr = output_c + output_x*Cout_SZ + output_y*Cout_SZ*X_SZ;
+
+           (( uint32_t *)_output)[outputAddr] = (_conv1a2[outBuffAddr] > 0)? _conv1a2[outBuffAddr]: 0;
+          } // for _output_s0_c_ci
+         } // for _output_s0_x_xi
+        } // for _output_s0_y_yi
+
+	}
+
+}
