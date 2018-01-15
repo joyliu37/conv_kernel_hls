@@ -4,10 +4,10 @@
 #define HW_COSIM
 
 
-#define ROWS 64 //68
-#define COLS 64 //68
-#define ICH 32 //32,8
-#define OCH 32 //16,8
+#define ROWS 32 //68
+#define COLS 32 //68
+#define ICH 64 //32,8
+#define OCH 64 //16,8
 #define FS 3
 
 typedef uint16_t t;
@@ -37,9 +37,9 @@ int main()
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_0, image, weight_0, 3, 2, 2, 1, 4, 1, 4, false);
+	hls_target(res_0, image, weight_0, 3, 2, 2, 2, 4, 2, 4, false);
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 4, 2, 2, false);
-	//hls_target(res_pool, res, weight_0, 3, 4, 4, 1, 4, 2, 2, true);
+	//hls_target(res_pool, image, weight_0, 3, 2, 2, 1, 4, 1, 4, true);
 
     static int32_t res_sw_0[ROWS * COLS * OCH];
     initial_buf(res_sw_0, ROWS * COLS * OCH);
@@ -52,7 +52,7 @@ int main()
 
     conv_sw((int32_t*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
     //conv_sw(res_sw_0, weight_0, res_sw_1, ROWS, COLS, OCH, ICH, FS, false);
-    //conv_sw(res_sw_0, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
+    //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
     /*for (int k = 0; k < OCH; k++) {
       for (int y = 0; y < ROWS; y++) {
@@ -220,7 +220,7 @@ void conv_sw(int32_t* input, int16_t* weight, int32_t* res, \
 
 void check_err(rt* res, int32_t* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt){
 	for (int i = 0; i < rows * cols * oCh; i++) {
-	    if(res[i] != res[i]) {
+	    if(res[i] != res_sw[i]) {
 	   		cout << "layer NO.:" << layer_No << "pos: " << i << " res: " << res[i] << " || res_sw: " << res_sw[i] << endl;
 	   		err_cnt++;
 	   	}

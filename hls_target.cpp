@@ -1,8 +1,8 @@
 /*syn:782518, cosim:628318 */
 #include "hls_target.h"
 //#include <hls_video.h>
-#define X_SZ 32
-#define Y_SZ 32
+#define X_SZ 16
+#define Y_SZ 16
 #define K_SZ 3
 
 #define Cin_SZ 32
@@ -34,9 +34,9 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 524288 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 524288 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 65536 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 65536 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 36864 port=arg_2
 
  // alias the arguments
  uint32_t *_clamped = arg_1;
@@ -68,6 +68,7 @@ bool pool)
    for (int tilingIDc_o = 0; tilingIDc_o < 0 + Cout_n; tilingIDc_o++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
+
 
 	    uint16_t Cout_cmp_iter = (tilingIDc_o == Cout_n-1) ? Cout_r : Cout_Iter;
 	    uint16_t Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;
@@ -243,30 +244,28 @@ bool pool)
 	//TODO: write into inline function
 	//write back after all the input channel is counted
     if (pool){
-    	write_back_with_pool:for (int output_y = 0; output_y < (Y_SZ>>1); output_y++){
-    		for (int output_x = 0; output_x < (X_SZ>>1); output_x++){
-    			for(int output_c = 0; output_c < Cout_cmp_iter; output_c ++){
+    	write_back_with_pool:for (int output_y = 0; output_y < Y_SZ; output_y += 2){
+    		for (int output_x = 0; output_x < X_SZ; output_x += 2){
+    			for(int output_c = 0; output_c < Cout_SZ; output_c ++){
 #pragma HLS DEPENDENCE variable=_conv1a2 inter false
 #pragma HLS PIPELINE II=1
-    					//we could change P_COUT to other parameter value
-    				for(int coutIter = 0; coutIter < 0 + P_COUT; coutIter++){
+
     					int32_t max_pool = 0;
     		    		for(int pool_off_x = 0; pool_off_x < 2; pool_off_x ++)
     		   				for(int pool_off_y = 0; pool_off_y < 2; pool_off_y ++){
-    		   					int32_t outBuffAddr_x = pool_off_x + (output_x<<1);
-    							int32_t outBuffAddr_y = pool_off_y + (output_y<<1);
-    							int32_t outBuffAddr = coutIter + output_c * P_COUT +\
+    		   					int32_t outBuffAddr_x = pool_off_x + output_x;
+    							int32_t outBuffAddr_y = pool_off_y + output_y;
+    							int32_t outBuffAddr = output_c +\
     								outBuffAddr_x * Cout_SZ + outBuffAddr_y * Cout_SZ * X_SZ;
+    							//printf("%d ", _conv1a2[outBuffAddr]);
     							max_pool = (_conv1a2[outBuffAddr] > max_pool)? \
     									_conv1a2[outBuffAddr] : max_pool;
     		   				}
-    		    		//printf("%d\n", max_pool);
-    					int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c*P_COUT + coutIter +\
-    							(tilingIDx * (X_SZ>>1) + output_x) * Chout +\
-								(tilingIDy * (Y_SZ>>1) + output_y) * Chout * (X_SZ>>1)*X_n;
-    					//printf("pos:%d res:%d\n", outputAddr, max_pool);
+    					int32_t outputAddr = output_c +\
+    							(tilingIDx * (X_SZ>>1) + (output_x>>1) ) * Chout +\
+								(tilingIDy * (Y_SZ>>1) + (output_y>>1) ) * Chout * (X_SZ>>1)*X_n;
+    					//printf("\n pos:%d res:%d\n", outputAddr, max_pool);
     					(( uint32_t *)_output)[outputAddr] = (uint32_t)max_pool;
-    				}
     			}
     		}
     	}
