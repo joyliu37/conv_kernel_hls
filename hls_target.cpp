@@ -69,6 +69,7 @@ bool pool)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
+#pragma HLS DATAFLOW
 
 	    uint16_t Cout_cmp_iter = (tilingIDc_o == Cout_n-1) ? Cout_r : Cout_Iter;
 	    uint16_t Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;
@@ -81,8 +82,8 @@ bool pool)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-
 #pragma HLS DATAFLOW
+
     uint32_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
 
     uint16_t Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
@@ -318,7 +319,7 @@ void write_back(int32_t* _conv1a2, uint32_t* _output,\
 							max_pool = (_conv1a2[outBuffAddr] > max_pool)? \
 									_conv1a2[outBuffAddr] : max_pool;
 		   				}
-					int32_t outputAddr = output_c +\
+					int32_t outputAddr = Cout_SZ*tilingIDc_o + output_c +\
 							(tilingIDx * (X_SZ>>1) + (output_x>>1) ) * Chout +\
 							(tilingIDy * (Y_SZ>>1) + (output_y>>1) ) * Chout * (X_SZ>>1)*X_n;
 					//printf("\n pos:%d res:%d\n", outputAddr, max_pool);
