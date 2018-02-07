@@ -41,6 +41,12 @@ void convolution(uint32_t* _feature_buf, int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ
 		uint16_t Cin_cmp_iter, uint16_t Cin_cmp_len, uint16_t Cout_cmp_iter,
 		int tilingIDc_i, uint8_t Ksz);
 
+void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
+		uint8_t Ksz, uint16_t Anchor,
+		int tilingIDx, int tilingIDy, int tilingIDc_i,
+		uint16_t Width, uint16_t Height,
+		uint16_t Cin_cmp_len, uint16_t Chin);
+
 void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
 		uint16_t Cin_cmp_len, uint16_t Cout_cmp_len, uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o);
 

@@ -72,15 +72,22 @@ bool pool)
 
 #pragma HLS DATAFLOW
 
-    uint32_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
+		uint16_t Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
+	    uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
 
-    uint16_t Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
-    uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
+	    uint32_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
 
 #pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya0 cyclic factor=8 dim=1
     // produce p2:clamped_buf_copy
 
-    load_feature:for (int input_y = 0; input_y < Y_SZ + Ksz -1; input_y++)
+    //Note: need to change the size of weight buffer according to the max usage
+    //		in other situation, it will be under utilized
+    int16_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
+
+#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
+
+    /*load_feature:for (int input_y = 0; input_y < Y_SZ + Ksz -1; input_y++)
     {
 #pragma HLS LOOP_TRIPCOUNT max=34
      for (int input_x = 0; input_x < X_SZ + Ksz -1; input_x++)
@@ -122,15 +129,16 @@ bool pool)
      } // for _p2_clamped_buf_copy_s0_y
     } // for _p2_clamped_buf_copy_s0_c
     // consume p2:clamped_buf_copy
+     */
+    load_feature(_clamped, _p2_clamped_buf_copya0,
+    		Ksz, Anchor,
+			tilingIDx, tilingIDy, tilingIDc_i,
+			Width, Height,
+			Cin_cmp_len, Chin);
 
-    //Note: need to change the size of weight buffer according to the max usage
-    //		in other situation, it will be under utilized
-    int16_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
 
-#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
-#pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
-
-    load_weight(_p2_weight_buf_copya1, _weight, Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
+    load_weight(_p2_weight_buf_copya1, _weight,
+    		Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
     /*load_weight:for (int output_c = 0; output_c <  Cout_cmp_len; output_c++)
     {
 #pragma HLS LOOP_TRIPCOUNT max=8
@@ -307,6 +315,57 @@ void convolution(uint32_t* _feature_buf, int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ
 	    } // for _conv1_s1_p2_r_w
 	    // consume conv1
 }
+
+void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
+		uint8_t Ksz, uint16_t Anchor,
+		int tilingIDx, int tilingIDy, int tilingIDc_i,
+		uint16_t Width, uint16_t Height,
+		uint16_t Cin_cmp_len, uint16_t Chin){
+
+	for (int input_y = 0; input_y < Y_SZ + Ksz -1; input_y++)
+    {
+#pragma HLS LOOP_TRIPCOUNT max=34
+     for (int input_x = 0; input_x < X_SZ + Ksz -1; input_x++)
+     {
+#pragma HLS LOOP_TRIPCOUNT max=34
+
+      int32_t ddrX = input_x - Anchor + tilingIDx*X_SZ;
+      int32_t ddrY = input_y - Anchor + tilingIDy*Y_SZ;
+      //padding 0 to the edge
+      if((ddrX < 0) || (ddrY <0) || (ddrX >= Width) ||(ddrY >= Height)){
+    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len ); input_c++){
+#pragma HLS LOOP_TRIPCOUNT max=32
+#pragma HLS PIPELINE II=1
+    		int32_t buffAddr = input_c +\
+    				input_x*Cin_cmp_len +\
+					input_y*Cin_cmp_len*(X_SZ + Ksz -1);
+    		_feature_buf[buffAddr] = 0;
+    	}
+      }
+      //normal situation to move featuremap
+      else
+    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len); input_c++){
+#pragma HLS LOOP_TRIPCOUNT max=32
+#pragma HLS PIPELINE II=1
+
+    		  int32_t buffAddr = input_c + input_x*Cin_cmp_len + input_y*Cin_cmp_len*(X_SZ + Ksz -1);
+
+    		  int32_t ddrC = input_c +tilingIDc_i*Cin_SZ;
+    		  int32_t ddrAddr = ddrC +\
+    				  ddrX * Chin +\
+					  ddrY * Chin * Width;
+    		  //Pad 0 version
+    		  //_p2_clamped_buf_copya0[buffAddr] = ( (input_c < Cin_r) ? \
+    				  ((uint8_t *)_clamped)[ddrAddr] : 0);
+
+    		  //Non-pad version, regarding pre-pad
+    		  _feature_buf[buffAddr] = ((uint32_t *)_feature)[ddrAddr];
+      } // for _p2_clamped_buf_copy_s0_x
+     } // for _p2_clamped_buf_copy_s0_y
+    } // for _p2_clamped_buf_copy_s0_c
+    // consume p2:clamped_buf_copy
+}
+
 
 void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
 		uint16_t Cin_cmp_len, uint16_t Cout_cmp_len, uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o){
