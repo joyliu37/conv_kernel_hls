@@ -23,6 +23,24 @@
 #define P_COUT_bit 3
 
 //#include "Stencil.h"
+struct tilingID{
+	int tilingIDx;
+	int tilingIDy;
+	int tilingIDc_o;
+};
+
+struct layerPara{
+	uint8_t Ksz;
+	uint8_t X_n;
+	uint8_t Y_n;
+	uint8_t Cin_n;
+	uint8_t Cin_r;
+	uint8_t Cout_n;
+	uint8_t Cout_r;
+	bool pool;
+};
+
+void pipeline_retrive(struct tilingID* id, struct layerPara* para);
 
 //main cnn_kernel
 void hls_target(
@@ -37,9 +55,9 @@ void hls_target(
 		bool pool
 );
 
-void convolution(uint32_t* _feature_buf, int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int32_t* _conv1a2,
+void  convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ], int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t* _conv1a2,
 		uint16_t Cin_cmp_iter, uint16_t Cin_cmp_len, uint16_t Cout_cmp_iter,
-		int tilingIDc_i, uint8_t Ksz);
+		uint8_t Ksz, uint8_t Cin_n, int* conv_cnt, bool* flag_out);
 
 void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
 		uint8_t Ksz, uint16_t Anchor,
@@ -53,8 +71,8 @@ void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
 //write back block include pooling
 void write_back(int32_t* _conv1a2, uint32_t* _output,\
 		int tilingIDx, int tilingIDy, int tilingIDc_o,\
-		uint16_t Chout, uint16_t Cout_cmp_len, uint8_t X_n,\
-		bool pool);
+		uint16_t Chout, uint16_t Cout_cmp_len, struct layerPara* para,\
+		bool pool, int* cnt);
 
 #endif
 
