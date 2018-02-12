@@ -16,6 +16,8 @@
 #define Cin_SZ_bit 5
 #define Cout_SZ 32
 #define Cout_SZ_bit 5
+#define Cin_Iter 4
+#define Cout_Iter 4
 
 #define P_CIN 8
 #define P_CIN_bit 3
@@ -34,9 +36,7 @@ struct layerPara{
 	uint8_t X_n;
 	uint8_t Y_n;
 	uint8_t Cin_n;
-	uint8_t Cin_r;
 	uint8_t Cout_n;
-	uint8_t Cout_r;
 	bool pool;
 };
 
@@ -50,28 +50,28 @@ void hls_target(
 		uint8_t Ksz,
 		uint8_t X_n,
 		uint8_t Y_n,
-		uint8_t Cin_n, uint8_t Cin_r,
-		uint8_t Cout_n, uint8_t Cout_r,
+		uint8_t Cin_n,
+		uint8_t Cout_n,
 		bool pool
 );
 
-void  convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ], int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t* _conv1a2,
-		uint16_t Cin_cmp_iter, uint16_t Cin_cmp_len, uint16_t Cout_cmp_iter,
+void  convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ],
+		int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ],
 		uint8_t Ksz, uint8_t Cin_n, int* conv_cnt, bool* flag_out);
 
 void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
 		uint8_t Ksz, uint16_t Anchor,
 		int tilingIDx, int tilingIDy, int tilingIDc_i,
 		uint16_t Width, uint16_t Height,
-		uint16_t Cin_cmp_len, uint16_t Chin);
+		uint16_t Chin);
 
 void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
-		uint16_t Cin_cmp_len, uint16_t Cout_cmp_len, uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o);
+		uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o);
 
 //write back block include pooling
-void write_back(int32_t* _conv1a2, uint32_t* _output,\
-		int tilingIDx, int tilingIDy, int tilingIDc_o,\
-		uint16_t Chout, uint16_t Cout_cmp_len, struct layerPara* para,\
+void write_back(int32_t* _conv1a2, uint32_t* _output,
+		int tilingIDx, int tilingIDy, int tilingIDc_o,
+		uint16_t Chout, struct layerPara* para,
 		bool pool, int* cnt);
 
 #endif

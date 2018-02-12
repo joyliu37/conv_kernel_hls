@@ -15,9 +15,7 @@ uint8_t Y_n,
 /*remaining channel chunk in the last tile of input,
  * ChNum = (n-1)*C_SZ + r*P_C*/
 uint8_t Cin_n,
-uint8_t Cin_r,
 uint8_t Cout_n,
-uint8_t Cout_r,
 bool pool)
 
 {
@@ -37,8 +35,6 @@ bool pool)
  para.Y_n = Y_n;
  para.Cin_n = Cin_n;
  para.Cout_n = Cout_n;
- para.Cin_r = Cin_r;
- para.Cout_r = Cout_r;
  para.pool = pool;
 
  //note: optimization bit shift
@@ -46,10 +42,10 @@ bool pool)
  uint16_t Height = Y_SZ*(Y_n);
 
  //Total channel number
- uint16_t Chin = (Cin_n - 1) * Cin_SZ + (Cin_r << P_CIN_bit);
- uint16_t Chout = (Cout_n - 1) * Cout_SZ + (Cout_r << P_COUT_bit);
+ uint16_t Chin = Cin_n * Cin_SZ;
+ uint16_t Chout = Cout_n * Cout_SZ;
 
- //number of iteration
+ /*number of iteration
  uint16_t Cin_Iter = (Cin_SZ) >> P_CIN_bit ;
  uint16_t Cout_Iter = (Cout_SZ) >> P_COUT_bit ;
 
@@ -59,7 +55,7 @@ bool pool)
 
  //for the reminder of input channel
  uint16_t Cin_cmp_iter = Cin_Iter;
- uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
+ uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;*/
 
  //for kernel center shift
  uint16_t Anchor = (Ksz - 1) >> 1;
@@ -73,31 +69,32 @@ bool pool)
  int conv_cnt = 0;
  int wb_cnt = 0;
 
+ //define the BRAM
+
  int32_t _conv1a2_0[Cout_SZ*X_SZ*Y_SZ];
-#pragma HLS ARRAY_PARTITION variable=_conv1a2_0 cyclic factor=8 dim=1
-//#pragma HLS RESOURCE variable=conv1a2_0 core=RAM_2P_BRAM
+ #pragma HLS ARRAY_PARTITION variable=_conv1a2_0 cyclic factor=8 dim=1
+ //#pragma HLS RESOURCE variable=conv1a2_0 core=RAM_2P_BRAM
 
  int32_t _conv1a2_1[Cout_SZ*X_SZ*Y_SZ];
-#pragma HLS ARRAY_PARTITION variable=_conv1a2_1 cyclic factor=8 dim=1
+ #pragma HLS ARRAY_PARTITION variable=_conv1a2_1 cyclic factor=8 dim=1
 
  uint32_t _p2_clamped_buf_copya0[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
-#pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya0 cyclic factor=4 dim=1
-//#pragma HLS RESOURCE variable=_p2_clamped_buf_copya0 core=RAM_2P_BRAM
+ #pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya0 cyclic factor=8 dim=1
+ //#pragma HLS RESOURCE variable=_p2_clamped_buf_copya0 core=RAM_2P_BRAM
 
  uint32_t _p2_clamped_buf_copya1[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ];
-#pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya1 cyclic factor=4 dim=1
-//#pragma HLS RESOURCE variable=_p2_clamped_buf_copya1 core=RAM_2P_BRAM
+ #pragma HLS ARRAY_PARTITION variable=_p2_clamped_buf_copya1 cyclic factor=8 dim=1
+ //#pragma HLS RESOURCE variable=_p2_clamped_buf_copya1 core=RAM_2P_BRAM
 
- //assign the output buffer
- //**possible bug** we need double buffer, do we need to put in the dataflow
+  //assign the output buffer
  int16_t _p2_weight_buf_copya0[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
- #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya0 cyclic factor=8 dim=1
- #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya0 cyclic factor=8 dim=2
+  #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya0 cyclic factor=8 dim=1
+  #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya0 cyclic factor=8 dim=2
 
 
  int16_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
- #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
- #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
+  #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
+  #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
 
 
 
@@ -111,84 +108,92 @@ bool pool)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-//#pragma HLS DATAFLOW
-
-	uint16_t Cout_cmp_iter_conv = Cout_cmp_iter;
+	/*uint16_t Cout_cmp_iter_conv = Cout_cmp_iter;
 	uint16_t Cout_cmp_len_conv = Cout_cmp_len;
 	Cout_cmp_iter = (tilingIDc_o == Cout_n-1) ? Cout_r : Cout_Iter;
-	Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;
+	Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;*/
 
 
 	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-//#pragma HLS DATAFLOW
-
+		/*
 		uint16_t Cin_cmp_iter_conv = Cin_cmp_iter;
 		uint16_t Cin_cmp_len_conv = Cin_cmp_len;
 		Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
-		Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;
+		Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;*/
 
 		if(flag_out){
 
 			if (flag_in){
-				write_back(_conv1a2_1, _output, tilingIDx, tilingIDy, tilingIDc_o, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
-
 				load_feature(_clamped, _p2_clamped_buf_copya1,
 						Ksz, Anchor,
 						tilingIDx, tilingIDy, tilingIDc_i,
 						Width, Height,
-						Cin_cmp_len, Chin);
+						Chin);
 
 				load_weight(_p2_weight_buf_copya1, _weight,
-						Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
-				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_0, Cin_cmp_iter_conv, Cin_cmp_len_conv, Cout_cmp_iter_conv, Ksz, Cin_n, &conv_cnt, &flag_out);
+						Ksz, Chin, tilingIDc_i, tilingIDc_o);
+				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_0,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
+				write_back(_conv1a2_1, _output,
+						tilingIDx, tilingIDy, tilingIDc_o,
+						Chout, &para, pool, &wb_cnt);
 			}
 			else{
-				write_back(_conv1a2_1, _output, tilingIDx, tilingIDy, tilingIDc_o, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
-
 				load_feature(_clamped, _p2_clamped_buf_copya0,
 		    		Ksz, Anchor,
 					tilingIDx, tilingIDy, tilingIDc_i,
 					Width, Height,
-					Cin_cmp_len, Chin);
+					Chin);
 
 				load_weight(_p2_weight_buf_copya0, _weight,
-		    		Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
+		    		 Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
-				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_0, Cin_cmp_iter_conv, Cin_cmp_len_conv, Cout_cmp_iter_conv, Ksz, Cin_n, &conv_cnt, &flag_out);
+				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_0,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
+				write_back(_conv1a2_1, _output,
+						tilingIDx, tilingIDy, tilingIDc_o,
+						Chout, &para, pool, &wb_cnt);
 			}
 			flag_in = 1 - flag_in;
 		}
 		else{
 
 			if (flag_in){
-				write_back(_conv1a2_0, _output, tilingIDx, tilingIDy, tilingIDc_o, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
-
 				load_feature(_clamped, _p2_clamped_buf_copya1,
 									Ksz, Anchor,
 									tilingIDx, tilingIDy, tilingIDc_i,
 									Width, Height,
-									Cin_cmp_len, Chin);
+									Chin);
 
 				load_weight(_p2_weight_buf_copya1, _weight,
-									Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
+									Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
-				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, Cin_cmp_iter_conv, Cin_cmp_len_conv, Cout_cmp_iter_conv, Ksz, Cin_n, &conv_cnt, &flag_out);
+				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
+
+				write_back(_conv1a2_0, _output,
+						tilingIDx, tilingIDy, tilingIDc_o,
+						Chout, &para, pool, &wb_cnt);
 			}
 			else{
-				write_back(_conv1a2_0, _output, tilingIDx, tilingIDy, tilingIDc_o, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
+
 
 				load_feature(_clamped, _p2_clamped_buf_copya0,
-								Ksz, Anchor,
-								tilingIDx, tilingIDy, tilingIDc_i,
-								Width, Height,
-								Cin_cmp_len, Chin);
+						Ksz, Anchor,
+						tilingIDx, tilingIDy, tilingIDc_i,
+						Width, Height,
+						Chin);
 
 				load_weight(_p2_weight_buf_copya0, _weight,
-					    		Cin_cmp_len, Cout_cmp_len, Ksz, Chin, tilingIDc_i, tilingIDc_o);
+						Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
-				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_1, Cin_cmp_iter_conv, Cin_cmp_len_conv, Cout_cmp_iter_conv, Ksz, Cin_n, &conv_cnt, &flag_out);
+				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_1,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
+				write_back(_conv1a2_0, _output,
+						tilingIDx, tilingIDy, tilingIDc_o,
+						Chout, &para, pool, &wb_cnt);
 			}
 			flag_in = 1 - flag_in;
 		}
@@ -202,17 +207,13 @@ bool pool)
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
- convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, Cin_cmp_iter, Cin_cmp_len, Cout_cmp_iter, Ksz, Cin_n, &conv_cnt, &flag_out);
- write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
- write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, Cout_cmp_len, &para, pool, &wb_cnt);
+ convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, Ksz, Cin_n, &conv_cnt, &flag_out);
+ write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, &para, pool, &wb_cnt);
+ write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, &para, pool, &wb_cnt);
 } // kernel hls_target_hls_target
 
-void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ], int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t* _conv1a2,
-		uint16_t Cin_cmp_iter, uint16_t Cin_cmp_len, uint16_t Cout_cmp_iter,
+void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ], int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ],
 		uint8_t Ksz, uint8_t Cin_n, int* conv_cnt, bool* flag_out){
-//#pragma HLS ARRAY_PARTITION variable=_feature_buf cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_weight_buf cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_weight_buf cyclic factor=8 dim=2
 
 #pragma HLS inline off
 	if (*conv_cnt < 1){
@@ -222,7 +223,7 @@ void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ]
 	}
 
 	//printf("conv!(%d)\n", *conv_cnt);
-	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_cmp_iter; cinBlk++)
+	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
 	    {
 	#pragma HLS LOOP_TRIPCOUNT max=4
 	   for (int yOffset = 0; yOffset < 0 + Ksz; yOffset++)
@@ -235,15 +236,12 @@ void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ]
 	       {
 	        for (int xIter = 0; xIter < 0 + X_SZ; xIter++)
 	        {
-	         for (int coutBlk = 0; coutBlk < 0 + Cout_cmp_iter; coutBlk++)
+	         for (int coutBlk = 0; coutBlk < 0 + Cout_Iter; coutBlk++)
 	         {
 	#pragma HLS LOOP_TRIPCOUNT max=4
 	#pragma HLS DEPENDENCE variable=_conv1a2 inter false
-	#pragma HLS DEPENDENCE variable=_conv1a2 intra false
-	//#pragma HLS DEPENDENCE variable=_feature_buf intra false
-	//#pragma HLS DEPENDENCE variable=_feature_buf inter false
-	//#pragma HLS DEPENDENCE variable=_weight_buf intra false
-    //#pragma HLS DEPENDENCE variable=_weight_buf inter false
+	//#pragma HLS DEPENDENCE variable=_conv1a2 intra false
+
 	#pragma HLS PIPELINE II=1
 	          for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
 	          {
@@ -256,12 +254,12 @@ void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ]
 
 	        	int32_t cinOffset = cinIter + cinBlk * P_CIN;
 	        	int32_t featureBuffAddr = cinOffset\
-	        			+ (xIter + xOffset) * Cin_cmp_len\
-						+ (yIter + yOffset) * Cin_cmp_len * (X_SZ+Ksz-1);
+	        			+ (xIter + xOffset) * Cin_SZ\
+						+ (yIter + yOffset) * Cin_SZ * (X_SZ+Ksz-1);
 
-	        	int32_t weightBuffAddr = cinOffset + xOffset * Cin_cmp_len + yOffset * Cin_cmp_len * Ksz;
+	        	int32_t weightBuffAddr = cinOffset + xOffset * Cin_SZ + yOffset * Cin_SZ * Ksz;
 
-	        	int32_t weightBuffId = coutBlk*P_COUT + coutIter;
+	        	int32_t weightBuffId = coutBlk * P_COUT + coutIter;
 
 	        	uint32_t feature =  _feature_buf[featureBuffAddr];
 	        	int16_t weight = _weight_buf[weightBuffId][weightBuffAddr];
@@ -300,7 +298,7 @@ void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
 		uint8_t Ksz, uint16_t Anchor,
 		int tilingIDx, int tilingIDy, int tilingIDc_i,
 		uint16_t Width, uint16_t Height,
-		uint16_t Cin_cmp_len, uint16_t Chin){
+		uint16_t Chin){
 #pragma HLS inline off
 	printf("load feature!");
 	load_feature:for (int input_y = 0; input_y < Y_SZ + Ksz -1; input_y++)
@@ -314,22 +312,22 @@ void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
       int32_t ddrY = input_y - Anchor + tilingIDy*Y_SZ;
       //padding 0 to the edge
       if((ddrX < 0) || (ddrY <0) || (ddrX >= Width) ||(ddrY >= Height)){
-    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len ); input_c++){
+    	for (int input_c = 0; input_c < ( 0 + Cin_SZ ); input_c++){
 #pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
     		int32_t buffAddr = input_c +\
-    				input_x*Cin_cmp_len +\
-					input_y*Cin_cmp_len*(X_SZ + Ksz -1);
+    				input_x*Cin_SZ +\
+					input_y*Cin_SZ*(X_SZ + Ksz -1);
     		_feature_buf[buffAddr] = 0;
     	}
       }
       //normal situation to move featuremap
       else
-    	for (int input_c = 0; input_c < ( 0 + Cin_cmp_len); input_c++){
+    	for (int input_c = 0; input_c < ( 0 + Cin_SZ); input_c++){
 #pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
 
-    		  int32_t buffAddr = input_c + input_x*Cin_cmp_len + input_y*Cin_cmp_len*(X_SZ + Ksz -1);
+    		  int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + Ksz -1);
 
     		  int32_t ddrC = input_c +tilingIDc_i*Cin_SZ;
     		  int32_t ddrAddr = ddrC +\
@@ -349,10 +347,10 @@ void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
 
 
 void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
-		uint16_t Cin_cmp_len, uint16_t Cout_cmp_len, uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o){
+		uint8_t Ksz, uint16_t Chin, int tilingIDc_i, int tilingIDc_o){
 #pragma HLS inline off
 	//printf("load weight!");
-	load_weight:for (int output_c = 0; output_c <  Cout_cmp_len; output_c++)
+	load_weight:for (int output_c = 0; output_c <  Cout_SZ; output_c++)
     {
 #pragma HLS LOOP_TRIPCOUNT max=8
      for (int offset_x = 0; offset_x < 0 + Ksz; offset_x++)
@@ -361,14 +359,14 @@ void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
       for (int offset_y = 0; offset_y < 0 + Ksz; offset_y++)
       {
 #pragma HLS LOOP_TRIPCOUNT max=3
-       for (int input_c = 0; input_c < 0 + Cin_cmp_len; input_c++)
+       for (int input_c = 0; input_c < 0 + Cin_SZ; input_c++)
        {
 #pragma HLS LOOP_TRIPCOUNT max=32
 #pragma HLS PIPELINE II=1
 
     	int32_t bramBlkAddr = input_c +\
-    			Cin_cmp_len * offset_y +\
-				Cin_cmp_len * Ksz * offset_x;
+    			Cin_SZ * offset_y +\
+				Cin_SZ * Ksz * offset_x;
 
     	int32_t ddrAddr = input_c + tilingIDc_i * Cin_SZ +\
     			Chin * offset_y + Chin *Ksz*offset_x +\
@@ -407,7 +405,7 @@ void pipeline_retrive(struct tilingID* id, struct layerPara* para){
 
 void write_back(int32_t* _conv1a2, uint32_t* _output,\
 		int tilingIDx, int tilingIDy, int tilingIDc_o,\
-		uint16_t Chout, uint16_t Cout_cmp_len, struct layerPara* para,\
+		uint16_t Chout, struct layerPara* para,\
 		bool pool, int* cnt){
 #pragma HLS inline off
 
@@ -431,7 +429,7 @@ void write_back(int32_t* _conv1a2, uint32_t* _output,\
 	if(pool){
 		write_back_with_pool:for (int output_y = 0; output_y < Y_SZ; output_y += 2){
 			for (int output_x = 0; output_x < X_SZ; output_x += 2){
-				for(int output_c = 0; output_c < Cout_cmp_len; output_c ++){
+				for(int output_c = 0; output_c < Cout_SZ; output_c ++){
 #pragma HLS DEPENDENCE variable=_conv1a2 inter false
 #pragma HLS PIPELINE II=1
 
@@ -461,7 +459,7 @@ void write_back(int32_t* _conv1a2, uint32_t* _output,\
         {
          for (int output_x = 0; output_x < 0 + X_SZ; output_x++)
          {
-          for (int output_c = 0; output_c < 0 + Cout_cmp_len; output_c++)
+          for (int output_c = 0; output_c < 0 + Cout_SZ; output_c++)
           {
     #pragma HLS LOOP_TRIPCOUNT max=2
     #pragma HLS PIPELINE II=1
