@@ -37,7 +37,22 @@ struct layerPara{
 	uint8_t Y_n;
 	uint8_t Cin_n;
 	uint8_t Cout_n;
+
+	uint16_t Height;
+	uint16_t Width;
+	uint16_t Chin;
+	uint16_t Chout;
+
+	uint16_t Anchor;
+
 	bool pool;
+};
+
+struct tilingIter{
+	int tilingIDx;
+	int tilingIDy;
+	int tilingIDc_o;
+	int tilingIDc_i;
 };
 
 void pipeline_retrive(struct tilingID* id, struct layerPara* para);

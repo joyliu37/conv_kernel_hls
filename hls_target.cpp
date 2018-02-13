@@ -38,12 +38,12 @@ bool pool)
  para.pool = pool;
 
  //note: optimization bit shift
- uint16_t Width = X_SZ*(X_n);
- uint16_t Height = Y_SZ*(Y_n);
+ para.Width = X_SZ*(X_n);
+ para.Height = Y_SZ*(Y_n);
 
  //Total channel number
- uint16_t Chin = Cin_n * Cin_SZ;
- uint16_t Chout = Cout_n * Cout_SZ;
+ para.Chin = Cin_n * Cin_SZ;
+ para.Chout = Cout_n * Cout_SZ;
 
  /*number of iteration
  uint16_t Cin_Iter = (Cin_SZ) >> P_CIN_bit ;
@@ -58,7 +58,9 @@ bool pool)
  uint16_t Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;*/
 
  //for kernel center shift
- uint16_t Anchor = (Ksz - 1) >> 1;
+ para.Anchor = (Ksz - 1) >> 1;
+
+ struct tilingIter iter;
 
 
  //parameter for sw pipeline
@@ -98,13 +100,13 @@ bool pool)
 
 
 
- for (int tilingIDy = 0; tilingIDy < 0 + Y_n; tilingIDy++)
+ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
-  for (int tilingIDx = 0; tilingIDx < 0 + X_n; tilingIDx++)
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
   {
 #pragma HLS LOOP_TRIPCOUNT max=2
-   for (int tilingIDc_o = 0; tilingIDc_o < 0 + Cout_n; tilingIDc_o++)
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
@@ -114,7 +116,7 @@ bool pool)
 	Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;*/
 
 
-	for (int tilingIDc_i = 0; tilingIDc_i < 0 + Cin_n; tilingIDc_i++)
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
 		/*
@@ -126,6 +128,7 @@ bool pool)
 		if(flag_out){
 
 			if (flag_in){
+
 				load_feature(_clamped, _p2_clamped_buf_copya1,
 						Ksz, Anchor,
 						tilingIDx, tilingIDy, tilingIDc_i,
@@ -134,13 +137,16 @@ bool pool)
 
 				load_weight(_p2_weight_buf_copya1, _weight,
 						Ksz, Chin, tilingIDc_i, tilingIDc_o);
-				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_0,
-						Ksz, Cin_n, &conv_cnt, &flag_out);
+
 				write_back(_conv1a2_1, _output,
 						tilingIDx, tilingIDy, tilingIDc_o,
 						Chout, &para, pool, &wb_cnt);
+
+				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_0,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
 			}
 			else{
+
 				load_feature(_clamped, _p2_clamped_buf_copya0,
 		    		Ksz, Anchor,
 					tilingIDx, tilingIDy, tilingIDc_i,
@@ -150,17 +156,20 @@ bool pool)
 				load_weight(_p2_weight_buf_copya0, _weight,
 		    		 Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
+				write_back(_conv1a2_1, _output,
+										tilingIDx, tilingIDy, tilingIDc_o,
+										Chout, &para, pool, &wb_cnt);
+
 				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_0,
 						Ksz, Cin_n, &conv_cnt, &flag_out);
-				write_back(_conv1a2_1, _output,
-						tilingIDx, tilingIDy, tilingIDc_o,
-						Chout, &para, pool, &wb_cnt);
+
 			}
 			flag_in = 1 - flag_in;
 		}
 		else{
 
 			if (flag_in){
+
 				load_feature(_clamped, _p2_clamped_buf_copya1,
 									Ksz, Anchor,
 									tilingIDx, tilingIDy, tilingIDc_i,
@@ -170,16 +179,16 @@ bool pool)
 				load_weight(_p2_weight_buf_copya1, _weight,
 									Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
+				write_back(_conv1a2_0, _output,
+										tilingIDx, tilingIDy, tilingIDc_o,
+										Chout, &para, pool, &wb_cnt);
+
 				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1,
 						Ksz, Cin_n, &conv_cnt, &flag_out);
 
-				write_back(_conv1a2_0, _output,
-						tilingIDx, tilingIDy, tilingIDc_o,
-						Chout, &para, pool, &wb_cnt);
+
 			}
 			else{
-
-
 				load_feature(_clamped, _p2_clamped_buf_copya0,
 						Ksz, Anchor,
 						tilingIDx, tilingIDy, tilingIDc_i,
@@ -189,11 +198,13 @@ bool pool)
 				load_weight(_p2_weight_buf_copya0, _weight,
 						Ksz, Chin, tilingIDc_i, tilingIDc_o);
 
-				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_1,
-						Ksz, Cin_n, &conv_cnt, &flag_out);
 				write_back(_conv1a2_0, _output,
 						tilingIDx, tilingIDy, tilingIDc_o,
 						Chout, &para, pool, &wb_cnt);
+
+				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_1,
+						Ksz, Cin_n, &conv_cnt, &flag_out);
+
 			}
 			flag_in = 1 - flag_in;
 		}
@@ -207,8 +218,8 @@ bool pool)
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
- convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, Ksz, Cin_n, &conv_cnt, &flag_out);
  write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, &para, pool, &wb_cnt);
+ convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, Ksz, Cin_n, &conv_cnt, &flag_out);
  write_back(_conv1a2_1, _output, Y_n-1, X_n-1, Cout_n, Chout, &para, pool, &wb_cnt);
 } // kernel hls_target_hls_target
 
