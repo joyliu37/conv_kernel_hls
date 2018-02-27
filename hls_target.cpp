@@ -72,7 +72,11 @@ bool pool)
  int wb_cnt = 0;
 
  //define the BRAM
+ Doublebuffer_feature<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cin_Iter, Cout_Iter, P_CIN, uint32_t> feature();
+ Doublebuffer_weight<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cout_SZ, Cin_Iter, Cout_Iter, P_CIN, P_COUT, int16_t> weight();
+ Doublebuffer_psum<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cout_SZ, Cin_Iter, Cout_Iter, P_CIN, P_COUT, int32_t> psum();
 
+/*
  int32_t _conv1a2_0[Cout_SZ*X_SZ*Y_SZ];
  #pragma HLS ARRAY_PARTITION variable=_conv1a2_0 cyclic factor=8 dim=1
  //#pragma HLS RESOURCE variable=conv1a2_0 core=RAM_2P_BRAM
@@ -97,7 +101,58 @@ bool pool)
  int16_t _p2_weight_buf_copya1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
   #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=1
   #pragma HLS ARRAY_PARTITION variable=_p2_weight_buf_copya1 cyclic factor=8 dim=2
+*/
 
+ //define the stream
+ stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream;
+ stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> weight_stream;
+ stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> psum_stream;
+
+ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+        feature.call(_clamped, feature_stream, para, iter);
+        weight.call(_weight, weight_stream, para, iter);
+
+	}//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+ feature.call_finish(feature_stream, para);
+ weight.call_finish(weight_stream, para);
+
+ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+        conv_kernel(feature_stream, weight_stream, psum_stream, para, iter);
+
+	}//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } //for _output_s0_y_yo
 
 
  for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
@@ -110,103 +165,26 @@ bool pool)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-	/*uint16_t Cout_cmp_iter_conv = Cout_cmp_iter;
-	uint16_t Cout_cmp_len_conv = Cout_cmp_len;
-	Cout_cmp_iter = (tilingIDc_o == Cout_n-1) ? Cout_r : Cout_Iter;
-	Cout_cmp_len = Cout_cmp_iter << P_COUT_bit;*/
-
-
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-		/*
-		uint16_t Cin_cmp_iter_conv = Cin_cmp_iter;
-		uint16_t Cin_cmp_len_conv = Cin_cmp_len;
-		Cin_cmp_iter = (tilingIDc_i == Cin_n-1) ? Cin_r : Cin_Iter;
-		Cin_cmp_len = Cin_cmp_iter << P_CIN_bit;*/
 
-		if(flag_out){
-
-			if (flag_in){
-
-				load_feature(_clamped, _p2_clamped_buf_copya1,
-						para, iter);
-
-				load_weight(_p2_weight_buf_copya1, _weight,
-						para, iter);
-
-				write_back(_conv1a2_1, _output,
-						para, iter,
-						pool);
-
-				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_0,
-						para, iter, &flag_out);
-			}
-			else{
-
-				load_feature(_clamped, _p2_clamped_buf_copya0,
-		    		para, iter);
-
-				load_weight(_p2_weight_buf_copya0, _weight,
-		    		 para, iter);
-
-				write_back(_conv1a2_1, _output,
-						para, iter,
-						pool);
-
-				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_0,
-						para, iter, &flag_out);
-
-			}
-			flag_in = 1 - flag_in;
-		}
-		else{
-
-			if (flag_in){
-
-				load_feature(_clamped, _p2_clamped_buf_copya1,
-									para, iter);
-
-				load_weight(_p2_weight_buf_copya1, _weight,
-									para, iter);
-
-				write_back(_conv1a2_0, _output,
-						para, iter,
-						pool);
-
-				convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1,
-						para, iter, &flag_out);
-
-
-			}
-			else{
-				load_feature(_clamped, _p2_clamped_buf_copya0,
-						para, iter);
-
-				load_weight(_p2_weight_buf_copya0, _weight,
-						para, iter);
-
-				write_back(_conv1a2_0, _output,
-						para, iter,
-						pool);
-
-				convolution(_p2_clamped_buf_copya1, _p2_weight_buf_copya1, _conv1a2_1,
-						para, iter, &flag_out);
-
-			}
-			flag_in = 1 - flag_in;
-		}
+        psum.call(psum_stream, _output, para, iter);
 
 	}//for tiling Input channel
-
-	//TODO: write into inline function
-	//write back after all the input channel is counted
-
-
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
- } // for _output_s0_y_yo
+ } //for _output_s0_y_yo
+
+ //final write back
+iter.tilingIDc_i = 0;
+iter.tilingIDc_o = Cout_n;
+iter.tilingIDx = X_n - 1;
+iter.tilingIDy = Y_n - 1;
+ psum.call_finish(_output_final, para, iter);
+
  //final two cycle
+ /*
  iter.tilingIDc_i = 0;
  iter.tilingIDc_o = Cout_n;
  iter.tilingIDx = X_n - 1;
@@ -214,8 +192,62 @@ bool pool)
  convolution(_p2_clamped_buf_copya0, _p2_weight_buf_copya0, _conv1a2_1, para, iter, &flag_out);
 
  iter.tilingIDc_i = 1;
- write_back(_conv1a2_1, _output, para, iter, pool);
+ write_back(_conv1a2_1, _output, para, iter, pool);*/
 } // kernel hls_target_hls_target
+
+void conv_kernel(stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream,
+        stream<PackedStencil<uint16_t, P_CIN, P_COUT, 1, 1>>weight_stream,
+        stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>>psum_stream,
+        layerPara para, tilingID iter){
+#pragma HLS inline off
+
+    Stencil<uint32_t, P_CIN, 1, 1, 1> feature_reg;
+    Stencil<uint16_t, P_CIN, P_COUT, 1, 1> weight_reg;
+    Stencil<int32_t, P_COUT, 1, 1, 1> psum_reg;
+
+	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
+	    {
+	#pragma HLS LOOP_TRIPCOUNT max=4
+	   for (int yOffset = 0; yOffset < 0 + para.Ksz; yOffset++)
+	     {
+	#pragma HLS LOOP_TRIPCOUNT max=3
+	      for (int xOffset = 0; xOffset < 0 + para.Ksz; xOffset++)
+	      {
+	#pragma HLS LOOP_TRIPCOUNT max=3
+	       for (int yIter = 0; yIter < 0 + Y_SZ; yIter++)
+	       {
+	        for (int xIter = 0; xIter < 0 + X_SZ; xIter++)
+	        {
+	         for (int coutBlk = 0; coutBlk < 0 + Cout_Iter; coutBlk++)
+	         {
+	#pragma HLS LOOP_TRIPCOUNT max=4
+	#pragma HLS DEPENDENCE variable=_conv1a2 inter false
+	//#pragma HLS DEPENDENCE variable=_conv1a2 intra false
+
+	#pragma HLS PIPELINE II=1
+                 //TODO: this part may not work
+                 feature_reg = Stencil<uint32_t, P_CIN, 1, 1, 1>( feature_stream.read() );
+                 weight_reg = Stencil<uint16_t, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
+            for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
+	          {
+	           int32_t _conv1_acc;
+	           // produce conv1.acc
+	           _conv1_acc = 0;
+	           // update conv1.acc
+               for (int cinIter = 0; cinIter < 0 + P_CIN; cinIter ++){
+                   _conv1a2 += feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
+               }
+               psum_reg(coutIter, 0, 0, 0) = _conv1a2;
+              }
+            psum_stream.write( PackedStencil<int32_t, P_COUT, 1, 1, 1>>(psum_reg) );
+
+             }
+            }
+           }
+          }
+         }
+        }
+}
 
 void convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ], int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ],
 		layerPara para, tilingID iter,
