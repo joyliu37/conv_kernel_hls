@@ -27,6 +27,7 @@ int main()
 	int err_cnt = 0;
 	bool pool = true;
 
+
 	static rt image[(ROWS)*(COLS)*ICH];
 	static int16_t weight_0[FS*FS*ICH*OCH];
 	static rt res_pool[(ROWS>>1) * (COLS>>1) * OCH];

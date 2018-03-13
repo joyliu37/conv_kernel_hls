@@ -1,56 +1,9 @@
-#ifndef HALIDE_CODEGEN_HLS_TARGET_HLS_TARGET_H
-#define HALIDE_CODEGEN_HLS_TARGET_HLS_TARGET_H
+#ifndef HLS_TARGET_H
+#define HLS_TARGET_H
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <hls_stream.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "util.h"
+//#include <hls_stream.h>
 
-#define X_SZ 16
-#define Y_SZ 16
-#define K_SZ 3
-
-#define Cin_SZ 32
-#define Cin_SZ_bit 5
-#define Cout_SZ 32
-#define Cout_SZ_bit 5
-#define Cin_Iter 4
-#define Cout_Iter 4
-
-#define P_CIN 8
-#define P_CIN_bit 3
-#define P_COUT 8
-#define P_COUT_bit 3
-
-//#include "Stencil.h"
-
-struct layerPara{
-	uint8_t Ksz;
-	uint8_t X_n;
-	uint8_t Y_n;
-	uint8_t Cin_n;
-	uint8_t Cout_n;
-
-	uint16_t Height;
-	uint16_t Width;
-	uint16_t Chin;
-	uint16_t Chout;
-
-	uint16_t Anchor;
-
-	bool pool;
-};
-
-struct tilingID{
-	int tilingIDx;
-	int tilingIDy;
-	int tilingIDc_o;
-	int tilingIDc_i;
-};
-
-bool pipeline_retrive(struct tilingID* id, struct layerPara para);
 
 //main cnn_kernel
 void hls_target(
@@ -64,6 +17,11 @@ void hls_target(
 		uint8_t Cout_n,
 		bool pool
 );
+
+void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_stream,
+		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> & weight_stream,
+		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> & psum_stream,
+        layerPara para, tilingID iter);
 
 void  convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ],
 		int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ],

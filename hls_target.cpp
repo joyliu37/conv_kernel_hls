@@ -1,4 +1,6 @@
 /*syn:782518, cosim:628318 */
+//#include "hls_target.h"
+#include "Doublebuffer.h"
 #include "hls_target.h"
 //#include <hls_video.h>
 
@@ -36,6 +38,7 @@ bool pool)
  para.Cin_n = Cin_n;
  para.Cout_n = Cout_n;
  para.pool = pool;
+ para.loop_cnt = X_n * Y_n * Cin_n * Cout_n;
 
  //note: optimization bit shift
  para.Width = X_SZ*(X_n);
@@ -60,8 +63,11 @@ bool pool)
  //for kernel center shift
  para.Anchor = (Ksz - 1) >> 1;
 
- struct tilingID iter;
-
+struct tilingID iter;
+iter.tilingIDc_i = 0;
+iter.tilingIDc_o = 0;
+iter.tilingIDx = 0;
+iter.tilingIDy = 0;
 
  //parameter for sw pipeline
  bool flag_out = true;
@@ -72,9 +78,10 @@ bool pool)
  int wb_cnt = 0;
 
  //define the BRAM
- Doublebuffer_feature<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cin_Iter, Cout_Iter, P_CIN, uint32_t> feature();
- Doublebuffer_weight<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cout_SZ, Cin_Iter, Cout_Iter, P_CIN, P_COUT, int16_t> weight();
- Doublebuffer_psum<X_SZ, Y_SZ, K_SZ, Cin_SZ, Cout_SZ, Cin_Iter, Cout_Iter, P_CIN, P_COUT, int32_t> psum();
+
+ Doublebuffer_feature<uint32_t> feature;
+ Doublebuffer_weight<int16_t> weight;
+ Doublebuffer_psum<int32_t, uint32_t> psum;
 
 /*
  int32_t _conv1a2_0[Cout_SZ*X_SZ*Y_SZ];
@@ -104,9 +111,13 @@ bool pool)
 */
 
  //define the stream
- stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream;
- stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> weight_stream;
- stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> psum_stream;
+ hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream;
+ hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> weight_stream;
+ hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> psum_stream;
+
+
+feature.call_start(_clamped, para, iter);
+weight.call_start(_weight, para, iter);
 
  for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
  {
@@ -121,18 +132,19 @@ bool pool)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
+#pragma HLS dataflow
 
         feature.call(_clamped, feature_stream, para, iter);
         weight.call(_weight, weight_stream, para, iter);
+        conv_kernel(feature_stream, weight_stream, psum_stream, para, iter);
+        psum.call(psum_stream, _output, para, iter);
 
-	}//for tiling Input channel
+    }//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
 
- feature.call_finish(feature_stream, para);
- weight.call_finish(weight_stream, para);
-
+/*
  for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -147,7 +159,6 @@ bool pool)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-        conv_kernel(feature_stream, weight_stream, psum_stream, para, iter);
 
 	}//for tiling Input channel
    } // for _output_s0_c_co
@@ -169,19 +180,18 @@ bool pool)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-        psum.call(psum_stream, _output, para, iter);
 
 	}//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } //for _output_s0_y_yo
-
+*/
  //final write back
 iter.tilingIDc_i = 0;
 iter.tilingIDc_o = Cout_n;
 iter.tilingIDx = X_n - 1;
 iter.tilingIDy = Y_n - 1;
- psum.call_finish(_output_final, para, iter);
+psum.call_finish(_output, para, iter);
 
  //final two cycle
  /*
@@ -195,14 +205,14 @@ iter.tilingIDy = Y_n - 1;
  write_back(_conv1a2_1, _output, para, iter, pool);*/
 } // kernel hls_target_hls_target
 
-void conv_kernel(stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream,
-        stream<PackedStencil<uint16_t, P_CIN, P_COUT, 1, 1>>weight_stream,
-        stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>>psum_stream,
+void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_stream,
+		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> & weight_stream,
+		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> & psum_stream,
         layerPara para, tilingID iter){
 #pragma HLS inline off
 
     Stencil<uint32_t, P_CIN, 1, 1, 1> feature_reg;
-    Stencil<uint16_t, P_CIN, P_COUT, 1, 1> weight_reg;
+    Stencil<int16_t, P_CIN, P_COUT, 1, 1> weight_reg;
     Stencil<int32_t, P_COUT, 1, 1, 1> psum_reg;
 
 	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
@@ -227,7 +237,7 @@ void conv_kernel(stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream,
 	#pragma HLS PIPELINE II=1
                  //TODO: this part may not work
                  feature_reg = Stencil<uint32_t, P_CIN, 1, 1, 1>( feature_stream.read() );
-                 weight_reg = Stencil<uint16_t, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
+                 weight_reg = Stencil<int16_t, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
             for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
 	          {
 	           int32_t _conv1_acc;
@@ -235,11 +245,11 @@ void conv_kernel(stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream,
 	           _conv1_acc = 0;
 	           // update conv1.acc
                for (int cinIter = 0; cinIter < 0 + P_CIN; cinIter ++){
-                   _conv1a2 += feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
+            	   _conv1_acc += feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
                }
-               psum_reg(coutIter, 0, 0, 0) = _conv1a2;
+               psum_reg(coutIter, 0, 0, 0) = _conv1_acc;
               }
-            psum_stream.write( PackedStencil<int32_t, P_COUT, 1, 1, 1>>(psum_reg) );
+            psum_stream.write( PackedStencil<int32_t, P_COUT, 1, 1, 1>(psum_reg) );
 
              }
             }
@@ -417,36 +427,6 @@ void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
      // consume p2:weight_buf_copy
 }
 
-
-
-bool pipeline_retrive(struct tilingID* id, struct layerPara para){
-#pragma HLS inline off
-	if (id->tilingIDc_i > 0){
-		id->tilingIDc_i -= 1;
-		return false;
-	}
-	else if (id->tilingIDc_o > 0){
-		id->tilingIDc_o -= 1;
-		id->tilingIDc_i = para.Cin_n - 1;
-		return false;
-	}
-	else if(id->tilingIDx > 0){
-		id->tilingIDx -= 1;
-		id->tilingIDc_o = para.Cout_n - 1;
-		id->tilingIDc_i = para.Cin_n - 1;
-		return false;
-	}
-	else if(id->tilingIDy > 0)
-	{
-		id->tilingIDy -= 1;
-		id->tilingIDx = para.X_n - 1;
-		id->tilingIDc_o = para.Cout_n - 1;
-		id->tilingIDc_i = para.Cin_n - 1;
-		return false;
-	}
-	else
-		return true;
-}
 
 void write_back(int32_t* _conv1a2, uint32_t* _output,\
 		layerPara para, tilingID iter, \
