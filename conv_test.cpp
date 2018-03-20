@@ -5,9 +5,9 @@
 
 
 #define ROWS 32 //68
-#define COLS 32 //68
-#define ICH 64 //32,8
-#define OCH 64 //16,8
+#define COLS 32//68
+#define ICH 32 //32,8
+#define OCH 32 //16,8
 #define FS 3
 
 typedef uint16_t t;

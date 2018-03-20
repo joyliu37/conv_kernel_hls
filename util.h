@@ -14,12 +14,12 @@
 #define Y_SZ 16
 #define K_SZ 3
 
-#define Cin_SZ 32
-#define Cin_SZ_bit 5
-#define Cout_SZ 32
-#define Cout_SZ_bit 5
-#define Cin_Iter 4
-#define Cout_Iter 4
+#define Cin_SZ 16
+#define Cin_SZ_bit 4
+#define Cout_SZ 16
+#define Cout_SZ_bit 4
+#define Cin_Iter 2
+#define Cout_Iter 2
 
 #define P_CIN 8
 #define P_CIN_bit 3

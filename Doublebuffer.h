@@ -12,15 +12,15 @@ class Doublebuffer_feature{
     private:
         T _db_0[(X_SZ + K_SZ - 1)*(Y_SZ + K_SZ -1)*Cin_SZ];
         T _db_1[(X_SZ + K_SZ - 1)*(Y_SZ + K_SZ -1)*Cin_SZ];
-#pragma HLS aARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-#pragma HLS aARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
 
         bool flag;
         int cnt;
     public:
         Doublebuffer_feature(){
+#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
             flag = false;
-            cnt = 1;
+            cnt = 0;
         }
 
         void iter_next(struct tilingID* id, struct layerPara para){
@@ -62,17 +62,18 @@ class Doublebuffer_weight{
     private:
         T _db_0[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
         T _db_1[Cout_SZ][Cin_SZ*K_SZ*K_SZ];
-#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=2
-#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
-#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=2
+
         bool flag;
         int cnt;
 
     public:
          Doublebuffer_weight(){
+#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=2
+#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=2
             flag = false;
-            cnt = 1;
+            cnt = 0;
         }
 
         void iter_next(struct tilingID* id, struct layerPara para){
@@ -120,8 +121,6 @@ class Doublebuffer_psum{
     private:
         T _db_0[Cout_SZ * X_SZ * Y_SZ];
         T _db_1[Cout_SZ * X_SZ * Y_SZ];
-#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
         bool flag;
         bool empty[2];
         //TODO: add a self counting tilingID here.
@@ -129,6 +128,8 @@ class Doublebuffer_psum{
 
     public:
          Doublebuffer_psum(){
+#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
             flag = false;
             empty[0] = true;
             empty[1] = true;
@@ -192,6 +193,7 @@ template <typename T>
 void Doublebuffer_feature<T>::call_start(T* _feature, layerPara para, tilingID iter){
 #pragma HLS INLINE
                 this->loadFromDRAM(_feature, _db_0, para, iter);
+                cnt += 1;
 }
 
 template <typename T>
@@ -200,7 +202,8 @@ void Doublebuffer_feature<T>::loadFromDRAM(T* _feature, T* _feature_buf, layerPa
     if(this->cnt == para.loop_cnt)
         return;
 
-    this->iter_next(&iter, para);
+    if(cnt)
+    	this->iter_next(&iter, para);
 
 load_feature: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y ++){
                   for(int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x ++ ){
@@ -258,7 +261,9 @@ feed_stream_feature: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                                                        + (xIter + xOffset) * Cin_SZ\
                                                                        + (yIter + yOffset) * Cin_SZ * (X_SZ + para.Ksz - 1);
                                                  //possible bug: could we read the data in one clk cycle
-                                                 feature(Cin_Iter, 0, 0, 0) = _feature_buf[featureBuffAddr];
+                                                 //if(_feature_buf[featureBuffAddr])
+                                                	 //printf("flag!");
+                                                 feature(cinIter, 0, 0, 0) = _feature_buf[featureBuffAddr];
                                              }
                                              out_stream.write(feature);
                                          }
@@ -274,6 +279,7 @@ template<typename T>
 void Doublebuffer_weight<T>::call_start(T *_weight, layerPara para, tilingID iter){
 #pragma HLS INLINE
 	this->loadFromDRAM(_weight, _db_0, para, iter);
+	cnt += 1;
 }
 
 template<typename T>
@@ -299,7 +305,8 @@ void Doublebuffer_weight<T>::loadFromDRAM(T* _weight, T (*_weight_buf)[Cin_SZ*K_
     if (this->cnt == para.loop_cnt)
         return;
 
-    this->iter_next(&iter, para);
+    if(cnt)
+    	this->iter_next(&iter, para);
 
 load_weight:for (int output_c = 0; output_c < Cout_SZ; output_c ++){
                 for (int offset_y = 0; offset_y < para.Ksz; offset_y ++){
@@ -373,7 +380,9 @@ void Doublebuffer_psum<T, T_u>::call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 
         empty[1] = false;
     }
 
-    flag = 1 - flag;
+    //TODO possible bug, the flag reverse time should do when all the input channel is finished
+    if(iter.tilingIDc_i == para.Cin_n-1)
+    	flag = 1 - flag;
 }
 
 template< typename T, typename T_u>
@@ -389,7 +398,7 @@ template< typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::writeToDRAM(T_u* _output, T* _psum_buf, layerPara para, tilingID iter){
 #pragma HLS INLINE OFF
     //TODO add a condition check to jump the emptyness and not completed loop
-    if(iter.tilingIDc_i || this->empty[flag])
+    if(iter.tilingIDc_i || this->empty[1-flag])
         return;
 
     this->iter_retrive(&iter, para);
@@ -413,7 +422,7 @@ template<typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::receive_stream(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream, T* _psum_buf, layerPara para, tilingID iter){
 #pragma HLS INLINE off
 
-    //TODO: the nested loops' sequence may be changed
+//TODO: the nested loops' sequence may be changed
 feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
 #pragma HLS LOOP_TRIPCOUNT max=4
                          for (int yOffset = 0; yOffset < para.Ksz; yOffset++){
@@ -429,7 +438,8 @@ feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                              for (int coutIter = 0; coutIter < P_COUT; coutIter ++){
                                                  int32_t outBuffAddr = coutBlk*P_COUT + coutIter\
                                                                        + xIter*Cout_SZ + yIter*Cout_SZ*X_SZ;
-                                                 if (iter.tilingIDc_i == 0){
+
+                                                 if ((cinBlk || xOffset || yOffset || iter.tilingIDc_i) == 0){
                                                      _psum_buf[outBuffAddr] = _temp(coutIter, 0, 0, 0);
                                                  }
                                                  else{
