@@ -423,7 +423,7 @@ void Doublebuffer_psum<T, T_u>::receive_stream(hls::stream<PackedStencil<T, P_CO
 #pragma HLS INLINE off
 
 //TODO: the nested loops' sequence may be changed
-feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
+receive_stream_psum: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
 #pragma HLS LOOP_TRIPCOUNT max=4
                          for (int yOffset = 0; yOffset < para.Ksz; yOffset++){
 #pragma HLS LOOP_TRIPCOUNT max=3
@@ -434,6 +434,9 @@ feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                          for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk ++){
 #pragma HLS LOOP_TRIPCOUNT max=4
 #pragma HLS PIPELINE II=1
+#pragma HLS DEPENDENCE variable=_psum_buf inter false
+#pragma HLS DEPENDENCE variable=_psum_buf intra false
+
                                             Stencil<T,P_COUT, 1, 1, 1> _temp = in_stream.read();
                                              for (int coutIter = 0; coutIter < P_COUT; coutIter ++){
                                                  int32_t outBuffAddr = coutBlk*P_COUT + coutIter\

@@ -4,10 +4,10 @@
 #define HW_COSIM
 
 
-#define ROWS 32 //68
-#define COLS 32//68
-#define ICH 32 //32,8
-#define OCH 32 //16,8
+#define ROWS 8 //68
+#define COLS 8//68
+#define ICH 16 //32,8
+#define OCH 16 //16,8
 #define FS 3
 
 typedef uint16_t t;
@@ -38,7 +38,7 @@ int main()
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_0, image, weight_0, 3, 2, 2, 2, 2, false);
+	hls_target(res_0, image, weight_0, 3, 2, 2, 1, 1, false);
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
 	//hls_target(res_pool, image, weight_0, 3, 2, 2, 2, 2, true);
 

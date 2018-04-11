@@ -10,8 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define X_SZ 16
-#define Y_SZ 16
+#define X_SZ 4
+#define Y_SZ 4
 #define K_SZ 3
 
 #define Cin_SZ 16
