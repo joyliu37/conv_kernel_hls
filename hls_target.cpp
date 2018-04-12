@@ -63,6 +63,147 @@ void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_
         }
 }
 
+static void read_input(uint32_t* _clamped,
+		Doublebuffer_feature<uint32_t> &feature,
+		hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> &feature_stream,
+		layerPara para){
+
+	struct tilingID iter;
+	iter.tilingIDc_i = 0;
+	iter.tilingIDc_o = 0;
+	iter.tilingIDx = 0;
+	iter.tilingIDy = 0;
+	feature.call_start(_clamped, para, iter);
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+#pragma HLS DEPENDENCE variable=feature inter false
+#pragma HLS DEPENDENCE variable=feature intra false
+
+		feature.call(_clamped, feature_stream, para, iter);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+static void read_weight(int16_t* _weight,
+		Doublebuffer_weight<int16_t> &weight,
+		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> &weight_stream,
+		layerPara para){
+
+	struct tilingID iter;
+	iter.tilingIDc_i = 0;
+	iter.tilingIDc_o = 0;
+	iter.tilingIDx = 0;
+	iter.tilingIDy = 0;
+	weight.call_start(_weight, para, iter);
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+#pragma HLS DEPENDENCE variable=weight inter false
+#pragma HLS DEPENDENCE variable=weight intra false
+		weight.call(_weight, weight_stream, para, iter);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+static void compute(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> &feature_stream,
+		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> &weight_stream,
+		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> &psum_stream,
+		layerPara para){
+
+	struct tilingID iter;
+
+	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+	 {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+	  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+	  {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+	   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+	   {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+
+		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+		{
+	#pragma HLS LOOP_TRIPCOUNT max=2
+
+			conv_kernel(feature_stream, weight_stream, psum_stream);
+
+	    }//for tiling Input channel
+	   } // for _output_s0_c_co
+	  } // for _output_s0_x_xo
+	 } // for _output_s0_y_yo
+
+}
+
+static void write_back(uint32_t* _output,
+		Doublebuffer_psum<int32_t, uint32_t> &psum,
+		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> &psum_stream,
+		layerPara para){
+//#pragma HLS inline
+
+	struct tilingID iter;
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+#pragma HLS DEPENDENCE variable=psum inter false
+#pragma HLS DEPENDENCE variable=psum intra false
+		psum.call(psum_stream, _output, para, iter);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+iter.tilingIDc_i = 0;
+iter.tilingIDc_o = para.Cout_n;
+iter.tilingIDx = para.X_n - 1;
+iter.tilingIDy = para.Y_n - 1;
+psum.call_finish(_output, para, iter);
+}
+
 void hls_target(
 uint32_t *arg_0,//[32*124*32],output
 uint32_t *arg_1,//[34*126*32],input_FM
@@ -78,9 +219,9 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 1024 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 1024 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 2304 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 32768 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 32768 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
 
  // alias the arguments
  uint32_t *_clamped = arg_1;
@@ -175,11 +316,16 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=weight_stream depth=32
 #pragma HLS STREAM variable=psum_stream depth=32
 
-feature.call_start(_clamped, para, iter);
-weight.call_start(_weight, para, iter);
+
 
 #pragma HLS dataflow
- for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
+
+read_input(_clamped, feature, feature_stream, para);
+read_weight(_weight, weight, weight_stream, para);
+compute(feature_stream, weight_stream, psum_stream, para);
+write_back(_output, psum, psum_stream, para);
+/*
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
   for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
@@ -192,51 +338,11 @@ weight.call_start(_weight, para, iter);
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-
+#pragma HLS dataflow
 
         feature.call(_clamped, feature_stream, para, iter);
         weight.call(_weight, weight_stream, para, iter);
-
-    }//for tiling Input channel
-   } // for _output_s0_c_co
-  } // for _output_s0_x_xo
- } // for _output_s0_y_yo
-
- for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
- {
-#pragma HLS LOOP_TRIPCOUNT max=2
-  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
-  {
-#pragma HLS LOOP_TRIPCOUNT max=2
-   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
-   {
-#pragma HLS LOOP_TRIPCOUNT max=2
-
-	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
-	{
-#pragma HLS LOOP_TRIPCOUNT max=2
-
         conv_kernel( feature_stream, weight_stream, psum_stream);
-
-    }//for tiling Input channel
-   } // for _output_s0_c_co
-  } // for _output_s0_x_xo
- } // for _output_s0_y_yo
-
- for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
- {
-#pragma HLS LOOP_TRIPCOUNT max=2
-  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
-  {
-#pragma HLS LOOP_TRIPCOUNT max=2
-   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
-   {
-#pragma HLS LOOP_TRIPCOUNT max=2
-
-	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
-	{
-#pragma HLS LOOP_TRIPCOUNT max=2
-
         psum.call(psum_stream, _output, para, iter);
 
     }//for tiling Input channel
@@ -245,12 +351,30 @@ weight.call_start(_weight, para, iter);
  } // for _output_s0_y_yo
 
 
+ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+*/
  //final write back
-iter.tilingIDc_i = 0;
-iter.tilingIDc_o = Cout_n;
-iter.tilingIDx = X_n - 1;
-iter.tilingIDy = Y_n - 1;
-psum.call_finish(_output, para, iter);
+
 
  //final two cycle
  /*
@@ -263,6 +387,7 @@ psum.call_finish(_output, para, iter);
  iter.tilingIDc_i = 1;
  write_back(_conv1a2_1, _output, para, iter, pool);*/
 } // kernel hls_target_hls_target
+
 
 
 /*

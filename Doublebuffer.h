@@ -122,7 +122,7 @@ class Doublebuffer_psum{
         T _db_0[Cout_SZ * X_SZ * Y_SZ];
         T _db_1[Cout_SZ * X_SZ * Y_SZ];
         bool flag;
-        bool empty[2];
+        int cnt;
         //TODO: add a self counting tilingID here.
         tilingID write_back_iter;
 
@@ -131,8 +131,7 @@ class Doublebuffer_psum{
 #pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
 #pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
             flag = false;
-            empty[0] = true;
-            empty[1] = true;
+            cnt = 0;
         }
 
 
@@ -176,7 +175,7 @@ class Doublebuffer_psum{
 template <typename T>
 void Doublebuffer_feature<T>::call(T* _feature, hls::stream< PackedStencil<T, P_CIN, 1, 1, 1> > & out_stream,
                 layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
             if(flag){
                 this->feedStream(_db_1, para, out_stream);
                 this->loadFromDRAM(_feature, _db_0, para, iter);
@@ -191,7 +190,7 @@ void Doublebuffer_feature<T>::call(T* _feature, hls::stream< PackedStencil<T, P_
 
 template <typename T>
 void Doublebuffer_feature<T>::call_start(T* _feature, layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
                 this->loadFromDRAM(_feature, _db_0, para, iter);
                 cnt += 1;
 }
@@ -277,7 +276,7 @@ feed_stream_feature: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
 
 template<typename T>
 void Doublebuffer_weight<T>::call_start(T *_weight, layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
 	this->loadFromDRAM(_weight, _db_0, para, iter);
 	cnt += 1;
 }
@@ -285,7 +284,7 @@ void Doublebuffer_weight<T>::call_start(T *_weight, layerPara para, tilingID ite
 template<typename T>
 void Doublebuffer_weight<T>::call(T *_weight, hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
         layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
     if(flag){
         this->feedStream(_db_1, para, out_stream);
         this->loadFromDRAM(_weight, _db_0, para, iter);
@@ -301,7 +300,7 @@ void Doublebuffer_weight<T>::call(T *_weight, hls::stream<PackedStencil<T, P_CIN
 
 template<typename T>
 void Doublebuffer_weight<T>::loadFromDRAM(T* _weight, T (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], layerPara para, tilingID iter){
-#pragma HLS INLINE off
+#pragma HLS inline off
     if (this->cnt == para.loop_cnt)
         return;
 
@@ -333,6 +332,7 @@ template<typename T>
 void Doublebuffer_weight<T>::feedStream(T (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], layerPara para, hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream){
    /* if(this->empty[flag])
         return;*/
+#pragma HLS inline off
 
 feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
 #pragma HLS LOOP_TRIPCOUNT max=4
@@ -368,16 +368,16 @@ feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
 
 template< typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream, T_u* _output, layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
     if(flag == false){
         receive_stream(in_stream, _db_0, para, iter);
         writeToDRAM(_output, _db_1, para, iter);
-        empty[0] = false;
+        cnt += 1;
     }
     else{
         receive_stream(in_stream, _db_1, para, iter);
         writeToDRAM(_output, _db_0, para, iter);
-        empty[1] = false;
+        cnt += 1;
     }
 
     //TODO possible bug, the flag reverse time should do when all the input channel is finished
@@ -387,7 +387,7 @@ void Doublebuffer_psum<T, T_u>::call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 
 
 template< typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::call_finish(T_u* _output, layerPara para, tilingID iter){
-#pragma HLS INLINE
+#pragma HLS inline
             if(flag == false)
                 writeToDRAM(_output, _db_1, para, iter);
             else
@@ -396,9 +396,9 @@ void Doublebuffer_psum<T, T_u>::call_finish(T_u* _output, layerPara para, tiling
 
 template< typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::writeToDRAM(T_u* _output, T* _psum_buf, layerPara para, tilingID iter){
-#pragma HLS INLINE OFF
+#pragma HLS inline off
     //TODO add a condition check to jump the emptyness and not completed loop
-    if(iter.tilingIDc_i || this->empty[1-flag])
+    if(iter.tilingIDc_i || (this->cnt == 0))
         return;
 
     this->iter_retrive(&iter, para);
@@ -420,7 +420,7 @@ write_back_without_pool:for(int output_y = 0; output_y < Y_SZ; output_y ++){
 
 template<typename T, typename T_u>
 void Doublebuffer_psum<T, T_u>::receive_stream(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream, T* _psum_buf, layerPara para, tilingID iter){
-#pragma HLS INLINE off
+#pragma HLS inline off
 
 //TODO: the nested loops' sequence may be changed
 receive_stream_psum: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
