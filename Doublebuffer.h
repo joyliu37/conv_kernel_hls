@@ -205,12 +205,13 @@ void Doublebuffer_feature<T>::loadFromDRAM(T* _feature, T* _feature_buf, layerPa
     	this->iter_next(&iter, para);
 
 load_feature: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y ++){
+#pragma HLS LOOP_TRIPCOUNT max=18
                   for(int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x ++ ){
+#pragma HLS LOOP_TRIPCOUNT max=18
                       int32_t ddrX = input_x - para.Anchor + iter.tilingIDx*X_SZ;
                       int32_t ddrY = input_y - para.Anchor + iter.tilingIDy*Y_SZ;
                       if((ddrX < 0) || (ddrY < 0) || (ddrX >= para.Width) || (ddrY >= para.Height)){
                           for(int input_c = 0; input_c < Cin_SZ; input_c ++){
-#pragma HLS LOOP_TRIPCOUNT MAX=32
 #pragma HLS PIPELINE II=1
                           int32_t buffAddr = input_c +\
                                              input_x*Cin_SZ +\
@@ -221,7 +222,6 @@ load_feature: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y ++){
                       //normal situation to move feature map
                       else{
                           for (int input_c = 0; input_c < Cin_SZ; input_c ++){
-#pragma HLS LOOP_TRIPCOUNT MAX=32
 #pragma HLS PIPELINE II=1
 
                               int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + para.Ksz - 1);
@@ -244,7 +244,7 @@ void Doublebuffer_feature<T>::feedStream(T* _feature_buf, layerPara para, hls::s
     //    return;
 
 feed_stream_feature: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
                          for (int yOffset = 0; yOffset < para.Ksz; yOffset++){
 #pragma HLS LOOP_TRIPCOUNT max=3
                              for(int xOffset = 0; xOffset < para.Ksz; xOffset ++){
@@ -252,7 +252,7 @@ feed_stream_feature: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                  for(int yIter = 0; yIter < Y_SZ; yIter ++){
                                      for(int xIter = 0; xIter < X_SZ; xIter ++){
                                          for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk ++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
 #pragma HLS PIPELINE II=1
                                              Stencil<T, P_CIN, 1, 1, 1> feature;
                                              for (int cinIter = 0; cinIter < P_CIN; cinIter ++){
@@ -335,7 +335,7 @@ void Doublebuffer_weight<T>::feedStream(T (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], laye
 #pragma HLS inline off
 
 feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
                          for (int yOffset = 0; yOffset < para.Ksz; yOffset++){
 #pragma HLS LOOP_TRIPCOUNT max=3
                              for(int xOffset = 0; xOffset < para.Ksz; xOffset ++){
@@ -343,7 +343,7 @@ feed_stream_weight: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                  for(int yIter = 0; yIter < Y_SZ; yIter ++){
                                      for(int xIter = 0; xIter < X_SZ; xIter ++){
                                          for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk ++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
 #pragma HLS PIPELINE II=1
                                             Stencil<T,P_CIN, P_COUT, 1, 1> weight;
                                             for (int coutIter = 0; coutIter < P_COUT; coutIter ++){
@@ -424,7 +424,7 @@ void Doublebuffer_psum<T, T_u>::receive_stream(hls::stream<PackedStencil<T, P_CO
 
 //TODO: the nested loops' sequence may be changed
 receive_stream_psum: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
                          for (int yOffset = 0; yOffset < para.Ksz; yOffset++){
 #pragma HLS LOOP_TRIPCOUNT max=3
                              for(int xOffset = 0; xOffset < para.Ksz; xOffset ++){
@@ -432,7 +432,7 @@ receive_stream_psum: for(int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++){
                                  for(int yIter = 0; yIter < Y_SZ; yIter ++){
                                      for(int xIter = 0; xIter < X_SZ; xIter ++){
                                          for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk ++){
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
 #pragma HLS PIPELINE II=1
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
