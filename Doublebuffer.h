@@ -203,14 +203,18 @@ void Doublebuffer_feature<T>::loadFromDRAM(T* _feature, T* _feature_buf, layerPa
 
     if(cnt)
     	this->iter_next(&iter, para);
+    int32_t x_lb = para.Anchor - iter.tilingIDx*X_SZ;
+    int32_t y_lb = para.Anchor - iter.tilingIDy*Y_SZ;
+    int32_t x_ub = para.Anchor - iter.tilingIDx*X_SZ + para.Width;
+    int32_t y_ub = para.Anchor - iter.tilingIDy*Y_SZ + para.Height;
 
 load_feature: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y ++){
 #pragma HLS LOOP_TRIPCOUNT max=18
                   for(int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x ++ ){
 #pragma HLS LOOP_TRIPCOUNT max=18
-                      int32_t ddrX = input_x - para.Anchor + iter.tilingIDx*X_SZ;
-                      int32_t ddrY = input_y - para.Anchor + iter.tilingIDy*Y_SZ;
-                      if((ddrX < 0) || (ddrY < 0) || (ddrX >= para.Width) || (ddrY >= para.Height)){
+                      //int32_t ddrX = input_x - para.Anchor + x_offset;
+                      //int32_t ddrY = input_y - para.Anchor + y_offset;
+                      if((input_x < x_lb) || (input_y < y_lb) || (input_x >= x_ub) || (input_y >= y_ub)){
                           for(int input_c = 0; input_c < Cin_SZ; input_c ++){
 #pragma HLS PIPELINE II=1
                           int32_t buffAddr = input_c +\
@@ -227,7 +231,7 @@ load_feature: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y ++){
                               int32_t buffAddr = input_c + input_x*Cin_SZ + input_y*Cin_SZ*(X_SZ + para.Ksz - 1);
 
                               int32_t ddrC = input_c + iter.tilingIDc_i*Cin_SZ;
-                              int32_t ddrAddr = ddrC + ddrX*para.Chin + ddrY * para.Chin * para.Width;
+                              int32_t ddrAddr = ddrC + (input_x - x_lb)*para.Chin + (input_y - y_lb) * para.Chin * para.Width;
 
                               _feature_buf[buffAddr] = ((T *) _feature)[ddrAddr];
                           }
