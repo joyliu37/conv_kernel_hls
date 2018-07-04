@@ -7,15 +7,15 @@
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"
-void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_stream,
-		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> & weight_stream,
+void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_stream,
+		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> & weight_stream,
 		//struct layerPara *para,
-		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> & psum_stream){
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> & psum_stream){
 #pragma HLS inline off
 
-    Stencil<uint32_t, P_CIN, 1, 1, 1> feature_reg;
-    Stencil<int16_t, P_CIN, P_COUT, 1, 1> weight_reg;
-    Stencil<int32_t, P_COUT, 1, 1, 1> psum_reg;
+    Stencil<dtype, P_CIN, 1, 1, 1> feature_reg;
+    Stencil<dtype, P_CIN, P_COUT, 1, 1> weight_reg;
+    Stencil<dtype, P_COUT, 1, 1, 1> psum_reg;
 
 	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
 	    {
@@ -38,11 +38,11 @@ void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_
 
 	#pragma HLS PIPELINE II=1
                  //TODO: this part may not work
-                 feature_reg = Stencil<uint32_t, P_CIN, 1, 1, 1>( feature_stream.read() );
-                 weight_reg = Stencil<int16_t, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
+                 feature_reg = Stencil<dtype, P_CIN, 1, 1, 1>( feature_stream.read() );
+                 weight_reg = Stencil<dtype, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
             for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
 	          {
-	           int32_t _conv1_acc;
+	           dtype_double _conv1_acc;
 	           // produce conv1.acc
 	           _conv1_acc = 0;
 	           // update conv1.acc
@@ -53,7 +53,7 @@ void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_
                psum_reg(coutIter, 0, 0, 0) = _conv1_acc;
 
               }
-            psum_stream.write( PackedStencil<int32_t, P_COUT, 1, 1, 1>(psum_reg) );
+            psum_stream.write( PackedStencil<dtype, P_COUT, 1, 1, 1>(psum_reg) );
 
              }
             }
@@ -63,9 +63,9 @@ void conv_kernel(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> & feature_
         }
 }
 
-static void read_input(uint32_t* _clamped,
-		Doublebuffer_feature<uint32_t> &feature,
-		hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> &feature_stream,
+static void read_input(dtype* _clamped,
+		Doublebuffer_feature<dtype> &feature,
+		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
 	struct tilingID iter;
@@ -100,9 +100,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
-static void read_weight(int16_t* _weight,
-		Doublebuffer_weight<int16_t> &weight,
-		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> &weight_stream,
+static void read_weight(dtype* _weight,
+		Doublebuffer_weight<dtype> &weight,
+		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		layerPara para){
 
 	struct tilingID iter;
@@ -136,9 +136,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
-static void compute(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> &feature_stream,
-		hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> &weight_stream,
-		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> &psum_stream,
+static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
+		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &psum_stream,
 		layerPara para){
 
 	struct tilingID iter;
@@ -166,9 +166,9 @@ static void compute(hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> &featur
 
 }
 
-static void write_back(uint32_t* _output,
-		Doublebuffer_psum<int32_t, uint32_t> &psum,
-		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> &psum_stream,
+static void write_back(dtype* _output,
+		Doublebuffer_psum<dtype, dtype> &psum,
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &psum_stream,
 		layerPara para){
 //#pragma HLS inline
 
@@ -205,9 +205,9 @@ psum.call_finish(_output, para, iter);
 }
 
 void hls_target(
-uint32_t *arg_0,//[32*124*32],output
-uint32_t *arg_1,//[34*126*32],input_FM
-int16_t *arg_2,//input weight
+dtype *arg_0,//[32*124*32],output
+dtype *arg_1,//[34*126*32],input_FM
+dtype *arg_2,//input weight
 uint8_t Ksz,
 uint8_t X_n,
 uint8_t Y_n,
@@ -224,9 +224,9 @@ bool pool)
 #pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
 
  // alias the arguments
- uint32_t *_clamped = arg_1;
- uint32_t *_output = arg_0;
- int16_t *_weight = arg_2;
+ dtype *_clamped = arg_1;
+ dtype *_output = arg_0;
+ dtype *_weight = arg_2;
 
  struct layerPara para;
  para.Ksz = Ksz;
@@ -276,9 +276,9 @@ iter.tilingIDy = 0;
 
  //define the BRAM
 
- Doublebuffer_feature<uint32_t> feature;
- Doublebuffer_weight<int16_t> weight;
- Doublebuffer_psum<int32_t, uint32_t> psum;
+ Doublebuffer_feature<dtype> feature;
+ Doublebuffer_weight<dtype> weight;
+ Doublebuffer_psum<dtype, dtype> psum;
 
 /*
  int32_t _conv1a2_0[Cout_SZ*X_SZ*Y_SZ];
@@ -308,9 +308,9 @@ iter.tilingIDy = 0;
 */
 
  //define the stream
- hls::stream<PackedStencil<uint32_t, P_CIN, 1, 1, 1>> feature_stream;
- hls::stream<PackedStencil<int16_t, P_CIN, P_COUT, 1, 1>> weight_stream;
- hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> psum_stream;
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream;
+ hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream;
+ hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> psum_stream;
 
 #pragma HLS STREAM variable=feature_stream depth=32
 #pragma HLS STREAM variable=weight_stream depth=32

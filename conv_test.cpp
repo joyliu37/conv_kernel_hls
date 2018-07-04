@@ -14,12 +14,12 @@ typedef uint16_t t;
 typedef uint32_t rt;
 using namespace std;
 
-int32_t max(int32_t a, int32_t b);
-void conv_sw(int32_t*, int16_t*, int32_t*, int, int, int, int, int, bool);
-void initial_buf(int32_t* ,int);
-void initial_weight(int16_t* weight, int fs, int iCh, int oCh);
-void initial_input(rt*, int, int, int);
-void check_err(rt* res, int32_t* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt);
+dtype max(dtype a, dtype b);
+void conv_sw(dtype*, dtype*, dtype*, int, int, int, int, int, bool);
+void initial_buf(dtype* ,int);
+void initial_weight(dtype* weight, int fs, int iCh, int oCh);
+void initial_input(dtype*, int, int, int);
+void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt);
 
 
 int main()
@@ -28,11 +28,11 @@ int main()
 	bool pool = true;
 
 
-	static rt image[(ROWS)*(COLS)*ICH];
-	static int16_t weight_0[FS*FS*ICH*OCH];
-	static rt res_pool[(ROWS>>1) * (COLS>>1) * OCH];
-	static rt res_0[ROWS * COLS * OCH];
-	static rt res_1[ROWS * COLS * OCH];
+	static dtype image[(ROWS)*(COLS)*ICH];
+	static dtype weight_0[FS*FS*ICH*OCH];
+	static dtype res_pool[(ROWS>>1) * (COLS>>1) * OCH];
+	static dtype res_0[ROWS * COLS * OCH];
+	static dtype res_1[ROWS * COLS * OCH];
 
 	initial_input(image, ROWS, COLS, ICH);
 	initial_weight(weight_0, FS, ICH, OCH);
@@ -42,16 +42,16 @@ int main()
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
 	//hls_target(res_pool, image, weight_0, 3, 2, 2, 2, 2, true);
 
-    static int32_t res_sw_0[ROWS * COLS * OCH];
+    static dtype res_sw_0[ROWS * COLS * OCH];
     initial_buf(res_sw_0, ROWS * COLS * OCH);
 
-    static int32_t res_sw_1[ROWS * COLS * OCH];
+    static dtype res_sw_1[ROWS * COLS * OCH];
     initial_buf(res_sw_1, ROWS * COLS * OCH);
 
-    static int32_t res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
+    static dtype res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
-    conv_sw((int32_t*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
+    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
     //conv_sw(res_sw_0, weight_0, res_sw_1, ROWS, COLS, OCH, ICH, FS, false);
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
@@ -155,36 +155,36 @@ int main()
 
 }
 
-int32_t max(int32_t a, int32_t b){
-	return (a>b)?a:b;
+dtype max(dtype a, dtype b){
+	return (dtype)( (a>b) ? a : b );
 }
 
-void initial_buf(int32_t* comp, int len){
+void initial_buf(dtype* comp, int len){
     for (int i = 0 ; i < len; i++)
     	comp[i] = 0;
 }
 
-void initial_weight(int16_t* weight, int fs, int iCh, int oCh){
+void initial_weight(dtype* weight, int fs, int iCh, int oCh){
 	for (int idx0 = 0; idx0 < fs; idx0++)
 		for (int idx1 = 0; idx1 < fs; idx1++)
 			for (int idx2 = 0; idx2 < iCh; idx2++)
 				for (int idx3 = 0; idx3 < oCh; idx3++) {
-					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = idx0-idx1;
+					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx0-idx1);
 				}
 }
 
-void initial_input(rt* image, int rows, int cols, int iCh){
+void initial_input(dtype* image, int rows, int cols, int iCh){
 	for (int c = 0; c < iCh; c++)
 		for (int j = 0; j < rows; j++)
 			for (int i = 0; i < cols; i++)
-				image[c*(rows)*(cols) + j*(cols) + i] = (abs(j-i)+c);
+				image[c*(rows)*(cols) + j*(cols) + i] = (dtype)(abs(j-i)+c);
 }
 
-void conv_sw(int32_t* input, int16_t* weight, int32_t* res, \
+void conv_sw(dtype* input, dtype* weight, dtype* res, \
 		int rows, int cols, int oCh, int iCh, int fs, bool pool){
-	int32_t res_sw_tmp[rows * cols * oCh];
-	    for (int i = 0 ; i < rows * cols * oCh; i++)
-	    	res_sw_tmp[i] = 0;
+	dtype res_sw_tmp[rows * cols * oCh];
+	for (int i = 0 ; i < rows * cols * oCh; i++)
+    	res_sw_tmp[i] = 0;
 
 	for (int k = 0; k < oCh; k++) {
       for (int y = 0; y < rows; y++) {
@@ -198,8 +198,11 @@ void conv_sw(int32_t* input, int16_t* weight, int32_t* res, \
     		}
     	  }
     	  //add ReLU
-    	  if (res_sw_tmp[ y*cols*oCh+x*oCh + k] < 0 )
+    	  //cout << (int)(res_sw_tmp[ y*cols*oCh+x*oCh + k]) <<endl;
+    	  if (res_sw_tmp[ y*cols*oCh+x*oCh + k] < 0 ){
+    		  //cout<<"enter ReLU"<<endl;
     		  res_sw_tmp[ y*cols*oCh+x*oCh + k] = 0;
+    	  }
     	}
       }
       if (pool){
@@ -219,10 +222,13 @@ void conv_sw(int32_t* input, int16_t* weight, int32_t* res, \
 	}
 }
 
-void check_err(rt* res, int32_t* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt){
+void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt){
 	for (int i = 0; i < rows * cols * oCh; i++) {
 	    if(res[i] != res_sw[i]) {
-	   		cout << "layer NO.:" << layer_No << "pos: " << i << " res: " << res[i] << " || res_sw: " << res_sw[i] << endl;
+	   		cout << "layer NO.:" << layer_No << "pos: " << i << " res: ";
+	   		cout <<	hex << (int)(res[i])<<dec ;
+	   		cout << " || res_sw: ";
+	   		cout << hex << (int)(res_sw[i]) <<dec << endl;
 	   		err_cnt++;
 	   	}
 	}

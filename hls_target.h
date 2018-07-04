@@ -7,9 +7,9 @@
 
 //main cnn_kernel
 void hls_target(
-		uint32_t *arg_0,//[32*124*32],
-		uint32_t *arg_1,//[34*126*32],
-		int16_t *arg_2,//[32*32*9]
+		dtype *arg_0,//[32*124*32],
+		dtype *arg_1,//[34*126*32],
+		dtype *arg_2,//[32*32*9]
 		uint8_t Ksz,
 		uint8_t X_n,
 		uint8_t Y_n,
@@ -25,19 +25,19 @@ void hls_target(
 		hls::stream<PackedStencil<int32_t, P_COUT, 1, 1, 1>> & psum_stream
         );
 */
-void  convolution(uint32_t _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ],
-		int16_t _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], int32_t _conv1a2[Cout_SZ*X_SZ*Y_SZ],
+void  convolution(dtype _feature_buf[(X_SZ + K_SZ -1)*(Y_SZ + K_SZ -1)*Cin_SZ],
+		dtype _weight_buf[Cout_SZ][Cin_SZ*K_SZ*K_SZ], dtype _conv1a2[Cout_SZ*X_SZ*Y_SZ],
 		layerPara para, tilingID iter,
 		bool* flag_out);
 
-void load_feature(uint32_t* _feature, uint32_t* _feature_buf,
+void load_feature(dtype* _feature, dtype* _feature_buf,
 		layerPara para, tilingID iter);
 
-void load_weight(int16_t (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], int16_t* _weight,
+void load_weight(dtype (*_weight_buf)[Cin_SZ*K_SZ*K_SZ], dtype* _weight,
 		layerPara para, tilingID iter);
 
 //write back block include pooling
-void write_back(int32_t* _conv1a2, uint32_t* _output,
+void write_back(dtype* _conv1a2, dtype* _output,
 		layerPara para, tilingID iter,\
 		bool pool);
 

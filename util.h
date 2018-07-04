@@ -26,6 +26,10 @@
 #define P_COUT 8
 #define P_COUT_bit 3
 
+typedef uint8_t dtype_u;
+typedef int8_t dtype;
+typedef int16_t dtype_double;
+
 
 struct layerPara{
 	uint8_t Ksz;
