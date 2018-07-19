@@ -7,6 +7,7 @@
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"
+
 void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_stream,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> & weight_stream,
 		//struct layerPara *para,
@@ -63,7 +64,74 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
         }
 }
 
-static void read_input(dtype* _clamped,
+//TODO: implement a function pointer and lambda to simplify this function
+static void DMA_Mem2Stream(dtype* _clamped,
+        hls::stream<dtype> &featureStream,
+		layerPara para){
+
+	struct tilingID iter;
+	iter.tilingIDc_i = 0;
+	iter.tilingIDc_o = 0;
+	iter.tilingIDx = 0;
+	iter.tilingIDy = 0;
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+		Mem2Stream<dtype>(_clamped, featureStream, para, iter);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+
+static void feature_pad(hls::stream<dtype> &in,
+        hls::stream<dtype> &out,
+		layerPara para){
+
+	struct tilingID iter;
+	iter.tilingIDc_i = 0;
+	iter.tilingIDc_o = 0;
+	iter.tilingIDx = 0;
+	iter.tilingIDy = 0;
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        StreamPad<dtype>(in, out, para, iter);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+
+static void read_input(hls::stream<dtype> &padded_feature,
 		Doublebuffer_feature<dtype> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
@@ -73,7 +141,7 @@ static void read_input(dtype* _clamped,
 	iter.tilingIDc_o = 0;
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
-	feature.call_start(_clamped, para, iter);
+	feature.call_start(padded_feature, para, iter);
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -91,7 +159,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS DEPENDENCE variable=feature inter false
 #pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(_clamped, feature_stream, para, iter);
+		feature.call(padded_feature, feature_stream, para, iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -308,10 +376,14 @@ iter.tilingIDy = 0;
 */
 
  //define the stream
+ hls::stream<dtype> unpadded_feature("in");
+ hls::stream<dtype> padded_feature("out");
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream;
  hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream;
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> psum_stream;
 
+#pragma HLS STREAM variable=unpadded_feature depth=32
+#pragma HLS STREAM variable=padded_feature depth=32
 #pragma HLS STREAM variable=feature_stream depth=32
 #pragma HLS STREAM variable=weight_stream depth=32
 #pragma HLS STREAM variable=psum_stream depth=32
@@ -319,11 +391,17 @@ iter.tilingIDy = 0;
 
 
 #pragma HLS dataflow
+DMA_Mem2Stream(_clamped, unpadded_feature, para);
+feature_pad(unpadded_feature, padded_feature, para);
 
-read_input(_clamped, feature, feature_stream, para);
+read_input(padded_feature, feature, feature_stream, para);
 read_weight(_weight, weight, weight_stream, para);
+
 compute(feature_stream, weight_stream, psum_stream, para);
+
 write_back(_output, psum, psum_stream, para);
+
+}
 /*
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
  {
@@ -386,7 +464,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + Y_n; iter.tilingIDy++)
 
  iter.tilingIDc_i = 1;
  write_back(_conv1a2_1, _output, para, iter, pool);*/
-} // kernel hls_target_hls_target
+ // kernel hls_target_hls_target
 
 
 
