@@ -6,8 +6,8 @@
 
 #define ROWS 32 //68
 #define COLS 32//68
-#define ICH 32 //32,8
-#define OCH 32 //16,8
+#define ICH 64 //32,8
+#define OCH 64 //16,8
 #define FS 3
 
 typedef uint16_t t;
@@ -20,7 +20,7 @@ void initial_buf(dtype* ,int);
 void initial_weight(dtype* weight, int fs, int iCh, int oCh);
 void initial_input(dtype*, int, int, int);
 void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt);
-
+void image2stencil(dtype* , PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* , int, int, int);
 
 int main()
 {
@@ -29,16 +29,18 @@ int main()
 
 
 	static dtype image[(ROWS)*(COLS)*ICH];
+	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image_stencil[ROWS*COLS*ICH/DATAWIDTH];
 	static dtype weight_0[FS*FS*ICH*OCH];
 	static dtype res_pool[(ROWS>>1) * (COLS>>1) * OCH];
 	static dtype res_0[ROWS * COLS * OCH];
 	static dtype res_1[ROWS * COLS * OCH];
 
 	initial_input(image, ROWS, COLS, ICH);
+	image2stencil(image, image_stencil, ROWS, COLS, ICH);
 	initial_weight(weight_0, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_0, image, weight_0, 3, 2, 2, 2, 2, false);
+	hls_target(res_0, image_stencil, weight_0, 3, 2, 2, 2, 2, false);
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
 	//hls_target(res_pool, image, weight_0, 3, 2, 2, 2, 2, true);
 
@@ -174,10 +176,24 @@ void initial_weight(dtype* weight, int fs, int iCh, int oCh){
 }
 
 void initial_input(dtype* image, int rows, int cols, int iCh){
-	for (int c = 0; c < iCh; c++)
-		for (int j = 0; j < rows; j++)
-			for (int i = 0; i < cols; i++)
-				image[c*(rows)*(cols) + j*(cols) + i] = (dtype)(abs(j-i)+c);
+	for (int c = 0; c < rows; c++)
+		for (int j = 0; j < cols; j++)
+			for (int i = 0; i < iCh; i++)
+				image[c*(cols)*(iCh) + j*(iCh) + i] = (dtype)(abs(j-i)+c);
+}
+
+void image2stencil(dtype* image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image_stencil, int rows, int cols, int iCh){
+	for (int c = 0; c < rows; c++)
+			for (int j = 0; j < cols; j++)
+				for (int i = 0; i < iCh/DATAWIDTH; i++){
+					Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
+
+					for (int pos = 0; pos < DATAWIDTH; pos++)
+						temp(pos, 0, 0, 0) = image[c*(cols)*(iCh) + j*(iCh) + i*DATAWIDTH + pos];
+
+					image_stencil[i + j*iCh/DATAWIDTH + c*cols*iCh/DATAWIDTH] = temp;
+				}
+
 }
 
 void conv_sw(dtype* input, dtype* weight, dtype* res, \

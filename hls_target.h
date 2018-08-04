@@ -7,9 +7,9 @@
 
 //main cnn_kernel
 void hls_target(
-		dtype *arg_0,//[32*124*32],
-		dtype *arg_1,//[34*126*32],
-		dtype *arg_2,//[32*32*9]
+		dtype* arg_0,//[32*124*32],
+		PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_1,//[34*126*32],
+		dtype* arg_2,//[32*32*9]
 		uint8_t Ksz,
 		uint8_t X_n,
 		uint8_t Y_n,
