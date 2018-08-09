@@ -8,7 +8,7 @@
 //using hls::stream;
 
 template<typename T, int data_width>
-void Mem2Stream(PackedStencil<T, DATAWIDTH, 1, 1, 1>* _feature,
+void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out, layerPara para,
 		tilingID iter) {
 #pragma HLS inline
@@ -25,13 +25,9 @@ void Mem2Stream(PackedStencil<T, DATAWIDTH, 1, 1, 1>* _feature,
 #pragma HLS LOOP_TRIPCOUNT max=2
 #pragma HLS PIPELINE II=1
 				int32_t ddrC = input_c + iter.tilingIDc_i * Cin_SZ / data_width;
-				int32_t ddrAddr = ddrC
-						+\
- (input_x + iter.tilingIDx * X_SZ) * para.Chin
-								/ data_width
-						+\
- (input_y + iter.tilingIDy * Y_SZ) * para.Chin
-								* para.Width / data_width;
+				int32_t ddrAddr = ddrC +\
+                                  (input_x + iter.tilingIDx * X_SZ) * para.Chin / data_width+\
+                                  (input_y + iter.tilingIDy * Y_SZ) * para.Chin * para.Width / data_width;
 				temp = _feature[ddrAddr];
 				out.write(temp);
 			}
@@ -40,9 +36,60 @@ void Mem2Stream(PackedStencil<T, DATAWIDTH, 1, 1, 1>* _feature,
 }
 
 template<typename T, int data_width>
+void Mem2Stream_weight(
+        PackedStencil<T, data_width, 1, 1, 1> *_weight,
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+        layerPara para, tilingID iter){
+#pragma HLS inline
+
+    Stencil<T, data_width, 1, 1, 1> temp;
+load_weight2Stream: for (int output_c = 0; output_c < Cout_SZ; output_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=16
+		for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+			for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+				for (int input_c = 0; input_c < Cin_SZ/data_width; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=16
+#pragma HLS PIPELINE II=1
+					int32_t ddrAddr = input_c + iter.tilingIDc_i * Cin_SZ / data_width\
+							+ para.Chin * offset_x / data_width\
+                            + para.Chin * para.Ksz * offset_y / data_width +\
+                            (output_c + iter.tilingIDc_o * Cout_SZ) * para.Chin * para.Ksz * para.Ksz / data_width;
+                    temp = _weight[ddrAddr];
+					out.write(temp);
+				}
+			}
+		}
+	}
+}
+
+template<typename T, int data_width>
+void Stream2Mem_output(
+		PackedStencil<T, data_width, 1, 1, 1> *_output,
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
+		layerPara para, tilingID iter){
+#pragma HLS inline
+
+	Stencil<T, data_width, 1, 1, 1> temp;
+store_stream2out: for (int output_y = 0; output_y < Y_SZ; output_y++) {
+	for (int output_x = 0; output_x < X_SZ; output_x++) {
+		for (int output_c = 0; output_c < Cout_SZ/data_width; output_c++) {
+#pragma HLS PIPELINE II=1
+			temp = in.read();
+			int32_t outputAddr = output_c + Cout_SZ * iter.tilingIDc_o / data_width +\
+					(iter.tilingIDx * X_SZ + output_x) * para.Chout / data_width +\
+					(iter.tilingIDy * Y_SZ + output_y) * para.Chout * X_SZ * (para.X_n) / data_width;
+			_output[outputAddr] = temp;
+		}
+	}
+}
+}
+
+template<typename T, int data_width>
 void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
-		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out, layerPara para,
-		tilingID iter) {
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+		layerPara para, tilingID iter) {
 #pragma HLS inline
 	int32_t x_lb = para.Anchor - iter.tilingIDx * X_SZ;
 	int32_t y_lb = para.Anchor - iter.tilingIDy * Y_SZ;
@@ -73,35 +120,64 @@ void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 	}
 }
 
+template<typename T, int data_width>
+void StreamReLU(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+		int stream_length) {
+#pragma HLS inline
+
+	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
+
+	stream_relu: for (int i = 0; i < stream_length; i++) {
+#pragma HLS PIPELINE II=1
+					in_data = in.read();
+					for (int i = 0; i < data_width; i++){
+						if (in_data(i, 0, 0, 0) < 0)
+							out_data(i, 0, 0, 0) = 0;
+						else
+							out_data(i, 0, 0, 0) = in_data(i, 0, 0, 0);
+					}
+
+					out.write(out_data);
+			}
+}
+
 template<typename T, int in_data_width, int out_data_width>
 void StreamDataWidthConverter(
 		hls::stream<PackedStencil<T, in_data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, out_data_width, 1, 1, 1>> &out,
-		tilingID iter, layerPara para, int inWidth, int outWidth) {
+		tilingID iter, layerPara para, int inWidth, int outWidth, int input_num) {
 #pragma HLS inline
 	if (inWidth > outWidth) {
-		for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1; input_y++) {
-			for (int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x++) {
-				for (int input_c = 0; input_c < (Cin_SZ / in_data_width);
-						input_c++) {
-					Stencil<T, in_data_width, 1, 1, 1> inData = in.read();
-
-					for (int i_unpack = 0; i_unpack < inWidth / outWidth;
-							i_unpack++) {
+		for (int i = 0; i < input_num; i++){
+            Stencil<T, in_data_width, 1, 1, 1> inData = in.read();
+            for (int i_unpack = 0; i_unpack < inWidth / outWidth; i_unpack++) {
 #pragma HLS PIPELINE II=1
-						Stencil<T, out_data_width, 1, 1, 1> outData;
-						for (int ii = 0; ii < outWidth; ii++)
-							outData(ii, 0, 0, 0) = inData(
-									ii + i_unpack * out_data_width, 0, 0, 0);
-
-						out.write(outData);
-					}
-				}
-			}
-		}
-	} else {
-		assert("NOT IMPLEMENT!\n");
+                Stencil<T, out_data_width, 1, 1, 1> outData;
+			    for (int ii = 0; ii < outWidth; ii++)
+                    outData(ii, 0, 0, 0) = inData(ii + i_unpack * out_data_width, 0, 0, 0);
+                out.write(outData);
+		    }
+        }
+    }
+    else if(outWidth > inWidth){
+        for (int i = 0; i < input_num/outWidth*inWidth; i++){
+#pragma HLS PIPELINE II=1
+            Stencil<T, out_data_width, 1, 1, 1> outData;
+            Stencil<T, in_data_width, 1, 1, 1> inData;
+            for (int i_pack = 0; i_pack < outWidth / inWidth; i_pack++){
+                inData= in.read();
+                for (int ii = 0; ii < inWidth; ii++){
+#pragma HLS UNROLL
+                    outData(ii + i_pack * in_data_width, 0, 0, 0) = inData(ii, 0, 0, 0);
+                }
+            }
+            out.write(outData);
+        }
 	}
+    else{
+        assert("outWidth == inWidth is not IMPLEMENTED.\n");
+    }
 
 }
 
@@ -155,7 +231,7 @@ public:
 			layerPara para, tilingID iter);
 };
 
-template<typename T>
+template<typename T, int data_width>
 class Doublebuffer_weight {
 private:
 	T _db_0[Cout_SZ][Cin_SZ * K_SZ * K_SZ];
@@ -193,16 +269,21 @@ public:
 		}
 	}
 
-	void loadFromDRAM(T* _weight, T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ],
+	void loadFromDRAM(
+            hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &_weight_stream,
+            T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ],
 			layerPara para, tilingID iter); //TODO add parameter
 	void feedStream(T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ], layerPara para,
 			hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream); //TODO add parameter
 
-	void call(T *_weight,
-			hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
+	void call(
+			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _weight_stream,
+            hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
 			layerPara para, tilingID iter);
 
-	void call_start(T *_weight, layerPara para, tilingID iter);
+	void call_start(
+			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _weight_stream,
+            layerPara para, tilingID iter);
 	/*void call_finish(T* _weight_buf, layerPara para, stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream){
 	 if(flag == false)
 	 this->feedStream(_db_1, para, iter, out_stream);
@@ -211,7 +292,7 @@ public:
 	 }*/
 };
 
-template<typename T, typename T_u>
+template<typename T, int data_width>
 class Doublebuffer_psum {
 private:
 	T _db_0[Cout_SZ * X_SZ * Y_SZ];
@@ -258,12 +339,15 @@ public:
 	void receive_stream(
 			hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
 			T* _psum_buf, layerPara para, tilingID iter); //TODO add parameter, in_stream, psum_buf
-	void writeToDRAM(T_u* _output, T* _psum_buf, layerPara para, tilingID iter); //TODO add parameter, psum_buf, _output
+	void writeToDRAM(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+			T* _psum_buf, layerPara para, tilingID iter); //TODO add parameter, psum_buf, _output
 
 	void call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
-			T_u* _output, layerPara para, tilingID iter);
+			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+			layerPara para, tilingID iter);
 
-	void call_finish(T_u* _output, layerPara para, tilingID iter);
+	void call_finish(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+			layerPara para, tilingID iter);
 };
 
 template<typename T, int data_width>
@@ -367,65 +451,64 @@ void Doublebuffer_feature<T, data_width>::feedStream(T* _feature_buf,
 	}
 }
 
-template<typename T>
-void Doublebuffer_weight<T>::call_start(T *_weight, layerPara para,
+template<typename T, int data_width>
+void Doublebuffer_weight<T, data_width>::call_start(
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &_weight_stream,
+        layerPara para,
 		tilingID iter) {
 #pragma HLS inline
-	this->loadFromDRAM(_weight, _db_0, para, iter);
+	this->loadFromDRAM(_weight_stream, _db_0, para, iter);
 	cnt += 1;
 }
 
-template<typename T>
-void Doublebuffer_weight<T>::call(T *_weight,
+template<typename T, int data_width>
+void Doublebuffer_weight<T, data_width>::call(
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &_weight_stream,
 		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
 		layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag) {
 		this->feedStream(_db_1, para, out_stream);
-		this->loadFromDRAM(_weight, _db_0, para, iter);
+		this->loadFromDRAM(_weight_stream, _db_0, para, iter);
 	} else {
 		this->feedStream(_db_0, para, out_stream);
-		this->loadFromDRAM(_weight, _db_1, para, iter);
+		this->loadFromDRAM(_weight_stream, _db_1, para, iter);
 	}
 	cnt += 1;
 	flag = 1 - flag;
 }
 
-template<typename T>
-void Doublebuffer_weight<T>::loadFromDRAM(T* _weight,
+template<typename T, int data_width>
+void Doublebuffer_weight<T, data_width>::loadFromDRAM(
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &_weight_stream,
 		T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ], layerPara para, tilingID iter) {
-#pragma HLS inline off
+#pragma hls inline off
 	if (this->cnt == para.loop_cnt)
 		return;
 
 	if (cnt)
 		this->iter_next(&iter, para);
-
+    //TODO: only work when data_width = 1
 	load_weight: for (int output_c = 0; output_c < Cout_SZ; output_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=16
 		for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 			for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 				for (int input_c = 0; input_c < Cin_SZ; input_c++) {
 #pragma HLS PIPELINE II=1
-					int32_t bramBlkAddr = input_c + offset_x * Cin_SZ
+					Stencil<T, data_width, 1, 1, 1> temp = _weight_stream.read();
+                    int32_t bramblkaddr = input_c + offset_x * Cin_SZ
 							+ offset_y * Cin_SZ * para.Ksz;
-					int32_t ddrAddr = input_c + iter.tilingIDc_i * Cin_SZ
-							+ para.Chin * offset_x
-							+ para.Chin * para.Ksz * offset_y
-							+\
- (output_c + iter.tilingIDc_o * Cout_SZ)
-									* para.Chin * para.Ksz * para.Ksz;
-					_weight_buf[output_c][bramBlkAddr] =
-							((T *) _weight)[ddrAddr];
+                    _weight_buf[output_c][bramblkaddr] = temp(0, 0, 0, 0);
 				}
 			}
 		}
 	}
 }
 
-template<typename T>
-void Doublebuffer_weight<T>::feedStream(T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ],
+template<typename T, int data_width>
+void Doublebuffer_weight<T, data_width>::feedStream(T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ],
 		layerPara para,
 		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream) {
 	/* if(this->empty[flag])
@@ -470,10 +553,11 @@ void Doublebuffer_weight<T>::feedStream(T (*_weight_buf)[Cin_SZ * K_SZ * K_SZ],
 	}
 }
 
-template<typename T, typename T_u>
-void Doublebuffer_psum<T, T_u>::call(
+template<typename T, int data_width>
+void Doublebuffer_psum<T, data_width>::call(
 		hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
-		T_u* _output, layerPara para, tilingID iter) {
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+		layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag == false) {
 		receive_stream(in_stream, _db_0, para, iter);
@@ -490,9 +574,10 @@ void Doublebuffer_psum<T, T_u>::call(
 		flag = 1 - flag;
 }
 
-template<typename T, typename T_u>
-void Doublebuffer_psum<T, T_u>::call_finish(T_u* _output, layerPara para,
-		tilingID iter) {
+template<typename T, int data_width>
+void Doublebuffer_psum<T, data_width>::call_finish(
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+		layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag == false)
 		writeToDRAM(_output, _db_1, para, iter);
@@ -500,9 +585,10 @@ void Doublebuffer_psum<T, T_u>::call_finish(T_u* _output, layerPara para,
 		writeToDRAM(_output, _db_0, para, iter);
 }
 
-template<typename T, typename T_u>
-void Doublebuffer_psum<T, T_u>::writeToDRAM(T_u* _output, T* _psum_buf,
-		layerPara para, tilingID iter) {
+template<typename T, int data_width>
+void Doublebuffer_psum<T, data_width>::writeToDRAM(
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+		T* _psum_buf, layerPara para, tilingID iter) {
 #pragma HLS inline off
 	//TODO add a condition check to jump the emptyness and not completed loop
 	if (iter.tilingIDc_i || (this->cnt == 0))
@@ -515,24 +601,18 @@ void Doublebuffer_psum<T, T_u>::writeToDRAM(T_u* _output, T* _psum_buf,
 		for (int output_x = 0; output_x < X_SZ; output_x++) {
 			for (int output_c = 0; output_c < Cout_SZ; output_c++) {
 #pragma HLS PIPELINE II=1
-				int32_t outputAddr = Cout_SZ * iter.tilingIDc_o + output_c
-						+\
- (iter.tilingIDx * X_SZ + output_x) * para.Chout
-						+\
- (iter.tilingIDy * Y_SZ + output_y) * para.Chout
-								* X_SZ * (para.X_n);
-				int32_t outBuffAddr = output_c + output_x * Cout_SZ
-						+ output_y * Cout_SZ * X_SZ;
-				((T_u*) _output)[outputAddr] =
-						(_psum_buf[outBuffAddr] > 0) ?
-								_psum_buf[outBuffAddr] : 0;
+
+				int32_t outBuffAddr = output_c + output_x * Cout_SZ + output_y * Cout_SZ * X_SZ;
+				Stencil<T, 1, 1, 1, 1>  temp;
+				temp(0, 0, 0, 0)= _psum_buf[outBuffAddr];
+				_output.write(temp);
 			}
 		}
 	}
 }
 
-template<typename T, typename T_u>
-void Doublebuffer_psum<T, T_u>::receive_stream(
+template<typename T, int data_width>
+void Doublebuffer_psum<T, data_width>::receive_stream(
 		hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
 		T* _psum_buf, layerPara para, tilingID iter) {
 #pragma HLS inline off
