@@ -227,7 +227,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //TODO: make datawidth into define var
 static void datawidth_convert_feature(
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
-		hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &out,
+		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -251,7 +251,7 @@ static void datawidth_convert_feature(
 		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
-	        StreamDataWidthConverter<dtype, DATAWIDTH, 1>(in, out, iter, para, DATAWIDTH, 1, input_count);
+	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CIN>(in, out, iter, para, DATAWIDTH, P_CIN, input_count);
 
 	    }//for tiling Input channel
 	   } // for _output_s0_c_co
@@ -262,7 +262,7 @@ static void datawidth_convert_feature(
 
 static void datawidth_convert_weight(
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
-		hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &out,
+		hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -286,7 +286,7 @@ static void datawidth_convert_weight(
 		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
-	        StreamDataWidthConverter<dtype, DATAWIDTH, 1>(in, out, iter, para, DATAWIDTH, 1, input_count);
+	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CIN*P_COUT>(in, out, iter, para, DATAWIDTH, P_CIN*P_COUT, input_count);
 
 	    }//for tiling Input channel
 	   } // for _output_s0_c_co
@@ -328,8 +328,8 @@ static void datawidth_convert_output(
 
 
 
-static void read_input(hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &padded_feature,
-		Doublebuffer_feature<dtype, 1> &feature,
+static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
+		Doublebuffer_feature<dtype, P_CIN> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
@@ -366,8 +366,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 static void read_weight(
-        hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &weightMemStream,
-		Doublebuffer_weight<dtype, 1> &weight,
+        hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &weightMemStream,
+		Doublebuffer_weight<dtype, P_CIN, P_COUT> &weight,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		layerPara para){
 
@@ -485,8 +485,8 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 8192 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 8192 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 4096 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 4096 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 2304 port=arg_2
 
 
@@ -544,8 +544,8 @@ iter.tilingIDy = 0;
 
  //define the BRAM
 
- Doublebuffer_feature<dtype, 1> feature;
- Doublebuffer_weight<dtype, 1> weight;
+ Doublebuffer_feature<dtype, P_CIN> feature;
+ Doublebuffer_weight<dtype, P_CIN, P_COUT> weight;
  Doublebuffer_psum<dtype, 1> psum;
 
 /*
@@ -578,13 +578,13 @@ iter.tilingIDy = 0;
  //define the stream
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> unpadded_feature("in_fm");
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> padded_feature("out_fm");
- hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> padded_feature_short("out_short_fm");
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature_short("out_short_fm");
 #pragma HLS STREAM variable=unpadded_feature depth=32
 #pragma HLS STREAM variable=padded_feature depth=32
 #pragma HLS STREAM variable=padded_feature_short depth=32
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weight_long("in_wt");
- hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> weight_short("out_wt");
+ hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> weight_short("out_wt");
 #pragma HLS STREAM variable=weight_long depth=32
 #pragma HLS STREAM variable=weight_short depth=32
 

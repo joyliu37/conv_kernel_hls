@@ -10,6 +10,12 @@
 #define OCH 64 //16,8
 #define FS 3
 
+#define XN 2
+#define YN 2
+#define CINN 2
+#define COUTN 2
+
+
 typedef uint16_t t;
 typedef uint32_t rt;
 using namespace std;
@@ -224,6 +230,30 @@ void stencil2image(dtype* image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image
 void weight2stencil(dtype* weight,
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weight_stencil,
 		int fs, int iCh, int oCh){
+    dtype reshape_weight[iCh*oCh*fs*fs];
+
+    for (int coutBlk = 0; coutBlk < Cout_Iter * COUTN; coutBlk ++){
+        for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
+            for (int yOff = 0; yOff < fs; yOff ++){
+                for (int xOff = 0; xOff < fs; xOff ++){
+                    for (int ii = 0; ii < P_COUT; ii++){
+                        for (int jj = 0; jj < P_CIN; jj ++){
+                            int addr_org = (coutBlk*P_COUT + ii) *fs*fs*iCh +\
+                                       	   yOff * fs * iCh + xOff * iCh +\
+										   cinBlk*P_CIN + jj;
+                            int addr_new = coutBlk * fs * fs * Cin_Iter * CINN * P_CIN *P_COUT +\
+                            				cinBlk * fs * fs * P_COUT * P_CIN+\
+											yOff * fs * P_COUT * P_CIN+\
+											xOff * P_COUT * P_CIN+\
+											ii * P_CIN + jj;
+                            reshape_weight[addr_new] = weight[addr_org];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 	for (int idx0 = 0; idx0 < oCh; idx0++)
 	for (int idx1 = 0; idx1 < fs; idx1++)
 	for (int idx2 = 0; idx2 < fs; idx2++)
@@ -231,7 +261,7 @@ void weight2stencil(dtype* weight,
 		Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
 
 		for (int pos = 0; pos < DATAWIDTH; pos++)
-			temp(pos, 0, 0, 0) = weight[idx0 * fs*fs*iCh +\
+			temp(pos, 0, 0, 0) = reshape_weight[idx0 * fs*fs*iCh +\
 										idx1 * fs*iCh + idx2*iCh +\
 										idx3 * DATAWIDTH + pos];
 		weight_stencil[idx3 + idx2*iCh/DATAWIDTH + \
