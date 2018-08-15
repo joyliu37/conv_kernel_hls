@@ -136,6 +136,7 @@ void StreamReLU(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 #pragma HLS PIPELINE II=1
 					in_data = in.read();
 					for (int i = 0; i < data_width; i++){
+#pragma HLS UNROLL
 						if (in_data(i, 0, 0, 0) < 0)
 							out_data(i, 0, 0, 0) = 0;
 						else
@@ -303,8 +304,8 @@ public:
 template<typename T, int data_width>
 class Doublebuffer_psum {
 private:
-	T _db_0[Cout_SZ * X_SZ * Y_SZ];
-	T _db_1[Cout_SZ * X_SZ * Y_SZ];
+	PackedStencil<T, data_width, 1, 1, 1>  _db_0[Cout_Iter * X_SZ * Y_SZ];
+	PackedStencil<T, data_width, 1, 1, 1>  _db_1[Cout_Iter * X_SZ * Y_SZ];
 	bool flag;
 	int cnt;
 	//TODO: add a self counting tilingID here.
@@ -312,8 +313,8 @@ private:
 
 public:
 	Doublebuffer_psum() {
-#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
+//#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
+//#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
 		flag = false;
 		cnt = 0;
 	}
@@ -346,9 +347,11 @@ public:
 
 	void receive_stream(
 			hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
-			T* _psum_buf, layerPara para, tilingID iter); //TODO add parameter, in_stream, psum_buf
+			PackedStencil<T, data_width, 1, 1, 1> *_psum_buf,
+            layerPara para, tilingID iter); //TODO add parameter, in_stream, psum_buf
 	void writeToDRAM(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
-			T* _psum_buf, layerPara para, tilingID iter); //TODO add parameter, psum_buf, _output
+			PackedStencil<T, data_width, 1, 1, 1>* _psum_buf,
+            layerPara para, tilingID iter); //TODO add parameter, psum_buf, _output
 
 	void call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
 			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
@@ -617,7 +620,8 @@ void Doublebuffer_psum<T, data_width>::call_finish(
 template<typename T, int data_width>
 void Doublebuffer_psum<T, data_width>::writeToDRAM(
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
-		T* _psum_buf, layerPara para, tilingID iter) {
+		PackedStencil<T, data_width, 1, 1, 1>* _psum_buf,
+        layerPara para, tilingID iter) {
 #pragma HLS inline off
 	//TODO add a condition check to jump the emptyness and not completed loop
 	if (iter.tilingIDc_i || (this->cnt == 0))
@@ -628,12 +632,13 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 	write_back_without_pool: for (int output_y = 0; output_y < Y_SZ;
 			output_y++) {
 		for (int output_x = 0; output_x < X_SZ; output_x++) {
-			for (int output_c = 0; output_c < Cout_SZ; output_c++) {
+			for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS PIPELINE II=1
 
-				int32_t outBuffAddr = output_c + output_x * Cout_SZ + output_y * Cout_SZ * X_SZ;
-				Stencil<T, 1, 1, 1, 1>  temp;
-				temp(0, 0, 0, 0)= _psum_buf[outBuffAddr];
+				int32_t outBuffAddr = output_c + output_x * Cout_Iter + output_y * Cout_Iter * X_SZ;
+				Stencil<T, data_width, 1, 1, 1>  temp;
+				assert(data_width == P_COUT);
+                temp = _psum_buf[outBuffAddr];
 				_output.write(temp);
 			}
 		}
@@ -643,7 +648,8 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 template<typename T, int data_width>
 void Doublebuffer_psum<T, data_width>::receive_stream(
 		hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
-		T* _psum_buf, layerPara para, tilingID iter) {
+		PackedStencil<T, data_width, 1, 1, 1>* _psum_buf,
+        layerPara para, tilingID iter) {
 #pragma HLS inline off
 
 	Stencil<T, P_COUT,1 ,1, 1> reg;
@@ -668,14 +674,15 @@ receive_stream_psum: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
 
-		        	    	int32_t outBuffAddr = coutBlk * P_COUT\
-		        	    	            		+ xIter * Cout_SZ
-		        	    	            		+ yIter * Cout_SZ * X_SZ;
+		        	    	int32_t outBuffAddr = coutBlk +\
+                                                  xIter * Cout_Iter +\
+		        	    	            		  yIter * Cout_Iter * X_SZ;
 		        	    	if ((iter.tilingIDc_i != 0) && (cinBlk == 0) && (xOffset == 0) && (yOffset == 0)){
-		        	    		for (int i = 0; i < P_COUT; i++){
+		        	    		reg = _psum_buf[outBuffAddr];
+                                /*for (int i = 0; i < P_COUT; i++){
 #pragma HLS UNROLL
 		        	    			reg(i, 0, 0, 0) = _psum_buf[outBuffAddr + i];
-		        	    		}
+		        	    		}*/
 		        	    	}
 
 							Stencil<T, P_COUT, 1, 1, 1> _temp = in_stream.read();
@@ -684,9 +691,9 @@ receive_stream_psum: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 								reg(coutIter, 0, 0, 0) += _temp(coutIter, 0, 0, 0);
 							}
 							if ((cinBlk == Cin_Iter - 1) && (yOffset == para.Ksz-1) && (xOffset == para.Ksz-1)){
+								_psum_buf[outBuffAddr] = reg;
 								for ( int coutIter = 0; coutIter < P_COUT; coutIter ++){
 #pragma HLS UNROLL
-									_psum_buf[outBuffAddr + coutIter] = reg(coutIter, 0, 0, 0);
 									reg(coutIter, 0, 0, 0) = 0;
 								}
 							}

@@ -196,8 +196,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
-static void ReLU(hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &in,
-        hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &out,
+static void ReLU(hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
+        hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -205,7 +205,7 @@ static void ReLU(hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &in,
 	iter.tilingIDc_o = 0;
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
-	int size = X_SZ * Y_SZ * Cout_SZ;
+	int size = X_SZ * Y_SZ * Cout_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -216,7 +216,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
-        StreamReLU<dtype, 1>(in, out, size);
+        StreamReLU<dtype, P_COUT>(in, out, size);
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
@@ -296,7 +296,7 @@ static void datawidth_convert_weight(
 
 
 static void datawidth_convert_output(
-		hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &out,
 		layerPara para){
 
@@ -306,7 +306,7 @@ static void datawidth_convert_output(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = X_SZ * Y_SZ * Cout_SZ;
+    int32_t input_count = X_SZ * Y_SZ * Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -318,7 +318,7 @@ static void datawidth_convert_output(
 	   {
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-	        StreamDataWidthConverter<dtype, 1, DATAWIDTH>(in, out, iter, para, 1, DATAWIDTH, input_count);
+	        StreamDataWidthConverter<dtype, P_COUT, DATAWIDTH>(in, out, iter, para, P_COUT, DATAWIDTH, input_count);
 
 	   } // for _output_s0_c_co
 	  } // for _output_s0_x_xo
@@ -432,8 +432,8 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 
 }
 
-static void write_back(hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> &_output,
-		Doublebuffer_psum<dtype, 1> &psum,
+static void write_back(hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &_output,
+		Doublebuffer_psum<dtype, P_COUT> &psum,
 		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &psum_stream,
 		layerPara para){
 //#pragma HLS inline
@@ -546,7 +546,7 @@ iter.tilingIDy = 0;
 
  Doublebuffer_feature<dtype, P_CIN> feature;
  Doublebuffer_weight<dtype, P_CIN, P_COUT> weight;
- Doublebuffer_psum<dtype, 1> psum;
+ Doublebuffer_psum<dtype, P_COUT> psum;
 
 /*
  int32_t _conv1a2_0[Cout_SZ*X_SZ*Y_SZ];
@@ -597,8 +597,8 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=psum_stream depth=32
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
- hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> output_short("short_ofm");
- hls::stream<PackedStencil<dtype, 1, 1, 1, 1>> relu_short("relu");
+ hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
+ hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> relu_short("relu");
 #pragma HLS STREAM variable=output_long depth=32
 #pragma HLS STREAM variable=output_short depth=32
 #pragma HLS STREAM variable=relu_short depth=32
