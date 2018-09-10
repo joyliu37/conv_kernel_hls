@@ -16,17 +16,18 @@
 
 #define Cin_SZ 32
 #define Cin_SZ_bit 5
-#define Cout_SZ 32
-#define Cout_SZ_bit 5
+#define Cout_SZ 8
+#define Cout_SZ_bit 3
 #define Cin_Iter 4
-#define Cout_Iter 4
+#define Cout_Iter 1
 
 #define P_CIN 8
 #define P_CIN_bit 3
 #define P_COUT 8
 #define P_COUT_bit 3
 
-#define DATAWIDTH 16
+#define DATAWIDTH 8
+#define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 typedef uint8_t dtype_u;
 typedef int8_t dtype;

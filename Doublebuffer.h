@@ -51,14 +51,14 @@ load_weight2Stream: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 			    for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
-                    for(int ii = 0; ii < 4; ii++){
+                    for(int ii = 0; ii < W_CNT; ii++){
 #pragma HLS PIPELINE II=1
                         //TODO: change the hardcode 4 to a param
     					int32_t ddrAddr =
-                                (output_c + iter.tilingIDc_o * Cout_Iter) * (para.Chin>>P_CIN_bit) * para.Ksz * para.Ksz * 4 +\
-                                (input_c + iter.tilingIDc_i * Cin_Iter)  * para.Ksz * para.Ksz * 4 +\
-                                offset_y * para.Ksz * 4 +\
-	    						offset_x * 4 + ii;
+                                (output_c + iter.tilingIDc_o * Cout_Iter) * (para.Chin>>P_CIN_bit) * para.Ksz * para.Ksz * W_CNT +\
+                                (input_c + iter.tilingIDc_i * Cin_Iter)  * para.Ksz * para.Ksz * W_CNT +\
+                                offset_y * para.Ksz * W_CNT +\
+	    						offset_x * W_CNT + ii;
                         temp = _weight[ddrAddr];
 					    out.write(temp);
 				    }
@@ -78,6 +78,8 @@ void Stream2Mem_output(
 	Stencil<T, data_width, 1, 1, 1> temp;
 store_stream2out: for (int output_y = 0; output_y < Y_SZ; output_y++) {
 	for (int output_x = 0; output_x < X_SZ; output_x++) {
+		#pragma HLS PIPELINE II=1
+
 		for (int output_c = 0; output_c < Cout_SZ/data_width; output_c++) {
 #pragma HLS PIPELINE II=1
 			temp = in.read();
@@ -153,7 +155,7 @@ void StreamDataWidthConverter(
 		hls::stream<PackedStencil<T, out_data_width, 1, 1, 1>> &out,
 		tilingID iter, layerPara para, int inWidth, int outWidth, int input_num) {
 #pragma HLS inline
-	if (inWidth > outWidth) {
+	if (in_data_width > out_data_width) {
 		for (int i = 0; i < input_num; i++){
             Stencil<T, in_data_width, 1, 1, 1> inData = in.read();
             for (int i_unpack = 0; i_unpack < inWidth / outWidth; i_unpack++) {
@@ -165,24 +167,36 @@ void StreamDataWidthConverter(
 		    }
         }
     }
-    else if(outWidth > inWidth){
-        for (int i = 0; i < input_num/outWidth*inWidth; i++){
+
+    else if (out_data_width == in_data_width){
+        //assert("outWidth == inWidth is not IMPLEMENTED.\n");
+    	for (int i =0; i < input_num; i++){
 #pragma HLS PIPELINE II=1
-            Stencil<T, out_data_width, 1, 1, 1> outData;
-            Stencil<T, in_data_width, 1, 1, 1> inData;
-            for (int i_pack = 0; i_pack < outWidth / inWidth; i_pack++){
-                inData= in.read();
-                for (int ii = 0; ii < inWidth; ii++){
+    		Stencil<T, in_data_width, 1, 1, 1> inData;
+    		Stencil<T, out_data_width, 1, 1, 1> outData;
+    		inData = in.read();
+    		for (int ii = 0; ii < in_data_width; ii++){
 #pragma HLS UNROLL
-                    outData(ii + i_pack * in_data_width, 0, 0, 0) = inData(ii, 0, 0, 0);
-                }
-            }
-            out.write(outData);
-        }
-	}
-    else{
-        assert("outWidth == inWidth is not IMPLEMENTED.\n");
+    			outData(ii, 0, 0, 0) = inData(ii, 0, 0, 0);
+    		}
+    		out.write(outData);
+    	}
     }
+    else {
+            for (int i = 0; i < input_num/(outWidth/inWidth); i++){
+    #pragma HLS PIPELINE II=1
+                Stencil<T, out_data_width, 1, 1, 1> outData;
+                Stencil<T, in_data_width, 1, 1, 1> inData;
+                for (int i_pack = 0; i_pack < outWidth / inWidth; i_pack++){
+                    inData= in.read();
+                    for (int ii = 0; ii < inWidth; ii++){
+    #pragma HLS UNROLL
+                        outData(ii + i_pack * in_data_width, 0, 0, 0) = inData(ii, 0, 0, 0);
+                    }
+                }
+                out.write(outData);
+            }
+    	}
 
 }
 
@@ -507,13 +521,14 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
 		this->iter_next(&iter, para);
     //TODO: only work when data_width = 1
 	load_weight: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
-#pragma HLS LOOP_TRIPCOUNT max=4
+#pragma HLS LOOP_TRIPCOUNT max=2
+	for (int input_c = 0; input_c < Cin_Iter; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=2
 		for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 			for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
-				for (int input_c = 0; input_c < Cin_Iter; input_c++) {
-#pragma HLS LOOP_TRIPCOUNT max=4
+
 #pragma HLS PIPELINE II=1
 					Stencil<T, dw1*dw2, 1, 1, 1> temp_lw = _weight_stream.read();
                     Stencil<T, dw1, dw2, 1, 1> temp_sw;
@@ -525,8 +540,7 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
                             temp_sw(ii, jj, 0, 0) = temp_lw(jj*dw1 + ii, 0, 0, 0);
                         }
                     }
-                    int32_t bramblkaddr = input_c + offset_x * Cin_Iter
-							+ offset_y * Cin_Iter * para.Ksz;
+                    int32_t bramblkaddr = offset_x + offset_y * para.Ksz + input_c*para.Ksz*para.Ksz;
                     _weight_buf[output_c][bramblkaddr] = temp_sw;
 				}
 			}
@@ -629,12 +643,12 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 
 	this->iter_retrive(&iter, para);
 
-	write_back_without_pool: for (int output_y = 0; output_y < Y_SZ;
-			output_y++) {
-		for (int output_x = 0; output_x < X_SZ; output_x++) {
-			for (int output_c = 0; output_c < Cout_Iter; output_c++) {
+	write_back_without_pool_y: for (int output_y = 0; output_y < Y_SZ; output_y++) {
+		write_back_without_pool_x: for (int output_x = 0; output_x < X_SZ; output_x++) {
 #pragma HLS PIPELINE II=1
-
+			write_back_without_pool_c: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
+#pragma HLS PIPELINE II=1
+#pragma HLS DEPENDENCE variable=_psum_buf inter false
 				int32_t outBuffAddr = output_c + output_x * Cout_Iter + output_y * Cout_Iter * X_SZ;
 				Stencil<T, data_width, 1, 1, 1>  temp;
 				assert(data_width == P_COUT);

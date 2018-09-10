@@ -6,14 +6,14 @@
 
 #define ROWS 32 //68
 #define COLS 32//68
-#define ICH 64 //32,8
-#define OCH 64 //16,8
+#define ICH 32 //32,8
+#define OCH 32 //16,8
 #define FS 3
 
 #define XN 2
 #define YN 2
-#define CINN 2
-#define COUTN 2
+#define CINN 1
+#define COUTN 4
 
 
 typedef uint16_t t;
@@ -55,7 +55,7 @@ int main()
 	weight2stencil(weight_0, weight_stencil, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 2, 2, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 1, 4, false);
 	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
 
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);

@@ -31,6 +31,8 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
 	       {
 	        for (int xIter = 0; xIter < 0 + X_SZ; xIter++)
 	        {
+	        	//for debug
+#pragma HLS PIPELINE II=1
 	         for (int coutBlk = 0; coutBlk < 0 + Cout_Iter; coutBlk++)
 	         {
 	#pragma HLS LOOP_TRIPCOUNT max=4
