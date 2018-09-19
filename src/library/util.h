@@ -60,7 +60,6 @@ struct tilingID{
 	int tilingIDc_i;
 };
 
-bool pipeline_retrive(struct tilingID* id, struct layerPara para);
 
 
 #endif

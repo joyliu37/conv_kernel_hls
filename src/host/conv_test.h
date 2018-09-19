@@ -1,5 +1,8 @@
-#include<iostream>
+#ifndef CONV_TEST_H
+#define CONV_TEST_H
+
 #include "hls_target.h"
+#include<iostream>
 
 #define HW_COSIM
 
@@ -30,149 +33,6 @@ void image2stencil(dtype* , PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* , int, int
 void stencil2image(dtype* , PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* , int, int, int);
 void weight2stencil(dtype* ,PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *,int, int, int);
 
-
-int main()
-{
-	int err_cnt = 0;
-	bool pool = true;
-
-
-	static dtype image[(ROWS)*(COLS)*ICH];
-	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image_stencil[ROWS*COLS*ICH/DATAWIDTH];
-
-	static dtype weight_0[FS*FS*ICH*OCH];
-	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> weight_stencil[FS*FS*ICH*OCH/DATAWIDTH];
-
-	static dtype res_pool[(ROWS>>1) * (COLS>>1) * OCH];
-	static dtype res_0[ROWS * COLS * OCH];
-	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> res_stencil[ROWS*COLS*OCH/DATAWIDTH];
-
-	static dtype res_1[ROWS * COLS * OCH];
-
-	initial_input(image, ROWS, COLS, ICH);
-	image2stencil(image, image_stencil, ROWS, COLS, ICH);
-	initial_weight(weight_0, FS, ICH, OCH);
-	weight2stencil(weight_0, weight_stencil, FS, ICH, OCH);
-
-#ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 2, 2, false);
-	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
-
-	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
-	//hls_target(res_pool, image, weight_0, 3, 2, 2, 2, 2, true);
-
-    static dtype res_sw_0[ROWS * COLS * OCH];
-    initial_buf(res_sw_0, ROWS * COLS * OCH);
-
-    static dtype res_sw_1[ROWS * COLS * OCH];
-    initial_buf(res_sw_1, ROWS * COLS * OCH);
-
-    static dtype res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
-    initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
-
-    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
-    //conv_sw(res_sw_0, weight_0, res_sw_1, ROWS, COLS, OCH, ICH, FS, false);
-    //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
-
-    /*for (int k = 0; k < OCH; k++) {
-      for (int y = 0; y < ROWS; y++) {
-    	for (int x = 0; x < COLS; x++) {
-    	  for (int c = 0; c < ICH; c++) {
-    		for (int fy = 0; fy < FS; fy++) {
-    		  for (int fx = 0; fx < FS; fx++){
-    			  if( (y+fy > 0) && (y+fy < ROWS+1) && (x+fx > 0) && (x+fx < COLS+1) )
-    				  res_sw_0[ y*COLS*OCH+x*OCH + k] += image[(y+fy-1) * (COLS)*ICH + (x+fx-1)*ICH + c] * weight_0[k*FS*FS*ICH + fy*FS*ICH + fx*ICH + c ];
-    		  }
-    		}
-    	  }
-    	  //add ReLU
-    	  if (res_sw_0[ y*COLS*OCH+x*OCH + k] < 0 )
-    		  res_sw_0[ y*COLS*OCH+x*OCH + k] = 0;
-    	}
-      }
-    }
-	    for (int k = 0; k < OCH; k++) {
-	      for (int y = 0; y < ROWS; y++) {
-	    	for (int x = 0; x < COLS; x++) {
-	    	  for (int c = 0; c < ICH; c++) {
-	    		for (int fy = 0; fy < FS; fy++) {
-	    		  for (int fx = 0; fx < FS; fx++){
-	    			  if( (y+fy > 0) && (y+fy < ROWS+1) && (x+fx > 0) && (x+fx < COLS+1) )
-	    				  res_sw_1[ y*COLS*OCH+x*OCH + k] += res_sw_0[(y+fy-1) * (COLS)*ICH + (x+fx-1)*ICH + c] * weight_0[k*FS*FS*ICH + fy*FS*ICH + fx*ICH + c ];
-	    		  }
-	    		}
-	    	  }
-	    	  //add ReLU
-	    	  if (res_sw_1[ y*COLS*OCH+x*OCH + k] < 0 )
-	    		  res_sw_1[ y*COLS*OCH+x*OCH + k] = 0;
-	    	}
-	      }
-	      for(int y = 0; y < (ROWS>>1); y++){
-	    	  for(int x = 0; x < (COLS>>1); x++){
-	    		  res_sw_pool[y*(COLS>>1)*OCH + x*OCH + k] = \
-	    				  max(res_sw_1[(y<<1)*COLS*OCH + (x<<1)*OCH + k],\
-						  max(res_sw_1[((y<<1) + 1)*COLS*OCH + (x<<1)*OCH + k],\
-					      max(res_sw_1[(y<<1)*COLS*OCH + ((x<<1) + 1)*OCH + k],\
-						  res_sw_1[((y<<1) + 1)*COLS*OCH + ((x<<1) + 1)*OCH + k])));
-	    	  }
-	      }
-	    }*/
-
-
-    /*uint8_t image_1[(ROWS-2) * (COLS-2) * 4];
-	for (int c = 0; c < 4; c++)
-	for (int j = 0; j < ROWS-2; j++)
-	for (int i = 0; i < COLS-2; i++) {
-		if (i < 2 || j < 2) {
-	      image_1[c*(ROWS-2)*(COLS-2) + j*(COLS-2) + i] = 0;
-		} else {
-		  image_1[c*(ROWS-2)*(COLS-2) + j*(COLS-2) + i] = res_sw_0[c*(ROWS-4) * (COLS-4) + (j-2)*(COLS-2) + i-2];
-		}
-	}*/
-
-    /*uint8_t res_sw[(ROWS-6) * (COLS-6)*8];
-    for (int i = 0 ; i < (ROWS-6) * (COLS-6) * 8; i++)
-    	res_sw[i] = 0;
-    for (int k = 0; k < 8; k++) {
-     //for (int co = 0; co < 1; co++) {
-      for (int y = 0; y < ROWS-6; y++) {
-    	for (int x = 0; x < COLS-6; x++) {
-    	  for (int ci = 0; ci < 4; ci++) {
-    		for (int fy = 0; fy < 3; fy++) {
-    		  for (int fx = 0; fx < 3; fx++){
-                //res_sw[y*64+x] += (uint16_t)image[y+fy][x+fx](0,0,ci) * (uint16_t)weight(fx, fy, ci, k);
-    			 // res_sw[k*((ROWS-4) * (COLS-4)) + y*(COLS-4)+x] += (uint8_t)image[co*3*ROWS*COLS + ci*ROWS*COLS + (y+fy) * COLS + (x+fx)] * (uint16_t)weight(fx, fy, ci, k);
-    			  //res_sw[k*((ROWS-4) * (COLS-4)) + y*(COLS-4)+x] += image[co*3*ROWS*COLS + ci*ROWS*COLS + (y+fy) * COLS + (x+fx)] * weight[k*300 + co*75 + ci*25 + fy*5 + fx];
-    			  res_sw[k*((ROWS-6) * (COLS-6)) + y*(COLS-6)+x] += res_sw_0[ ci*(ROWS-4)*(COLS-4) + (y+fy) * (COLS-4) + (x+fx)] * weight_1[k*36 + + fy*12 + fx*4 + ci ];
-    		  }
-    		}
-    	  }
-    	}
-      }
-    //}
-    }*/
-    	/*for (int i = 0; i < ROWS * COLS * OCH; i++) {
-    		if(res[i] != res_sw_0[i]) {
-    			cout << "pos: " << i << " res: " << res[i] << " " << res_sw_0[i] << endl;
-    			err_cnt++;
-    		}
-    	}
-    	for (int i = 0; i < (ROWS>>1) * (COLS>>1) * OCH; i++) {
-    	    if(res_pool[i] != res_sw_pool[i]) {
-    	   		cout << "pos: " << i << " res: " << res_pool[i] << " " << res_sw_pool[i] << endl;
-    	   		err_cnt++;
-    	   	}
-    	}*/
-   check_err(res_0, res_sw_0, ROWS, COLS, OCH, 0, err_cnt);
-
-   if (err_cnt)
-      cout << "ERROR: " << err_cnt << " mismatches detected!" << endl;
-   else
-      cout << "Test passes." << endl;
-#endif
-   return err_cnt;
-
-}
 
 dtype max(dtype a, dtype b){
 	return (dtype)( (a>b) ? a : b );
@@ -323,3 +183,4 @@ void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer
 	}
 }
 
+#endif
