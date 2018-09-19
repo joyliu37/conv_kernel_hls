@@ -18,22 +18,22 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
     Stencil<dtype, P_CIN, P_COUT, 1, 1> weight_reg;
     Stencil<dtype, P_COUT, 1, 1, 1> psum_reg;
 
-	computation:for (int cinBlk = 0; cinBlk < 0 + Cin_Iter; cinBlk++)
+	computation:for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++)
 	    {
 	#pragma HLS LOOP_TRIPCOUNT max=4
-	   for (int yOffset = 0; yOffset < 0 + K_SZ; yOffset++)
+	   for (int yOffset = 0; yOffset < K_SZ; yOffset++)
 	     {
 	#pragma HLS LOOP_TRIPCOUNT max=3
-	      for (int xOffset = 0; xOffset < 0 + K_SZ; xOffset++)
+	      for (int xOffset = 0; xOffset < K_SZ; xOffset++)
 	      {
 	#pragma HLS LOOP_TRIPCOUNT max=3
-	       for (int yIter = 0; yIter < 0 + Y_SZ; yIter++)
+	       for (int yIter = 0; yIter < Y_SZ; yIter++)
 	       {
-	        for (int xIter = 0; xIter < 0 + X_SZ; xIter++)
+	        for (int xIter = 0; xIter < X_SZ; xIter++)
 	        {
 	        	//for debug
 #pragma HLS PIPELINE II=1
-	         for (int coutBlk = 0; coutBlk < 0 + Cout_Iter; coutBlk++)
+	         for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++)
 	         {
 	#pragma HLS LOOP_TRIPCOUNT max=4
 	//#pragma HLS DEPENDENCE variable=_conv1a2 inter false
@@ -43,15 +43,17 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
                  //TODO: this part may not work
                  feature_reg = Stencil<dtype, P_CIN, 1, 1, 1>( feature_stream.read() );
                  weight_reg = Stencil<dtype, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
-            for (int coutIter = 0; coutIter < 0 + P_COUT; coutIter++)
+            for (int coutIter = 0; coutIter < P_COUT; coutIter++)
 	          {
-	           dtype_double _conv1_acc;
-	           // produce conv1.acc
-	           _conv1_acc = 0;
-	           // update conv1.acc
-               for (int cinIter = 0; cinIter < 0 + P_CIN; cinIter ++){
-            	   _conv1_acc += feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
-            	   //printf("%d*%d=%d\n",feature_reg(cinIter, 0, 0, 0), weight_reg(cinIter, coutIter, 0, 0), _conv1_acc);
+#pragma HLS UNROLL
+
+	           dtype_double _conv1_acc = 0;
+	           dtype_double _tmp_mul = 0;
+               for (int cinIter = 0; cinIter < P_CIN; cinIter ++){
+#pragma HLS UNROLL
+            	    _tmp_mul = feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
+            	    _conv1_acc += _tmp_mul;
+            	    //printf("%d*%d=%d\n",feature_reg(cinIter, 0, 0, 0), weight_reg(cinIter, coutIter, 0, 0), _conv1_acc);
                }
                psum_reg(coutIter, 0, 0, 0) = _conv1_acc;
 
@@ -359,7 +361,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature intra false
 
 		feature.call(padded_feature, feature_stream, para, iter);
-
+        //debug
+        //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
@@ -395,6 +398,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 //#pragma HLS DEPENDENCE variable=weight inter false
 //#pragma HLS DEPENDENCE variable=weight intra false
+        //debug
+        //std::cout <<"inputw iter no." << iter.tilingIDc_i <<std::endl;
 		weight.call(weightMemStream, weight_stream, para, iter);
 
     }//for tiling Input channel
@@ -427,6 +432,8 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 
 			conv_kernel(feature_stream, weight_stream, psum_stream);
 
+        //debug
+        //std::cout <<"conv iter no." << iter.tilingIDc_i <<std::endl;
 	    }//for tiling Input channel
 	   } // for _output_s0_c_co
 	  } // for _output_s0_x_xo
@@ -459,6 +466,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=psum inter false
 //#pragma HLS DEPENDENCE variable=psum intra false
 		psum.call(psum_stream, _output, para, iter);
+        //debug
+        //std::cout <<"output iter no." << iter.tilingIDc_i <<std::endl;
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -487,9 +496,9 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 4096 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 4096 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 2304 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 8192 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 8192 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
 
 
  // alias the arguments
@@ -581,29 +590,33 @@ iter.tilingIDy = 0;
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> unpadded_feature("in_fm");
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> padded_feature("out_fm");
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature_short("out_short_fm");
-#pragma HLS STREAM variable=unpadded_feature depth=32
-#pragma HLS STREAM variable=padded_feature depth=32
-#pragma HLS STREAM variable=padded_feature_short depth=32
+#pragma HLS STREAM variable=unpadded_feature depth=1
+#pragma HLS STREAM variable=padded_feature depth=1
+#pragma HLS STREAM variable=padded_feature_short depth=1
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weight_long("in_wt");
  hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> weight_short("out_wt");
-#pragma HLS STREAM variable=weight_long depth=32
-#pragma HLS STREAM variable=weight_short depth=32
+#pragma HLS STREAM variable=weight_long depth=1
+#pragma HLS STREAM variable=weight_short depth=1
+#pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream;
  hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream;
-#pragma HLS STREAM variable=feature_stream depth=32
-#pragma HLS STREAM variable=weight_stream depth=32
+#pragma HLS STREAM variable=feature_stream depth=1
+//#pragma HLS_RESOURCE variable=feature_stream core=FIFO_LUTRAM
+#pragma HLS STREAM variable=weight_stream depth=1
+#pragma HLS RESOURCE variable=weight_stream core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> psum_stream;
-#pragma HLS STREAM variable=psum_stream depth=32
+#pragma HLS STREAM variable=psum_stream depth=1
+//#pragma HLS_RESOURCE variable=feature_stream core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> relu_short("relu");
-#pragma HLS STREAM variable=output_long depth=32
-#pragma HLS STREAM variable=output_short depth=32
-#pragma HLS STREAM variable=relu_short depth=32
+#pragma HLS STREAM variable=output_long depth=1
+#pragma HLS STREAM variable=output_short depth=1
+#pragma HLS STREAM variable=relu_short depth=1
 
 
 #pragma HLS dataflow

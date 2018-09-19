@@ -6,14 +6,14 @@
 
 #define ROWS 32 //68
 #define COLS 32//68
-#define ICH 32 //32,8
-#define OCH 32 //16,8
+#define ICH 32//32,8
+#define OCH 32//16,8
 #define FS 3
 
 #define XN 2
 #define YN 2
-#define CINN 1
-#define COUTN 4
+#define CINN 2
+#define COUTN 2
 
 
 typedef uint16_t t;
@@ -55,7 +55,7 @@ int main()
 	weight2stencil(weight_0, weight_stencil, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 1, 4, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 2, 2, false);
 	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
 
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
@@ -233,18 +233,18 @@ void weight2stencil(dtype* weight,
     dtype reshape_weight[iCh*oCh*fs*fs];
 
     for (int coutBlk = 0; coutBlk < Cout_Iter * COUTN; coutBlk ++){
-        for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
-            for (int yOff = 0; yOff < fs; yOff ++){
-                for (int xOff = 0; xOff < fs; xOff ++){
+    	for (int yOff = 0; yOff < fs; yOff ++){
+    		for (int xOff = 0; xOff < fs; xOff ++){
+    			for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
                     for (int ii = 0; ii < P_COUT; ii++){
                         for (int jj = 0; jj < P_CIN; jj ++){
                             int addr_org = (coutBlk*P_COUT + ii) *fs*fs*iCh +\
                                        	   yOff * fs * iCh + xOff * iCh +\
 										   cinBlk*P_CIN + jj;
                             int addr_new = coutBlk * fs * fs * Cin_Iter * CINN * P_CIN *P_COUT +\
-                            				cinBlk * fs * fs * P_COUT * P_CIN+\
-											yOff * fs * P_COUT * P_CIN+\
-											xOff * P_COUT * P_CIN+\
+											yOff * fs * Cin_Iter * CINN * P_COUT * P_CIN+\
+											xOff * Cin_Iter * CINN * P_COUT * P_CIN+\
+                            				cinBlk * P_COUT * P_CIN+\
 											ii * P_CIN + jj;
                             reshape_weight[addr_new] = weight[addr_org];
                         }

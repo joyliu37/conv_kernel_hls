@@ -45,20 +45,20 @@ void Mem2Stream_weight(
     Stencil<T, data_width, 1, 1, 1> temp;
 load_weight2Stream: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=16
-		for (int input_c = 0; input_c < Cin_Iter; input_c++) {
-#pragma HLS LOOP_TRIPCOUNT max=16
 		    for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 			    for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
+			    	for (int input_c = 0; input_c < Cin_Iter; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=16
                     for(int ii = 0; ii < W_CNT; ii++){
 #pragma HLS PIPELINE II=1
                         //TODO: change the hardcode 4 to a param
     					int32_t ddrAddr =
                                 (output_c + iter.tilingIDc_o * Cout_Iter) * (para.Chin>>P_CIN_bit) * para.Ksz * para.Ksz * W_CNT +\
-                                (input_c + iter.tilingIDc_i * Cin_Iter)  * para.Ksz * para.Ksz * W_CNT +\
-                                offset_y * para.Ksz * W_CNT +\
-	    						offset_x * W_CNT + ii;
+                                offset_y * para.Ksz * (para.Chin>>P_CIN_bit) * W_CNT +\
+	    						offset_x * (para.Chin>>P_CIN_bit) * W_CNT +\
+								(input_c + iter.tilingIDc_i * Cin_Iter)  * W_CNT + ii;
                         temp = _weight[ddrAddr];
 					    out.write(temp);
 				    }
@@ -445,12 +445,12 @@ feed_stream_feature: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 		for (int xIter = 0; xIter < X_SZ; xIter++) {
             for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-                for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
+                for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+                	for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+                		for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-                    for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-		        	    for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
 #pragma HLS PIPELINE II=1
 							Stencil<T, P_CIN, 1, 1, 1> feature;
 							/*for (int cinIter = 0; cinIter < P_CIN; cinIter++) {
@@ -467,8 +467,7 @@ feed_stream_feature: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 								feature(cinIter, 0, 0, 0) =
 										_feature_buf[featureBuffAddr];
 							}*/
-							int32_t featureBuffAddr = cinBlk\
-                                                      + (xIter + xOffset) * Cin_Iter\
+							int32_t featureBuffAddr = cinBlk + (xIter + xOffset) * Cin_Iter\
                                 + (yIter + yOffset) * Cin_Iter * (X_SZ + para.Ksz - 1);
                             feature = _feature_buf[featureBuffAddr];
 							out_stream.write(feature);
@@ -522,12 +521,12 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
     //TODO: only work when data_width = 1
 	load_weight: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-	for (int input_c = 0; input_c < Cin_Iter; input_c++) {
-#pragma HLS LOOP_TRIPCOUNT max=2
 		for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
 			for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=3
+				for (int input_c = 0; input_c < Cin_Iter; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=2
 
 #pragma HLS PIPELINE II=1
 					Stencil<T, dw1*dw2, 1, 1, 1> temp_lw = _weight_stream.read();
@@ -540,7 +539,7 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
                             temp_sw(ii, jj, 0, 0) = temp_lw(jj*dw1 + ii, 0, 0, 0);
                         }
                     }
-                    int32_t bramblkaddr = offset_x + offset_y * para.Ksz + input_c*para.Ksz*para.Ksz;
+                    int32_t bramblkaddr = offset_y * para.Ksz * Cin_Iter + offset_x * Cin_Iter + input_c;
                     _weight_buf[output_c][bramblkaddr] = temp_sw;
 				}
 			}
@@ -552,7 +551,7 @@ template<typename T, int dw1, int dw2>
 void Doublebuffer_weight<T, dw1, dw2>::feedStream(
         PackedStencil<T, dw1, dw2, 1, 1> (*_weight_buf)[Cin_Iter * K_SZ * K_SZ],
 		layerPara para,
-		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream) {
+		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream){
 	/* if(this->empty[flag])
 	 return;*/
 #pragma HLS inline off
@@ -561,12 +560,12 @@ feed_stream_weight: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 		for (int xIter = 0; xIter < X_SZ; xIter++) {
             for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-				for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
+            	for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+            		for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+            			for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-        		    for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-		        	    for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
 #pragma HLS PIPELINE II=1
                             assert((P_CIN == dw1) && (P_COUT == dw2));
 							Stencil<T, P_CIN, P_COUT, 1, 1> weight;
@@ -588,7 +587,7 @@ feed_stream_weight: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 								}
 							}*/
                             int32_t weightBuffId = coutBlk;
-                            int32_t weightBuffAddr = xOffset + yOffset * para.Ksz + cinBlk * para.Ksz * para.Ksz;
+                            int32_t weightBuffAddr = yOffset * para.Ksz *Cin_Iter + xOffset * Cin_Iter + cinBlk;
                             weight = _weight_buf[weightBuffId][weightBuffAddr];
 							out_stream.write(weight);
 						}
@@ -677,13 +676,12 @@ receive_stream_psum: for (int yIter = 0; yIter < Y_SZ; yIter++) {
 		for (int xIter = 0; xIter < X_SZ; xIter++) {
             for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=4
-
-				for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
+            	for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+            		for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+            			for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++) {
 #pragma HLS LOOP_TRIPCOUNT max=4
-        		    for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-		        	    for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
 #pragma HLS PIPELINE II=1
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
