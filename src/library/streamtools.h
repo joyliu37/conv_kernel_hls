@@ -7,7 +7,7 @@ template<typename T, int data_width>
 void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
 		layerPara para, tilingID iter) {
-#pragma HLS inline
+//#pragma HLS inline
 	int32_t x_lb = para.Anchor - iter.tilingIDx * X_SZ;
 	int32_t y_lb = para.Anchor - iter.tilingIDy * Y_SZ;
 	int32_t x_ub = para.Anchor - iter.tilingIDx * X_SZ + para.Width;
@@ -43,7 +43,7 @@ template<typename T, int data_width>
 void StreamReLU(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
 		int stream_length) {
-#pragma HLS inline
+//#pragma HLS inline
 
 	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
 
@@ -67,7 +67,7 @@ void StreamDataWidthConverter(
 		hls::stream<PackedStencil<T, in_data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, out_data_width, 1, 1, 1>> &out,
 		tilingID iter, layerPara para, int inWidth, int outWidth, int input_num) {
-#pragma HLS inline
+//#pragma HLS inline
 	if (in_data_width > out_data_width) {
 		for (int i = 0; i < input_num; i++){
             Stencil<T, in_data_width, 1, 1, 1> inData = in.read();
@@ -89,21 +89,22 @@ void StreamDataWidthConverter(
     		Stencil<T, out_data_width, 1, 1, 1> outData;
     		inData = in.read();
     		for (int ii = 0; ii < in_data_width; ii++){
-#pragma HLS UNROLL
     			outData(ii, 0, 0, 0) = inData(ii, 0, 0, 0);
     		}
     		out.write(outData);
     	}
     }
-    else {
+    else if(out_data_width > in_data_width){
             for (int i = 0; i < input_num/(outWidth/inWidth); i++){
-    #pragma HLS PIPELINE II=1
                 Stencil<T, out_data_width, 1, 1, 1> outData;
                 Stencil<T, in_data_width, 1, 1, 1> inData;
+#pragma HLS ARRAY_PARTITION variable=inData.value complete dim=0
+#pragma HLS ARRAY_PARTITION variable=outData.value complete dim=0
                 for (int i_pack = 0; i_pack < outWidth / inWidth; i_pack++){
-                    inData= in.read();
+#pragma HLS PIPELINE II=1
+                    inData = in.read();
+#pragma HLS DEPENDENCE variable=outData inter false
                     for (int ii = 0; ii < inWidth; ii++){
-    #pragma HLS UNROLL
                         outData(ii + i_pack * in_data_width, 0, 0, 0) = inData(ii, 0, 0, 0);
                     }
                 }

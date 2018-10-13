@@ -7,10 +7,10 @@
 #define HW_COSIM
 
 
-#define ROWS 32 //68
-#define COLS 32//68
-#define ICH 32//32,8
-#define OCH 32//16,8
+#define ROWS 8//68
+#define COLS 8//68
+#define ICH 64//32,8
+#define OCH 128//16,8
 #define FS 3
 
 #define XN 2

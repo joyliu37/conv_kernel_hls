@@ -22,9 +22,9 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 8192 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 8192 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 9216 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 512 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 512 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 4608 port=arg_2
 
 
  // alias the arguments

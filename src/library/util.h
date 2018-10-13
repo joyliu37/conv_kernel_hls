@@ -11,23 +11,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define X_SZ 16
-#define Y_SZ 16
+#define X_SZ 4
+#define Y_SZ 4
 #define K_SZ 3
 
-#define Cin_SZ 16
-#define Cin_SZ_bit 4
-#define Cout_SZ 16
-#define Cout_SZ_bit 4
+#define Cin_SZ 32
+#define Cin_SZ_bit 5
+#define Cout_SZ 64
+#define Cout_SZ_bit 6
 #define Cin_Iter 2
 #define Cout_Iter 2
 
-#define P_CIN 8
-#define P_CIN_bit 3
-#define P_COUT 8
-#define P_COUT_bit 3
+#define P_CIN 16
+#define P_CIN_bit 4
+#define P_COUT 32
+#define P_COUT_bit 5
 
-#define DATAWIDTH 8
+#define DATAWIDTH 32
 #define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 typedef uint8_t dtype_u;

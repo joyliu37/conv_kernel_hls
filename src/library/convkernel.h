@@ -12,6 +12,9 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
     Stencil<dtype, P_CIN, 1, 1, 1> feature_reg;
     Stencil<dtype, P_CIN, P_COUT, 1, 1> weight_reg;
     Stencil<dtype, P_COUT, 1, 1, 1> psum_reg;
+#pragma HLS ARRAY_PARTITION variable=feature_reg.value complete dim=0
+#pragma HLS ARRAY_PARTITION variable=weight_reg.value complete dim=0
+#pragma HLS ARRAY_PARTITION variable=psum_reg.value complete dim=0
 
 	computation:for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++)
 	    {
@@ -27,7 +30,6 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
 	        for (int xIter = 0; xIter < X_SZ; xIter++)
 	        {
 	        	//for debug
-#pragma HLS PIPELINE II=1
 	         for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++)
 	         {
 	#pragma HLS LOOP_TRIPCOUNT max=4
@@ -40,12 +42,10 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
                  weight_reg = Stencil<dtype, P_CIN, P_COUT, 1, 1>( weight_stream.read() );
             for (int coutIter = 0; coutIter < P_COUT; coutIter++)
 	          {
-#pragma HLS UNROLL
 
 	           dtype_double _conv1_acc = 0;
 	           dtype_double _tmp_mul = 0;
                for (int cinIter = 0; cinIter < P_CIN; cinIter ++){
-#pragma HLS UNROLL
             	    _tmp_mul = feature_reg(cinIter, 0, 0, 0) * weight_reg(cinIter, coutIter, 0, 0);
             	    _conv1_acc += _tmp_mul;
             	    //printf("%d*%d=%d\n",feature_reg(cinIter, 0, 0, 0), weight_reg(cinIter, coutIter, 0, 0), _conv1_acc);

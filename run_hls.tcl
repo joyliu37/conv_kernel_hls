@@ -25,16 +25,16 @@ add_files $srcdir/library/streamtools.h -cflags "-std=c++0x -I$halide_include -I
 add_files $srcdir/library/util.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
 add_files $srcdir/library/dma.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
 add_files $srcdir/library/convkernel.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
-add_files $srcdir/library/wrapper.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
+add_files $srcdir/hw/wrapper.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 add_files $srcdir/hw/hls_target.cpp -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 add_files $srcdir/hw/hls_target.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 add_files $srcdir/host/conv_test.h -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
 add_files -tb $srcdir/host/conv_test.cpp -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
-open_solution "solution1"
+open_solution "solution_tiny2"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
-create_clock -period 5 -name default
+create_clock -period 4 -name default
 #source "./cnn_db_new/solution1/directives.tcl"
 csim_design -clean -compiler gcc
-#csynth_design
-#cosim_design -trace_level all
-#export_design -rtl verilog -format ip_catalog
+csynth_design
+cosim_design -trace_level all
+export_design -rtl verilog -format ip_catalog

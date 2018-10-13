@@ -9,7 +9,7 @@ template<typename T, int data_width>
 void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out, layerPara para,
 		tilingID iter) {
-#pragma HLS inline
+//#pragma HLS inline
 
 	Stencil<T, data_width, 1, 1, 1> temp;
 //TODO: put off_beg and off_end into a profile
@@ -39,7 +39,7 @@ void Mem2Stream_weight(
         PackedStencil<T, data_width, 1, 1, 1> *_weight,
         hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
         layerPara para, tilingID iter){
-#pragma HLS inline
+//#pragma HLS inline
 
     Stencil<T, data_width, 1, 1, 1> temp;
 load_weight2Stream: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
@@ -74,7 +74,7 @@ void Stream2Mem_output(
 		PackedStencil<T, data_width, 1, 1, 1> *_output,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		layerPara para, tilingID iter){
-#pragma HLS inline
+//#pragma HLS inline
 
 	Stencil<T, data_width, 1, 1, 1> temp;
 store_stream2out: for (int output_y = 0; output_y < Y_SZ; output_y++) {
