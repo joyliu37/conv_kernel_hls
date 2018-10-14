@@ -77,10 +77,9 @@ void Stream2Mem_output(
 //#pragma HLS inline
 
 	Stencil<T, data_width, 1, 1, 1> temp;
+#pragma ARRAY_PARTITION variable=temp.value complete dim=0
 store_stream2out: for (int output_y = 0; output_y < Y_SZ; output_y++) {
 	for (int output_x = 0; output_x < X_SZ; output_x++) {
-		#pragma HLS PIPELINE II=1
-
 		for (int output_c = 0; output_c < Cout_SZ/data_width; output_c++) {
 #pragma HLS PIPELINE II=1
 			temp = in.read();

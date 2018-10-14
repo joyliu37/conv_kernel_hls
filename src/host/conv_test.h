@@ -9,7 +9,7 @@
 
 #define ROWS 8//68
 #define COLS 8//68
-#define ICH 64//32,8
+#define ICH 128//32,8
 #define OCH 128//16,8
 #define FS 3
 
@@ -60,15 +60,19 @@ void initial_input(dtype* image, int rows, int cols, int iCh){
 }
 
 void image2stencil(dtype* image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image_stencil, int rows, int cols, int iCh){
-	for (int c = 0; c < rows; c++)
+	/*for (int c = 0; c < rows; c++)
 			for (int j = 0; j < cols; j++)
 				for (int i = 0; i < iCh/DATAWIDTH; i++){
 					Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
-
+*/
+    for (int i = 0; i < rows*cols*iCh/DATAWIDTH; i ++){
+					Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
 					for (int pos = 0; pos < DATAWIDTH; pos++)
-						temp(pos, 0, 0, 0) = image[c*(cols)*(iCh) + j*(iCh) + i*DATAWIDTH + pos];
+						temp(pos, 0, 0, 0) = image[i*DATAWIDTH + pos];
+						//temp(pos, 0, 0, 0) = image[c*(cols)*(iCh) + j*(iCh) + i*DATAWIDTH + pos];
 
-					image_stencil[i + j*iCh/DATAWIDTH + c*cols*iCh/DATAWIDTH] = temp;
+					image_stencil[i] = temp;
+					//image_stencil[i + j*iCh/DATAWIDTH + c*cols*iCh/DATAWIDTH] = temp;
 				}
 
 }
@@ -114,7 +118,7 @@ void weight2stencil(dtype* weight,
         }
     }
 
-	for (int idx0 = 0; idx0 < oCh; idx0++)
+	/*for (int idx0 = 0; idx0 < oCh; idx0++)
 	for (int idx1 = 0; idx1 < fs; idx1++)
 	for (int idx2 = 0; idx2 < fs; idx2++)
 	for (int idx3 = 0; idx3 < iCh/DATAWIDTH; idx3++) {
@@ -126,7 +130,14 @@ void weight2stencil(dtype* weight,
 										idx3 * DATAWIDTH + pos];
 		weight_stencil[idx3 + idx2*iCh/DATAWIDTH + \
 					   idx1*iCh*fs/DATAWIDTH + idx0*iCh*fs*fs/DATAWIDTH] = temp;
-	}
+	}*/
+    for(int i = 0; i < fs*fs*oCh*iCh/DATAWIDTH; i ++){
+		Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
+        for (int pos = 0; pos < DATAWIDTH; pos ++){
+            temp(pos, 0, 0, 0) = reshape_weight[i * DATAWIDTH + pos];
+        }
+        weight_stencil[i] = temp;
+    }
 }
 
 void conv_sw(dtype* input, dtype* weight, dtype* res, \

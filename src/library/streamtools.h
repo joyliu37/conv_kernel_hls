@@ -13,13 +13,14 @@ void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 	int32_t x_ub = para.Anchor - iter.tilingIDx * X_SZ + para.Width;
 	int32_t y_ub = para.Anchor - iter.tilingIDy * Y_SZ + para.Height;
 	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
+#pragma HLS ARRAY_PARTITION variable=out_data.value complete dim=0
+#pragma HLS ARRAY_PARTITION variable=in_data.value complete dim=0
 	stream_pad: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1;
 			input_y++) {
 		for (int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x++) {
-			for (int input_c = 0; input_c < (Cin_SZ / data_width); input_c++) {
+			for (int input_c = 0; input_c < Cin_Iter; input_c++) {
 #pragma HLS PIPELINE II=1
-				if ((input_x < x_lb) || (input_y < y_lb) || (input_x >= x_ub)
-						|| (input_y >= y_ub)) {
+				if ((input_x < x_lb) || (input_y < y_lb) || (input_x >= x_ub) || (input_y >= y_ub)) {
 					//possible bug: may need to write my own initialization
 					for (int i = 0; i < data_width; i++)
 						out_data(i, 0, 0, 0) = 0;

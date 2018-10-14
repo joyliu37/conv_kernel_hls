@@ -22,8 +22,8 @@ bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
-#pragma HLS INTERFACE m_axi depth = 512 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 512 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 256 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 256 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 4608 port=arg_2
 
 
@@ -76,11 +76,11 @@ iter.tilingIDy = 0;
 
  //define the stream
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> unpadded_feature("in_fm");
- hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> padded_feature("out_fm");
- hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature_short("out_short_fm");
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> unpadded_feature_short("in_short_fm");
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature("out_fm");
 #pragma HLS STREAM variable=unpadded_feature depth=1
 #pragma HLS STREAM variable=padded_feature depth=1
-#pragma HLS STREAM variable=padded_feature_short depth=1
+#pragma HLS STREAM variable=unpadded_feature_short depth=1
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weight_long("in_wt");
  hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> weight_short("out_wt");
@@ -109,13 +109,13 @@ iter.tilingIDy = 0;
 
 #pragma HLS dataflow
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
-feature_pad(unpadded_feature, padded_feature, para);
-datawidth_convert_feature(padded_feature, padded_feature_short, para);
+datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
+feature_pad(unpadded_feature_short, padded_feature, para);
 
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
 
-read_input(padded_feature_short, feature, feature_stream, para);
+read_input(padded_feature, feature, feature_stream, para);
 read_weight(weight_short, weight, weight_stream, para);
 
 compute(feature_stream, weight_stream, psum_stream, para);

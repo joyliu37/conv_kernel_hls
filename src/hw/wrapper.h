@@ -106,8 +106,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 
-static void feature_pad(hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
-        hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &out,
+static void feature_pad(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &in,
+        hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -129,7 +129,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        StreamPad<dtype, DATAWIDTH>(in, out, para, iter);
+        StreamPad<dtype, P_CIN>(in, out, para, iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -178,7 +178,8 @@ static void datawidth_convert_feature(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = (X_SZ + para.Ksz - 1) * (Y_SZ + para.Ksz - 1) * Cin_SZ / DATAWIDTH;
+    //hacky implementation with only 22 tiling
+    int32_t input_count = (X_SZ + para.Ksz - 2) * (Y_SZ + para.Ksz - 2) * Cin_SZ / DATAWIDTH;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {

@@ -382,7 +382,6 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 
 	write_back_without_pool_y: for (int output_y = 0; output_y < Y_SZ; output_y++) {
 		write_back_without_pool_x: for (int output_x = 0; output_x < X_SZ; output_x++) {
-#pragma HLS PIPELINE II=1
 			write_back_without_pool_c: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS PIPELINE II=1
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
