@@ -16,6 +16,7 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
 #pragma HLS ARRAY_PARTITION variable=weight_reg.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=psum_reg.value complete dim=0
 
+    //The iterator order here does not matter, the kernel is virtualized.
 	computation:for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++)
 	    {
 	#pragma HLS LOOP_TRIPCOUNT max=4

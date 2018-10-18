@@ -261,12 +261,12 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
     //TODO: only work when data_width = 1
 	load_weight: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
-		for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-			for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-				for (int input_c = 0; input_c < Cin_Iter; input_c++) {
+		for (int input_c = 0; input_c < Cin_Iter; input_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
+		    for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
+			    for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
+#pragma HLS LOOP_TRIPCOUNT max=3
 
 #pragma HLS PIPELINE II=1
 					Stencil<T, dw1*dw2, 1, 1, 1> temp_lw = _weight_stream.read();

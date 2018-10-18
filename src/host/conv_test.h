@@ -97,18 +97,18 @@ void weight2stencil(dtype* weight,
     dtype reshape_weight[iCh*oCh*fs*fs];
 
     for (int coutBlk = 0; coutBlk < Cout_Iter * COUTN; coutBlk ++){
-    	for (int yOff = 0; yOff < fs; yOff ++){
-    		for (int xOff = 0; xOff < fs; xOff ++){
-    			for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
+    	for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
+    	    for (int yOff = 0; yOff < fs; yOff ++){
+    		    for (int xOff = 0; xOff < fs; xOff ++){
                     for (int ii = 0; ii < P_COUT; ii++){
                         for (int jj = 0; jj < P_CIN; jj ++){
                             int addr_org = (coutBlk*P_COUT + ii) *fs*fs*iCh +\
                                        	   yOff * fs * iCh + xOff * iCh +\
 										   cinBlk*P_CIN + jj;
                             int addr_new = coutBlk * fs * fs * Cin_Iter * CINN * P_CIN *P_COUT +\
-											yOff * fs * Cin_Iter * CINN * P_COUT * P_CIN+\
-											xOff * Cin_Iter * CINN * P_COUT * P_CIN+\
-                            				cinBlk * P_COUT * P_CIN+\
+                            				cinBlk * fs * fs * P_COUT * P_CIN+\
+											yOff * fs * P_COUT * P_CIN+\
+											xOff * P_COUT * P_CIN+\
 											ii * P_CIN + jj;
                             reshape_weight[addr_new] = weight[addr_org];
                         }
