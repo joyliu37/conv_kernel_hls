@@ -11,17 +11,30 @@ void hls_target(
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_0,//[32*124*32],output
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_1,//[34*126*32],input_FM
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_2,//input weight
-uint8_t Ksz,
-uint8_t X_n,
-uint8_t Y_n,
+const uint8_t Ksz,
+const uint8_t Xsz,
+const uint8_t Ysz,
+const uint8_t X_n,
+const uint8_t Y_n,
 /*remaining channel chunk in the last tile of input,
  * ChNum = (n-1)*C_SZ + r*P_C*/
-uint8_t Cin_n,
-uint8_t Cout_n,
+const uint8_t Cin_n,
+const uint8_t Cin_SZ,
+const uint8_t Cout_n,
+const uint8_t Cout_SZ,
 bool pool)
 
 {
 #pragma HLS INTERFACE s_axilite port=return bundle=config
+#pragma HLS INTERFACE s_axilite port=Ksz bundle=control
+#pragma HLS INTERFACE s_axilite port=Xsz bundle=control
+#pragma HLS INTERFACE s_axilite port=Ysz bundle=control
+#pragma HLS INTERFACE s_axilite port=X_n bundle=control
+#pragma HLS INTERFACE s_axilite port=Y_n bundle=control
+#pragma HLS INTERFACE s_axilite port=Cin_n bundle=control
+#pragma HLS INTERFACE s_axilite port=Cout_n bundle=control
+#pragma HLS INTERFACE s_axilite port=Cin_SZ bundle=control
+#pragma HLS INTERFACE s_axilite port=Cout_SZ bundle=control
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
@@ -31,20 +44,30 @@ bool pool)
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_clamped = arg_1;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_output = arg_0;
  //dtype *_weight = arg_2;
-PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
+ PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
 
  struct layerPara para;
  para.Ksz = Ksz;
+
+ para.Y_SZ = Ysz;
+ para.X_SZ = Xsz;
  para.X_n = X_n;
  para.Y_n = Y_n;
+
  para.Cin_n = Cin_n;
+ para.Cin_SZ = Cin_SZ;
+ para.Cin_Iter = Cin_SZ/P_CIN;
+
  para.Cout_n = Cout_n;
+ para.Cout_SZ = Cout_SZ;
+ para.Cout_Iter = Cout_SZ/P_COUT;
+
  para.pool = pool;
  para.loop_cnt = X_n * Y_n * Cin_n * Cout_n;
 
  //note: optimization bit shift
- para.Width = X_SZ*(X_n);
- para.Height = Y_SZ*(Y_n);
+ para.Width = Xsz*(X_n);
+ para.Height = Ysz*(Y_n);
 
  //Total channel number
  para.Chin = Cin_n * Cin_SZ;

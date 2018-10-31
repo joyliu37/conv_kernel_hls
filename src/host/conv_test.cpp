@@ -25,7 +25,7 @@ int main()
 	weight2stencil(weight_0, weight_stencil, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 2, 2, 2, 2, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, 3, 16, 16, 2, 2, 2, 32, 2, 32, false);
 	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
 
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);

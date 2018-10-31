@@ -5,8 +5,8 @@
 
 void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_stream,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> & weight_stream,
-		//struct layerPara *para,
-		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> & psum_stream){
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> & psum_stream,
+		layerPara para){
 #pragma HLS inline off
 
     Stencil<dtype, P_CIN, 1, 1, 1> feature_reg;
@@ -17,21 +17,21 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
 #pragma HLS ARRAY_PARTITION variable=psum_reg.value complete dim=0
 
     //The iterator order here does not matter, the kernel is virtualized.
-	computation:for (int cinBlk = 0; cinBlk < Cin_Iter; cinBlk++)
+	computation:for (int cinBlk = 0; cinBlk < para.Cin_Iter; cinBlk++)
 	    {
 	#pragma HLS LOOP_TRIPCOUNT max=4
-	   for (int yOffset = 0; yOffset < K_SZ; yOffset++)
+	   for (int yOffset = 0; yOffset < para.Ksz; yOffset++)
 	     {
 	#pragma HLS LOOP_TRIPCOUNT max=3
-	      for (int xOffset = 0; xOffset < K_SZ; xOffset++)
+	      for (int xOffset = 0; xOffset < para.Ksz; xOffset++)
 	      {
 	#pragma HLS LOOP_TRIPCOUNT max=3
-	       for (int yIter = 0; yIter < Y_SZ; yIter++)
+	       for (int yIter = 0; yIter < para.Y_SZ; yIter++)
 	       {
-	        for (int xIter = 0; xIter < X_SZ; xIter++)
+	        for (int xIter = 0; xIter < para.X_SZ; xIter++)
 	        {
 	        	//for debug
-	         for (int coutBlk = 0; coutBlk < Cout_Iter; coutBlk++)
+	         for (int coutBlk = 0; coutBlk < para.Cout_Iter; coutBlk++)
 	         {
 	#pragma HLS LOOP_TRIPCOUNT max=4
 	//#pragma HLS DEPENDENCE variable=_conv1a2 inter false

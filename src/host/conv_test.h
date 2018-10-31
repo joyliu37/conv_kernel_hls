@@ -96,6 +96,9 @@ void weight2stencil(dtype* weight,
 		int fs, int iCh, int oCh){
     dtype reshape_weight[iCh*oCh*fs*fs];
 
+    int Cin_Iter = ICH/CINN / P_CIN;
+    int Cout_Iter = OCH/ COUTN / P_COUT;
+
     for (int coutBlk = 0; coutBlk < Cout_Iter * COUTN; coutBlk ++){
     	for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
     	    for (int yOff = 0; yOff < fs; yOff ++){
