@@ -88,24 +88,17 @@ void Mem2Stream_weight(
     Stencil<T, data_width, 1, 1, 1> temp;
 load_weight2Stream: for (int output_c = 0; output_c < Cout_Iter; output_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=16
-			for (int input_c = 0; input_c < Cin_Iter; input_c++) {
-#pragma HLS LOOP_TRIPCOUNT max=16
-		        for (int offset_y = 0; offset_y < para.Ksz; offset_y++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-			        for (int offset_x = 0; offset_x < para.Ksz; offset_x++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-                        for(int ii = 0; ii < W_CNT; ii++){
+#pragma HLS DATAFLOW
+            for (int input_c = 0; input_c < Cin_Iter * para.Ksz * para.Ksz * W_CNT; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=72
+
 #pragma HLS PIPELINE II=1
                         //TODO: change the hardcode 4 to a param
     					int32_t ddrAddr = (output_c + iter.tilingIDc_o * Cout_Iter) * (para.Chin>>P_CIN_bit) * para.Ksz * para.Ksz * W_CNT +\
-                                          (input_c + iter.tilingIDc_i * Cin_Iter) * para.Ksz * para.Ksz * W_CNT + \
-                                          offset_y * para.Ksz *  W_CNT +\
-	            						  offset_x * W_CNT + ii;
+                                          (iter.tilingIDc_i * Cin_Iter) * para.Ksz * para.Ksz * W_CNT + input_c;\
                         temp = _weight[ddrAddr];
 					    out.write(temp);
-				    }
-			    }
-		    }
+
 	    }
     }
 }
