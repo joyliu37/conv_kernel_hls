@@ -185,44 +185,40 @@ void Doublebuffer_feature<T, data_width>::feedStream(
 	//if(this-> empty[flag])
 	//    return;
 
-    const uint32_t y_base = para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
-feed_stream_feature: for (int yIter = 0; yIter < para.Y_SZ; yIter++) {
-		for (int xIter = 0; xIter < para.X_SZ; xIter++) {
-            for (int coutBlk = 0; coutBlk < para.Cout_Iter; coutBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=2
-                for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-                	for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-                		for (int cinBlk = 0; cinBlk < para.Cin_Iter; cinBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=2
+    uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinOff = 0, coutOff = 0;
+    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
+#pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
 							Stencil<T, P_CIN, 1, 1, 1> feature;
-							/*for (int cinIter = 0; cinIter < P_CIN; cinIter++) {
-								int32_t featureBuffAddr = cinIter
-										+ cinBlk * P_CIN\
-
-										+ (xIter + xOffset) * Cin_SZ\
-
-										+ (yIter + yOffset) * Cin_SZ
-												* (X_SZ + para.Ksz - 1);
-								//possible bug: could we read the data in one clk cycle
-								//if(_feature_buf[featureBuffAddr])
-								//printf("flag!");
-								feature(cinIter, 0, 0, 0) =
-										_feature_buf[featureBuffAddr];
-							}*/
-							const int32_t featureBuffAddr = cinBlk + \
-                                                            (xIter + xOffset) * para.Cin_Iter +\
-                                                            (yIter + yOffset) * y_base;
+							const int32_t featureBuffAddr = cinOff + \
+                                                            (xIter + xOff) * para.Cin_Iter+\
+                                                            (yIter + yOff) * para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
                             feature = _feature_buf[featureBuffAddr];
 							out_stream.write(feature);
-						}
-					}
-				}
-			}
 
-		}
+                            cinOff ++;
+                            if (cinOff == para.Cin_Iter){
+                                cinOff = 0;
+                                xOff ++;
+                                if (xOff == para.Ksz){
+                                    xOff = 0;
+                                    yOff ++;
+                                    if (yOff == para.Ksz){
+                                        yOff = 0;
+                                        coutOff ++;
+                                        if(coutOff == para.Cout_Iter){
+                                            coutOff = 0;
+                                            xIter ++;
+                                            if(xIter == para.X_SZ){
+                                                xIter = 0;
+                                                yIter ++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
 	}
 }
 
@@ -240,7 +236,7 @@ template<typename T, int dw1, int dw2>
 void Doublebuffer_weight<T, dw1, dw2>::call(
         hls::stream<PackedStencil<T, dw1*dw2, 1, 1, 1>> &_weight_stream,
 		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
-		layerPara para, tilingID iter) {
+	    layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag) {
 		this->feedStream(_db_1, para, out_stream);
@@ -301,47 +297,27 @@ void Doublebuffer_weight<T, dw1, dw2>::feedStream(
 	/* if(this->empty[flag])
 	 return;*/
 #pragma HLS inline off
+    int32_t weightBuffId = 0;
+    int32_t weightBuffAddr = 0;
 
-feed_stream_weight: for (int yIter = 0; yIter < para.Y_SZ; yIter++) {
-		for (int xIter = 0; xIter < para.X_SZ; xIter++) {
-            for (int coutBlk = 0; coutBlk < para.Cout_Iter; coutBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=2
-            	for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-            		for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-            			for (int cinBlk = 0; cinBlk < para.Cin_Iter; cinBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=2
+    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
+    const uint32_t BuffBound = para.Cin_Iter * para.Ksz * para.Ksz;
+feed_stream_weight: for (int iter = 0; iter < bound; iter++) {
+#pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
                             assert((P_CIN == dw1) && (P_COUT == dw2));
 							Stencil<T, P_CIN, P_COUT, 1, 1> weight;
-							/*for (int coutIter = 0; coutIter < P_COUT;
-									coutIter++) {
-								for (int cinIter = 0; cinIter < P_CIN;
-										cinIter++) {
-
-									int32_t cinOffset = cinIter + cinBlk * P_CIN;
-									int32_t weightBuffAddr = cinOffset
-											+ xOffset * Cin_SZ
-											+ yOffset * Cin_SZ * para.Ksz;
-
-									int32_t weightBuffId = coutBlk * P_COUT
-											+ coutIter;
-
-									weight(cinIter, coutIter, 0, 0) =
-											_weight_buf[weightBuffId][weightBuffAddr];
-								}
-							}*/
-                            int32_t weightBuffId = coutBlk;
-                            int32_t weightBuffAddr = yOffset * para.Ksz * para.Cin_Iter +\
-                                                     xOffset * para.Cin_Iter + cinBlk;
                             weight = _weight_buf[weightBuffId][weightBuffAddr];
 							out_stream.write(weight);
-						}
-					}
-				}
-			}
-		}
+
+                            weightBuffAddr += 1;
+                            if(weightBuffAddr == BuffBound){
+                                weightBuffAddr = 0;
+                                weightBuffId += 1;
+                                if(weightBuffId == para.Cout_Iter){
+                                    weightBuffId = 0;
+                                }
+                            }
 	}
 }
 
@@ -419,24 +395,19 @@ void Doublebuffer_psum<T, data_width>::receive_stream(
 	}
 
 //TODO: the nested loops' sequence may be changed
-receive_stream_psum: for (int yIter = 0; yIter < para.Y_SZ; yIter++) {
-		for (int xIter = 0; xIter < para.X_SZ; xIter++) {
-            for (int coutBlk = 0; coutBlk < para.Cout_Iter; coutBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=4
-            	for (int yOffset = 0; yOffset < para.Ksz; yOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-            		for (int xOffset = 0; xOffset < para.Ksz; xOffset++) {
-#pragma HLS LOOP_TRIPCOUNT max=3
-            			for (int cinBlk = 0; cinBlk < para.Cin_Iter; cinBlk++) {
-#pragma HLS LOOP_TRIPCOUNT max=4
+
+    uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinBlk = 0, coutBlk = 0;
+    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+
+receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
 
-		        	    	int32_t outBuffAddr = coutBlk +\
-                                                  xIter * para.Cout_Iter +\
+		        	    	int32_t outBuffAddr = coutBlk + xIter * para.Cout_Iter+\
 		        	    	            		  yIter * para.Cout_Iter * para.X_SZ;
-		        	    	if ((iter.tilingIDc_i != 0) && (cinBlk == 0) && (xOffset == 0) && (yOffset == 0)){
+		        	    	if ((iter.tilingIDc_i != 0) && (cinBlk == 0) && (xOff == 0) && (yOff == 0)){
 		        	    		reg = _psum_buf[outBuffAddr];
 		        	    	}
 
@@ -445,7 +416,7 @@ receive_stream_psum: for (int yIter = 0; yIter < para.Y_SZ; yIter++) {
 #pragma HLS UNROLL
 								reg(coutIter, 0, 0, 0) += _temp(coutIter, 0, 0, 0);
 							}
-							if ((cinBlk == para.Cin_Iter - 1) && (yOffset == para.Ksz-1) && (xOffset == para.Ksz-1)){
+							if ((cinBlk == para.Cin_Iter - 1) && (yOff == para.Ksz-1) && (xOff == para.Ksz-1)){
 								_psum_buf[outBuffAddr] = reg;
 								for ( int coutIter = 0; coutIter < P_COUT; coutIter ++){
 #pragma HLS UNROLL
@@ -453,13 +424,28 @@ receive_stream_psum: for (int yIter = 0; yIter < para.Y_SZ; yIter++) {
 								}
 							}
 
-						}
-					}
-				}
-
-
-			}
-		}
+                            //loop iter update
+                            cinBlk ++;
+                            if (cinBlk == para.Cin_Iter){
+                                cinBlk = 0;
+                                xOff ++;
+                                if (xOff == para.Ksz){
+                                    xOff = 0;
+                                    yOff ++;
+                                    if (yOff == para.Ksz){
+                                        yOff = 0;
+                                        coutBlk ++;
+                                        if(coutBlk == para.Cout_Iter){
+                                            coutBlk = 0;
+                                            xIter ++;
+                                            if(xIter == para.X_SZ){
+                                                xIter = 0;
+                                                yIter ++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 	}
 
 }

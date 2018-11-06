@@ -46,8 +46,8 @@ bool pool)
  //dtype *_weight = arg_2;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
 
- struct layerPara para;
- para.Ksz = Ksz;
+ layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, pool);
+/* para.Ksz = Ksz;
 
  para.Y_SZ = Ysz;
  para.X_SZ = Xsz;
@@ -75,6 +75,7 @@ bool pool)
 
  //for kernel center shift
  para.Anchor = (Ksz - 1) >> 1;
+*/
 
 struct tilingID iter;
 iter.tilingIDc_i = 0;
