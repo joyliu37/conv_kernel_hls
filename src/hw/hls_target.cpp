@@ -25,7 +25,7 @@ const uint8_t Cout_SZ,
 bool pool)
 
 {
-#pragma HLS INTERFACE s_axilite port=return bundle=config
+#pragma HLS INTERFACE s_axilite port=return bundle=control
 #pragma HLS INTERFACE s_axilite port=Ksz bundle=control
 #pragma HLS INTERFACE s_axilite port=Xsz bundle=control
 #pragma HLS INTERFACE s_axilite port=Ysz bundle=control
@@ -35,6 +35,7 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Cout_n bundle=control
 #pragma HLS INTERFACE s_axilite port=Cin_SZ bundle=control
 #pragma HLS INTERFACE s_axilite port=Cout_SZ bundle=control
+#pragma HLS INTERFACE s_axilite port=pool bundle=control
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 1152 port=arg_2

@@ -9,7 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
-#include "Stencil.h"
+//#include "Stencil.h"
 //#include <time.h>
 
 //#include <asm/cachectl.h>
@@ -117,13 +117,13 @@
 //#define DDR_WRITE_OFFSET 0x10000000
 
 
-#define WEIGHT_BYTESIZE 3*3*128*256
-#define OUTPUT_BYTESIZE 14*14*512
-#define INPUT_BYTESIZE 14*14*64//1048576
-#define DATAWIDTH 64
+#define WEIGHT_BYTESIZE 3*3*64*64
+#define OUTPUT_BYTESIZE 32*32*128
+#define INPUT_BYTESIZE 32*32*32//1048576
+#define DATAWIDTH 32
 
-#define P_COUT 64
-#define P_CIN 32
+#define P_COUT 8
+#define P_CIN 8
 //#define BUFFER_BYTESIZE         262144  // Length of the buffers for DMA transfer
 
 /*void clearcache(char* begin, char* end)
@@ -142,10 +142,10 @@
 typedef int8_t dtype;
 typedef uint8_t dtype_u;
 
-    static int row = 14;
-    static int col = 14;
-    static int iCh = 64;
-    static int oCh = 512;
+    static int row = 32;
+    static int col = 32;
+    static int iCh = 32;
+    static int oCh = 128;
     static int Ksz = 3;
 
 void initial_input(dtype *image){
@@ -157,7 +157,7 @@ void initial_input(dtype *image){
         }
     }
 }
-
+/*
 void image2stencil(dtype *image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image_stencil){
     for (int i = 0; i < row; i++){
         for (int j = 0; j < col; j++){
@@ -170,24 +170,24 @@ void image2stencil(dtype *image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image
             }
         }
     }
-}
+}*/
 
 void weight_reshape(dtype *weight, dtype *reshape_weight){
         //dtype reshape_weight[row*col*iCh*oCh];
 
         for (int coutBlk = 0; coutBlk < oCh / P_COUT; coutBlk ++){
-            for (int yOff = 0; yOff < Ksz; yOff ++){
-                for (int xOff = 0; xOff < Ksz; xOff ++){
-                    for (int cinBlk = 0; cinBlk < iCh / P_CIN; cinBlk ++){
+            for (int cinBlk = 0; cinBlk < iCh / P_CIN; cinBlk ++){
+                for (int yOff = 0; yOff < Ksz; yOff ++){
+                    for (int xOff = 0; xOff < Ksz; xOff ++){
                         for (int ii = 0; ii < P_COUT; ii ++){
                             for (int jj = 0; jj < P_CIN; jj ++){
                                 int addr_org = (coutBlk * P_COUT + ii)*Ksz*Ksz*iCh +\
                                                 yOff*Ksz*iCh + xOff*iCh +\
                                                 cinBlk*P_CIN + jj;
                                 int addr_new = coutBlk * Ksz * Ksz * iCh * P_COUT +\
-                                                cinBlk * P_COUT * P_CIN +\
-                                                yOff * Ksz * iCh * P_COUT +\
-                                                xOff * iCh * P_COUT +\
+                                                cinBlk * Ksz * Ksz * P_COUT * P_CIN +\
+                                                yOff * Ksz * P_CIN * P_COUT +\
+                                                xOff * P_CIN * P_COUT +\
                                                 ii * P_CIN + jj;
                                 reshape_weight[addr_new] = weight[addr_org];
                             }
@@ -292,7 +292,7 @@ int main()
     dtype SrcArray1[WEIGHT_BYTESIZE ];
     dtype SrcArray1_reshape[WEIGHT_BYTESIZE];
     dtype DestArray[OUTPUT_BYTESIZE ];
-    PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray0_packed[INPUT_BYTESIZE/DATAWIDTH];
+    //PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray0_packed[INPUT_BYTESIZE/DATAWIDTH];
 
     //initial the parameter of experiment layer
     /*======================================================================================
@@ -306,7 +306,7 @@ int main()
                         DestArray[Index] = 0;
         }*/
     initial_input(SrcArray0);
-    image2stencil(SrcArray0, SrcArray0_packed);
+    //image2stencil(SrcArray0, SrcArray0_packed);
     initial_weight(SrcArray1);
     weight_reshape(SrcArray1, SrcArray1_reshape);
     initial_ouput(DestArray);
@@ -337,7 +337,7 @@ int main()
      /*======================================================================================
      STEP 3 : Copy the Data to the DDR Memory at location 0x20000000
      ========================================================================================*/
-    memcpy(mapped_dev_base_1, SrcArray0_packed, (INPUT_BYTESIZE)*sizeof(dtype));
+    memcpy(mapped_dev_base_1, SrcArray0, (INPUT_BYTESIZE)*sizeof(dtype));
     printf("Src0 set to: %lu\n", *((unsigned long *) mapped_dev_base_1));
     //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
     //clearcache(dev_base_1, dev_base_1+4096);
