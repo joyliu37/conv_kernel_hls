@@ -8,17 +8,17 @@ void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
 		layerPara para, tilingID iter) {
 //#pragma HLS inline
-	int32_t x_lb = para.Anchor - iter.tilingIDx * X_SZ;
-	int32_t y_lb = para.Anchor - iter.tilingIDy * Y_SZ;
-	int32_t x_ub = para.Anchor - iter.tilingIDx * X_SZ + para.Width;
-	int32_t y_ub = para.Anchor - iter.tilingIDy * Y_SZ + para.Height;
+	int32_t x_lb = para.Anchor - iter.tilingIDx * para.X_SZ;
+	int32_t y_lb = para.Anchor - iter.tilingIDy * para.Y_SZ;
+	int32_t x_ub = para.Anchor - iter.tilingIDx * para.X_SZ + para.Width;
+	int32_t y_ub = para.Anchor - iter.tilingIDy * para.Y_SZ + para.Height;
 	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
 #pragma HLS ARRAY_PARTITION variable=out_data.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=in_data.value complete dim=0
-	stream_pad: for (int input_y = 0; input_y < Y_SZ + para.Ksz - 1;
+	stream_pad: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz - 1;
 			input_y++) {
-		for (int input_x = 0; input_x < X_SZ + para.Ksz - 1; input_x++) {
-			for (int input_c = 0; input_c < Cin_Iter; input_c++) {
+		for (int input_x = 0; input_x < para.X_SZ + para.Ksz - 1; input_x++) {
+			for (int input_c = 0; input_c < para.Cin_Iter; input_c++) {
 #pragma HLS PIPELINE II=1
 				if ((input_x < x_lb) || (input_y < y_lb) || (input_x >= x_ub) || (input_y >= y_ub)) {
 					//possible bug: may need to write my own initialization

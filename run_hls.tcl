@@ -31,10 +31,10 @@ add_files $srcdir/hw/hls_target.cpp -cflags "-std=c++0x -I$libdir -I$halide_incl
 add_files $srcdir/hw/hls_target.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 add_files $srcdir/host/conv_test.h -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
 add_files -tb $srcdir/host/conv_test.cpp -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
-open_solution "solution_burst"
+open_solution "solution_conf_burst"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
-#source "./cnn_db_new/solution1/directives.tcl"
+#source "./hls_cnn_db/solution_conf1/directives.tcl"
 csim_design -clean -compiler gcc
 csynth_design
 cosim_design -trace_level all

@@ -147,7 +147,7 @@ static void ReLU(hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
 	iter.tilingIDc_o = 0;
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
-	int size = X_SZ * Y_SZ * Cout_Iter;
+	int size = para.X_SZ * para.Y_SZ * para.Cout_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -179,7 +179,7 @@ static void datawidth_convert_feature(
 		iter.tilingIDy = 0;
 
     //hacky implementation with only 22 tiling
-    int32_t input_count = (X_SZ + para.Ksz - 2) * (Y_SZ + para.Ksz - 2) * Cin_SZ / DATAWIDTH;
+    int32_t input_count = (para.X_SZ + para.Ksz - 2) * (para.Y_SZ + para.Ksz - 2) * para.Cin_SZ / DATAWIDTH;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -214,7 +214,7 @@ static void datawidth_convert_weight(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = para.Ksz * para.Ksz * Cin_SZ * Cout_SZ / DATAWIDTH;
+    int32_t input_count = para.Ksz * para.Ksz * para.Cin_SZ * para.Cout_SZ / DATAWIDTH;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -249,7 +249,7 @@ static void datawidth_convert_output(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = X_SZ * Y_SZ * Cout_Iter;
+    int32_t input_count = para.X_SZ * para.Y_SZ * para.Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -369,7 +369,7 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-			conv_kernel(feature_stream, weight_stream, psum_stream);
+			conv_kernel(feature_stream, weight_stream, psum_stream, para);
 
         //debug
         //std::cout <<"conv iter no." << iter.tilingIDc_i <<std::endl;
