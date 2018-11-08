@@ -53,10 +53,36 @@
 //       bit 1  - Channel 1 (ap_ready)
 //       others - reserved
 // (SC = Self Clear, COR = Clear on Read, TOW = Toggle on Write, COH = Clear on Handshake)
+/*
 #define XHLS_TARGET_CONFIG_ADDR_AP_CTRL 0x0
 #define XHLS_TARGET_CONFIG_ADDR_GIE     0x4
 #define XHLS_TARGET_CONFIG_ADDR_IER     0x8
 #define XHLS_TARGET_CONFIG_ADDR_ISR     0xc
+*/
+#define XHLS_TARGET_CONTROL_ADDR_AP_CTRL      0x00
+#define XHLS_TARGET_CONTROL_ADDR_GIE          0x04
+#define XHLS_TARGET_CONTROL_ADDR_IER          0x08
+#define XHLS_TARGET_CONTROL_ADDR_ISR          0x0c
+#define XHLS_TARGET_CONTROL_ADDR_KSZ_DATA     0x10
+#define XHLS_TARGET_CONTROL_BITS_KSZ_DATA     8
+#define XHLS_TARGET_CONTROL_ADDR_XSZ_DATA     0x18
+#define XHLS_TARGET_CONTROL_BITS_XSZ_DATA     8
+#define XHLS_TARGET_CONTROL_ADDR_YSZ_DATA     0x20
+#define XHLS_TARGET_CONTROL_BITS_YSZ_DATA     8
+#define XHLS_TARGET_CONTROL_ADDR_X_N_DATA     0x28
+#define XHLS_TARGET_CONTROL_BITS_X_N_DATA     8
+#define XHLS_TARGET_CONTROL_ADDR_Y_N_DATA     0x30
+#define XHLS_TARGET_CONTROL_BITS_Y_N_DATA     8
+#define XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA   0x38
+#define XHLS_TARGET_CONTROL_BITS_CIN_N_DATA   8
+#define XHLS_TARGET_CONTROL_ADDR_CIN_SZ_DATA  0x40
+#define XHLS_TARGET_CONTROL_BITS_CIN_SZ_DATA  8
+#define XHLS_TARGET_CONTROL_ADDR_COUT_N_DATA  0x48
+#define XHLS_TARGET_CONTROL_BITS_COUT_N_DATA  8
+#define XHLS_TARGET_CONTROL_ADDR_COUT_SZ_DATA 0x50
+#define XHLS_TARGET_CONTROL_BITS_COUT_SZ_DATA 8
+#define XHLS_TARGET_CONTROL_ADDR_POOL_DATA    0x58
+#define XHLS_TARGET_CONTROL_BITS_POOL_DATA    1
 
 #define XHLS_TARGET_CR_RESET_MASK 0x00000004
 
@@ -107,7 +133,7 @@
 //#define XAXICDMA_SR_ERR_ALL_MASK      0x00000770  /**< All errors */
 /*@}*/
 
-#define MAP_SIZE 4096UL
+#define MAP_SIZE 0x10000
 #define MAP_MASK (MAP_SIZE - 1)
 
 #define DDR_MAP_SIZE 0x10000000
@@ -118,8 +144,8 @@
 
 
 #define WEIGHT_BYTESIZE 3*3*64*64
-#define OUTPUT_BYTESIZE 32*32*128
-#define INPUT_BYTESIZE 32*32*32//1048576
+#define OUTPUT_BYTESIZE 4*4*64
+#define INPUT_BYTESIZE 4*4*64//1048576
 #define DATAWIDTH 32
 
 #define P_COUT 8
@@ -142,10 +168,10 @@
 typedef int8_t dtype;
 typedef uint8_t dtype_u;
 
-    static int row = 32;
-    static int col = 32;
-    static int iCh = 32;
-    static int oCh = 128;
+    static int row = 4;
+    static int col = 4;
+    static int iCh = 64;
+    static int oCh = 64;
     static int Ksz = 3;
 
 void initial_input(dtype *image){
@@ -292,6 +318,19 @@ int main()
     dtype SrcArray1[WEIGHT_BYTESIZE ];
     dtype SrcArray1_reshape[WEIGHT_BYTESIZE];
     dtype DestArray[OUTPUT_BYTESIZE ];
+
+    //define the confiuration
+    uint8_t X_SZ = 2;
+    uint8_t X_n = 2;
+    uint8_t Y_SZ = 2;
+    uint8_t Y_n = 2;
+    uint8_t K_SZ = 3;
+    uint8_t Cin_SZ = 32;
+    uint8_t Cin_n = 2;
+    uint8_t Cout_SZ = 32;
+    uint8_t Cout_n = 2;
+    bool pool = 0;
+
     //PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray0_packed[INPUT_BYTESIZE/DATAWIDTH];
 
     //initial the parameter of experiment layer
@@ -403,6 +442,22 @@ int main()
           printf("Can't map the memory to user space.\n");
           exit(0);
       }
+
+
+    /*=============================
+        Assign the configuration
+      ============================*/
+    mapped_dev_base = mapped_base + (dev_base & MAP_MASK);
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_XSZ_DATA)) = (unsigned long)X_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_X_N_DATA)) = (unsigned long)X_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_YSZ_DATA)) = (unsigned long)Y_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_Y_N_DATA)) = (unsigned long)Y_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_KSZ_DATA)) = (unsigned long)K_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_SZ_DATA)) = (unsigned long)Cin_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA)) = (unsigned long)Cin_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_SZ_DATA)) = (unsigned long)Cout_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_N_DATA)) = (unsigned long)Cout_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_POOL_DATA)) = (unsigned long)pool;
     // get the address of the device in user space which will be an offset from the base
     // that was mapped as memory is mapped at the start of a page
       struct timeval begin, end;
@@ -411,12 +466,11 @@ int main()
     int iter;
     for (iter=0 ; iter < 1000; iter++) {
     //printf("iter: %d\n", iter);
-    mapped_dev_base = mapped_base + (dev_base & MAP_MASK);
     //printf("GEMM was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL)));
     //Reset CDMA
       //do{
                   ResetMask = (unsigned long )XHLS_TARGET_CR_RESET_MASK;
-                  *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL)) = (unsigned long)ResetMask;
+                  *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL)) = (unsigned long)ResetMask;
       //printf("Reset was: %lu\n", *((unsigned long *) (mapped_dev_base +  XHLS_TARGET_CONFIG_ADDR_AP_CTRL)));
                         /* If the reset bit is still high, then reset is not done       */
                         //ResetMask = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL));
@@ -428,10 +482,10 @@ int main()
       //}while (TimeOut);
       //printf("GEMM reset to: %lu\n", *((unsigned long *) (mapped_dev_base)));
         //disable Interrupt
-      /*printf("Read was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_IER)));
-      RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_GIE));
+      //printf("Read was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_XSZ_DATA)));
+      //RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_GIE));
       //printf("Read was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_GIE)));
-      RegValue = (unsigned long)(RegValue & XHLS_TARGET_CR_RESET_MASK );
+      /*RegValue = (unsigned long)(RegValue & XHLS_TARGET_CR_RESET_MASK );
       *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_GIE)) = (unsigned long)RegValue;
       //printf("Read was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_GIE)));
 
@@ -454,12 +508,12 @@ int main()
       //clock_t start = clock(), diff;
       //struct timeval begin, end;
       //gettimeofday(&begin, NULL);
-      RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL));
+      RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL));
       if(!(RegValue & XHLS_TARGET_AP_START_MASK))
       {
           RegValue = (unsigned long)(RegValue | XHLS_TARGET_AP_START_MASK);
           //printf("Reading \n \r");
-          *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL)) = (unsigned long)RegValue ;
+          *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL)) = (unsigned long)RegValue ;
 
       }
       //printf("start hw\n");
@@ -475,7 +529,7 @@ int main()
         ========================================================================================*/
       do
       {
-                  RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL));
+                  RegValue = *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL));
       }while(!(RegValue & XHLS_TARGET_AP_DONE_MASK));
       //diff = clock() - start;
       //int usec = diff * 1000000 / CLOCKS_PER_SEC;
