@@ -19,6 +19,7 @@ void hls_target(
 		uint8_t Cin_SZ,
 		uint8_t Cout_n,
 		uint8_t Cout_SZ,
+        uint8_t Stride,
 		bool pool
 );
 

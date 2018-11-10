@@ -74,14 +74,14 @@ void Stream2Mem_output(
 
 	Stencil<T, data_width, 1, 1, 1> temp;
 #pragma ARRAY_PARTITION variable=temp.value complete dim=0
-store_stream2out: for (int output_y = 0; output_y < para.Y_SZ; output_y++) {
-	for (int output_x = 0; output_x < para.X_SZ; output_x++) {
+store_stream2out: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
+	for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
 		for (int output_c = 0; output_c < para.Cout_SZ/data_width; output_c++) {
 #pragma HLS PIPELINE II=1
 			temp = in.read();
 			int32_t outputAddr = output_c + para.Cout_SZ * iter.tilingIDc_o / data_width +\
-					(iter.tilingIDx * para.X_SZ + output_x) * para.Chout / data_width +\
-					(iter.tilingIDy * para.Y_SZ + output_y) * para.Chout * para.Width / data_width;
+					(iter.tilingIDx * para.oX_SZ + output_x) * para.Chout / data_width +\
+					(iter.tilingIDy * para.oY_SZ + output_y) * para.Chout * para.Width / data_width;
 			_output[outputAddr] = temp;
 		}
 	}

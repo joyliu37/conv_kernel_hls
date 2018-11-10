@@ -186,7 +186,7 @@ void Doublebuffer_feature<T, data_width>::feedStream(
 	//    return;
 
     uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinOff = 0, coutOff = 0;
-    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
@@ -209,10 +209,10 @@ feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
                                         coutOff ++;
                                         if(coutOff == para.Cout_Iter){
                                             coutOff = 0;
-                                            xIter ++;
+                                            xIter += para.Stride;
                                             if(xIter == para.X_SZ){
                                                 xIter = 0;
-                                                yIter ++;
+                                                yIter += para.Stride;
                                             }
                                         }
                                     }
@@ -300,7 +300,7 @@ void Doublebuffer_weight<T, dw1, dw2>::feedStream(
     int32_t weightBuffId = 0;
     int32_t weightBuffAddr = 0;
 
-    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
+    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
     const uint32_t BuffBound = para.Cin_Iter * para.Ksz * para.Ksz;
 feed_stream_weight: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
@@ -364,8 +364,8 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 	if (iter.tilingIDc_i || (this->cnt == 0))
 		return;
 
-	write_back_without_pool_y: for (int output_y = 0; output_y < para.Y_SZ; output_y++) {
-		write_back_without_pool_x: for (int output_x = 0; output_x < para.X_SZ; output_x++) {
+	write_back_without_pool_y: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
+		write_back_without_pool_x: for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
 			write_back_without_pool_c: for (int output_c = 0; output_c < para.Cout_Iter; output_c++) {
 #pragma HLS PIPELINE II=1
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
@@ -397,7 +397,7 @@ void Doublebuffer_psum<T, data_width>::receive_stream(
 //TODO: the nested loops' sequence may be changed
 
     uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinBlk = 0, coutBlk = 0;
-    const uint32_t bound = para.X_SZ * para.Y_SZ * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
 
 receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS PIPELINE II=1
@@ -438,7 +438,7 @@ receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
                                         if(coutBlk == para.Cout_Iter){
                                             coutBlk = 0;
                                             xIter ++;
-                                            if(xIter == para.X_SZ){
+                                            if(xIter == para.oX_SZ){
                                                 xIter = 0;
                                                 yIter ++;
                                             }

@@ -55,6 +55,7 @@ void StreamReLU(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 #pragma HLS UNROLL
 						if (in_data(i, 0, 0, 0) < 0)
 							out_data(i, 0, 0, 0) = 0;
+							//out_data(i, 0, 0, 0) = in_data(i, 0, 0, 0);
 						else
 							out_data(i, 0, 0, 0) = in_data(i, 0, 0, 0);
 					}
@@ -62,6 +63,27 @@ void StreamReLU(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 					out.write(out_data);
 			}
 }
+
+template<typename T_long, typename T_short, int data_width>
+void StreamTruncate(hls::stream<PackedStencil<T_long, data_width, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<T_short, data_width, 1, 1, 1>> &out,
+		int stream_length) {
+//#pragma HLS inline
+
+	Stencil<T_long, data_width, 1, 1, 1> in_data;
+	Stencil<T_short, data_width, 1, 1, 1> out_data;
+
+	stream_relu: for (int i = 0; i < stream_length; i++) {
+#pragma HLS PIPELINE II=1
+					in_data = in.read();
+					for (int i = 0; i < data_width; i++){
+#pragma HLS UNROLL
+                        out_data(i, 0, 0, 0) = (T_short)(in_data(i, 0, 0, 0));
+					}
+					out.write(out_data);
+                 }
+}
+
 
 template<typename T, int in_data_width, int out_data_width>
 void StreamDataWidthConverter(

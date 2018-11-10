@@ -3,6 +3,7 @@
 
 #include "hls_target.h"
 #include<iostream>
+#include <stdlib.h>
 
 #define HW_COSIM
 
@@ -12,6 +13,7 @@
 #define ICH 64//32,8
 #define OCH 64//16,8
 #define FS 3
+#define STRIDE 2
 
 #define XN 2
 #define YN 2
@@ -24,7 +26,7 @@ typedef uint32_t rt;
 using namespace std;
 
 dtype max(dtype a, dtype b);
-void conv_sw(dtype*, dtype*, dtype*, int, int, int, int, int, bool);
+void conv_sw(dtype*, dtype*, dtype*, int, int, int, int, int, int, bool);
 void initial_buf(dtype* ,int);
 void initial_weight(dtype* weight, int fs, int iCh, int oCh);
 void initial_input(dtype*, int, int, int);
@@ -44,10 +46,12 @@ void initial_buf(dtype* comp, int len){
 }
 
 void initial_weight(dtype* weight, int fs, int iCh, int oCh){
+    srand(1995);
 	for (int idx0 = 0; idx0 < fs; idx0++)
 		for (int idx1 = 0; idx1 < fs; idx1++)
 			for (int idx2 = 0; idx2 < iCh; idx2++)
 				for (int idx3 = 0; idx3 < oCh; idx3++) {
+                    int seed = rand()%32 - 16;
 					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx0-idx1);
 				}
 }
@@ -144,19 +148,19 @@ void weight2stencil(dtype* weight,
 }
 
 void conv_sw(dtype* input, dtype* weight, dtype* res, \
-		int rows, int cols, int oCh, int iCh, int fs, bool pool){
-	dtype res_sw_tmp[rows * cols * oCh];
+		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool){
+	dtype_double res_sw_tmp[rows * cols * oCh];
 	for (int i = 0 ; i < rows * cols * oCh; i++)
     	res_sw_tmp[i] = 0;
 
 	for (int k = 0; k < oCh; k++) {
-      for (int y = 0; y < rows; y++) {
-    	for (int x = 0; x < cols; x++) {
+      for (int y = 0; y < rows/stride; y++) {
+    	for (int x = 0; x < cols/stride; x++) {
     	  for (int c = 0; c < iCh; c++) {
     		for (int fy = 0; fy < fs; fy++) {
     		  for (int fx = 0; fx < fs; fx++){
     			  if( (y+fy > 0) && (y+fy < rows+1) && (x+fx > 0) && (x+fx < cols+1) )
-    				  res_sw_tmp[ y*cols*oCh+x*oCh + k] += input[(y+fy-1) * (cols)*iCh + (x+fx-1)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
+    				  res_sw_tmp[ y*cols*oCh+x*oCh + k] += input[(y*stride+fy-1) * (cols)*iCh + (x*stride+fx-1)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
     		  }
     		}
     	  }
@@ -180,8 +184,11 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
     	  }
       }
       else
-    	  for (int i = 0 ; i < rows * cols * oCh; i++)
-    	  	    	res[i] = res_sw_tmp[i];
+          for (int i = 0 ; i < rows/stride * cols/stride * oCh; i++){
+    	  	    	res[i] = (dtype)(res_sw_tmp[i]);
+
+          }
+
 	}
 }
 

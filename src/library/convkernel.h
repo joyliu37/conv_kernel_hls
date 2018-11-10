@@ -5,19 +5,19 @@
 
 void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_stream,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> & weight_stream,
-		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> & psum_stream,
+		hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> & psum_stream,
 		layerPara para){
 #pragma HLS inline off
 
     Stencil<dtype, P_CIN, 1, 1, 1> feature_reg;
     Stencil<dtype, P_CIN, P_COUT, 1, 1> weight_reg;
-    Stencil<dtype, P_COUT, 1, 1, 1> psum_reg;
+    Stencil<dtype_double, P_COUT, 1, 1, 1> psum_reg;
 #pragma HLS ARRAY_PARTITION variable=feature_reg.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=weight_reg.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=psum_reg.value complete dim=0
 
     //The iterator order here does not matter, the kernel is virtualized.
-    const uint32_t num_iter = para.X_SZ * para.Y_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
 	computation:for (int itr = 0; itr < num_iter; itr++){
 	#pragma HLS PIPELINE II=1
@@ -36,7 +36,7 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
                psum_reg(coutIter, 0, 0, 0) = _conv1_acc;
 
               }
-            psum_stream.write( PackedStencil<dtype, P_COUT, 1, 1, 1>(psum_reg) );
+            psum_stream.write( PackedStencil<dtype_double, P_COUT, 1, 1, 1>(psum_reg) );
 
     }
 }

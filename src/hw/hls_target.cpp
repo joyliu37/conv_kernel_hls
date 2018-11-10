@@ -22,6 +22,7 @@ const uint8_t Cin_n,
 const uint8_t Cin_SZ,
 const uint8_t Cout_n,
 const uint8_t Cout_SZ,
+const uint8_t Stride,
 bool pool)
 
 {
@@ -35,6 +36,7 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Cout_n bundle=control
 #pragma HLS INTERFACE s_axilite port=Cin_SZ bundle=control
 #pragma HLS INTERFACE s_axilite port=Cout_SZ bundle=control
+#pragma HLS INTERFACE s_axilite port=Stride bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
@@ -47,7 +49,7 @@ bool pool)
  //dtype *_weight = arg_2;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
 
- layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, pool);
+ layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, pool);
 /* para.Ksz = Ksz;
 
  para.Y_SZ = Ysz;
@@ -96,7 +98,7 @@ iter.tilingIDy = 0;
 
  Doublebuffer_feature<dtype, P_CIN> feature;
  Doublebuffer_weight<dtype, P_CIN, P_COUT> weight;
- Doublebuffer_psum<dtype, P_COUT> psum;
+ Doublebuffer_psum<dtype_double, P_COUT> psum;
 
 
  //define the stream
@@ -120,16 +122,18 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=weight_stream depth=1
 #pragma HLS RESOURCE variable=weight_stream core=FIFO_LUTRAM
 
- hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> psum_stream;
+ hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> psum_stream;
 #pragma HLS STREAM variable=psum_stream depth=1
 //#pragma HLS_RESOURCE variable=feature_stream core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
- hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> relu_short("relu");
+ hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> relu_long("relu_l");
+ hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> output_double("double_output");
 #pragma HLS STREAM variable=output_long depth=1
 #pragma HLS STREAM variable=output_short depth=1
-#pragma HLS STREAM variable=relu_short depth=1
+#pragma HLS STREAM variable=output_double depth=1
+#pragma HLS STREAM variable=relu_long depth=1
 
 
 #pragma HLS dataflow
@@ -145,9 +149,10 @@ read_weight(weight_short, weight, weight_stream, para);
 
 compute(feature_stream, weight_stream, psum_stream, para);
 
-write_back(relu_short, psum, psum_stream, para);
+write_back(relu_long, psum, psum_stream, para);
 
-ReLU(relu_short, output_short, para);
+ReLU(relu_long, output_double, para);
+Truncate(output_double, output_short, para);
 datawidth_convert_output(output_short, output_long, para);
 DMA_output_tiling_wrapper(_output, output_long, para);
 

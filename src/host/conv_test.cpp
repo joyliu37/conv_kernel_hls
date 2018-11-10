@@ -25,7 +25,7 @@ int main()
 	weight2stencil(weight_0, weight_stencil, FS, ICH, OCH);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 16, 16, 2, 2, 2, 32, 2, 32, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, 3, 16, 16, 2, 2, 2, 32, 2, 32, 2, false);
 	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
 
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
@@ -40,11 +40,11 @@ int main()
     static dtype res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
-    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, false);
+    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false);
     //conv_sw(res_sw_0, weight_0, res_sw_1, ROWS, COLS, OCH, ICH, FS, false);
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
-   check_err(res_0, res_sw_0, ROWS, COLS, OCH, 0, err_cnt);
+   check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);
 
    if (err_cnt)
       cout << "ERROR: " << err_cnt << " mismatches detected!" << endl;
