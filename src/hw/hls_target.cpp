@@ -16,8 +16,6 @@ const uint8_t Xsz,
 const uint8_t Ysz,
 const uint8_t X_n,
 const uint8_t Y_n,
-/*remaining channel chunk in the last tile of input,
- * ChNum = (n-1)*C_SZ + r*P_C*/
 const uint8_t Cin_n,
 const uint8_t Cin_SZ,
 const uint8_t Cout_n,
@@ -50,35 +48,6 @@ bool pool)
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
 
  layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, pool);
-/* para.Ksz = Ksz;
-
- para.Y_SZ = Ysz;
- para.X_SZ = Xsz;
- para.X_n = X_n;
- para.Y_n = Y_n;
-
- para.Cin_n = Cin_n;
- para.Cin_SZ = Cin_SZ;
- para.Cin_Iter = Cin_SZ/P_CIN;
-
- para.Cout_n = Cout_n;
- para.Cout_SZ = Cout_SZ;
- para.Cout_Iter = Cout_SZ/P_COUT;
-
- para.pool = pool;
- para.loop_cnt = X_n * Y_n * Cin_n * Cout_n;
-
- //note: optimization bit shift
- para.Width = Xsz*(X_n);
- para.Height = Ysz*(Y_n);
-
- //Total channel number
- para.Chin = Cin_n * Cin_SZ;
- para.Chout = Cout_n * Cout_SZ;
-
- //for kernel center shift
- para.Anchor = (Ksz - 1) >> 1;
-*/
 
 struct tilingID iter;
 iter.tilingIDc_i = 0;
@@ -124,8 +93,6 @@ iter.tilingIDy = 0;
 
  hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> psum_stream;
 #pragma HLS STREAM variable=psum_stream depth=1
-//#pragma HLS_RESOURCE variable=feature_stream core=FIFO_LUTRAM
-
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
  hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> relu_long("relu_l");
@@ -135,6 +102,18 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=output_double depth=1
 #pragma HLS STREAM variable=relu_long depth=1
 
+ hls::stream<uint32_t> feature_addr("f_addr");
+ hls::stream<uint32_t> weight_id("w_id");
+ hls::stream<uint32_t> weight_addr("w_addr");
+ hls::stream<uint32_t> output_addr("o_addr");
+ hls::stream<bool> ld("ld");
+ hls::stream<bool> st("st");
+#pragma HLS STREAM variable=feature_addr depth=1
+#pragma HLS STREAM variable=weight_addr depth=1
+#pragma HLS STREAM variable=weight_id depth=1
+#pragma HLS STREAM variable=output_addr depth=1
+#pragma HLS STREAM variable=ld depth=1
+#pragma HLS STREAM variable=st depth=1
 
 #pragma HLS dataflow
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
@@ -144,12 +123,16 @@ feature_pad(unpadded_feature_short, padded_feature, para);
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
 
-read_input(padded_feature, feature, feature_stream, para);
-read_weight(weight_short, weight, weight_stream, para);
+FeatureAddrGen(feature_addr, para);
+WeightAddrGen(weight_id, weight_addr, para);
+OutputAddrGen(output_addr, ld, st, para);
+
+read_input(padded_feature, feature_addr, feature, feature_stream, para);
+read_weight(weight_short, weight_id, weight_addr, weight, weight_stream, para);
 
 compute(feature_stream, weight_stream, psum_stream, para);
 
-write_back(relu_long, psum, psum_stream, para);
+write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
 
 ReLU(relu_long, output_double, para);
 Truncate(output_double, output_short, para);

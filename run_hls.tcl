@@ -22,6 +22,7 @@ puts "HLS support dir: $hls_support"
 open_project hls_cnn_db
 set_top hls_target
 add_files $srcdir/library/doublebuffer.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
+add_files $srcdir/library/addrgen.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
 add_files $srcdir/library/streamtools.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
 add_files $srcdir/library/util.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
 add_files $srcdir/library/dma.h -cflags "-std=c++0x -I$halide_include -I$hls_support"

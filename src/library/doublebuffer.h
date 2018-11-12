@@ -3,13 +3,9 @@
 
 #include "util.h"
 
-
-
 template<typename T, int data_width>
 class Doublebuffer_feature {
 private:
-	//PackedStencil<T, P_CIN, 1, 1, 1> _db_0[(X_SZ + K_SZ - 1) * (Y_SZ + K_SZ - 1) * Cin_Iter];
-    //PackedStencil<T, P_CIN, 1, 1, 1> _db_1[(X_SZ + K_SZ - 1) * (Y_SZ + K_SZ - 1) * Cin_Iter];
 	PackedStencil<T, P_CIN, 1, 1, 1> _db_0[IFM_BUFF_SIZE];
 	PackedStencil<T, P_CIN, 1, 1, 1> _db_1[IFM_BUFF_SIZE];
 
@@ -17,8 +13,6 @@ private:
 	int cnt;
 public:
 	Doublebuffer_feature() {
-//#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
 		flag = false;
 		cnt = 0;
 	}
@@ -29,10 +23,13 @@ public:
             layerPara para, tilingID iter); //TODO come up with all the parameter needed by load
 
     void feedStream(PackedStencil<T, data_width, 1, 1, 1>* _feature_buf, layerPara para,
-			hls::stream<PackedStencil<T, P_CIN, 1, 1, 1>> & out_stream); // TODO come up with all the parameter needed by feed
+            hls::stream<uint32_t>& bram_addr,
+			hls::stream<PackedStencil<T, P_CIN, 1, 1, 1>> & out_stream // TODO come up with all the parameter needed by feed
+            );
 
 	void call(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 			hls::stream<PackedStencil<T, P_CIN, 1, 1, 1> > & out_stream,
+            hls::stream<uint32_t>& bram_addr,
 			layerPara para, tilingID iter);
 
 	void call_start(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
@@ -50,10 +47,6 @@ private:
 
 public:
 	Doublebuffer_weight() {
-//#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=2
-//#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=2
 		flag = false;
 		cnt = 0;
 	}
@@ -64,30 +57,26 @@ public:
 			layerPara para, tilingID iter); //TODO add parameter
 	void feedStream(
             PackedStencil<T, dw1, dw2, 1, 1> (*_weight_buf)[W_BUFF_SIZE],
+            hls::stream<uint32_t> & bram_id,
+            hls::stream<uint32_t> & bram_addr,
             layerPara para,
 			hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream); //TODO add parameter
 
 	void call(
 			hls::stream<PackedStencil<T, dw1*dw2, 1, 1, 1>> & _weight_stream,
             hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
+            hls::stream<uint32_t> & bram_id,
+            hls::stream<uint32_t> & bram_addr,
 			layerPara para, tilingID iter);
 
 	void call_start(
 			hls::stream<PackedStencil<T, dw1*dw2, 1, 1, 1>> & _weight_stream,
             layerPara para, tilingID iter);
-	/*void call_finish(T* _weight_buf, layerPara para, stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream){
-	 if(flag == false)
-	 this->feedStream(_db_1, para, iter, out_stream);
-	 else
-	 this->feedStream(_db_0, para, iter, out_stream);
-	 }*/
 };
 
 template<typename T, int data_width>
 class Doublebuffer_psum {
 private:
-	//PackedStencil<T, data_width, 1, 1, 1>  _db_0[Cout_Iter * X_SZ * Y_SZ];
-	//PackedStencil<T, data_width, 1, 1, 1>  _db_1[Cout_Iter * X_SZ * Y_SZ];
 	PackedStencil<T, data_width, 1, 1, 1>  _db_0[OFM_BUFF_SIZE];
 	PackedStencil<T, data_width, 1, 1, 1>  _db_1[OFM_BUFF_SIZE];
 	bool flag;
@@ -97,22 +86,26 @@ private:
 
 public:
 	Doublebuffer_psum() {
-//#pragma HLS ARRAY_PARTITION variable=_db_0 cyclic factor=8 dim=1
-//#pragma HLS ARRAY_PARTITION variable=_db_1 cyclic factor=8 dim=1
 		flag = false;
 		cnt = 0;
 	}
 
 	void receive_stream(
-			hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
+			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & in_stream,
 			PackedStencil<T, data_width, 1, 1, 1> *_psum_buf,
-            layerPara para, tilingID iter); //TODO add parameter, in_stream, psum_buf
+            hls::stream<uint32_t> & bram_addr,
+            hls::stream<bool> & load_sig,
+            hls::stream<bool> & write_sig,
+            layerPara para, tilingID iter);
 	void writeToDRAM(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
 			PackedStencil<T, data_width, 1, 1, 1>* _psum_buf,
-            layerPara para, tilingID iter); //TODO add parameter, psum_buf, _output
+            layerPara para, tilingID iter);
 
-	void call(hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
+	void call(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & in_stream,
 			hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+            hls::stream<uint32_t> & bram_addr,
+            hls::stream<bool> & load_sig,
+            hls::stream<bool> & write_sig,
 			layerPara para, tilingID iter);
 
 	void call_finish(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
@@ -123,13 +116,14 @@ template<typename T, int data_width>
 void Doublebuffer_feature<T, data_width>::call(
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, P_CIN, 1, 1, 1> > & out_stream,
+        hls::stream<uint32_t>& bram_addr,
 		layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag) {
-		this->feedStream(_db_1, para, out_stream);
+		this->feedStream(_db_1, para, bram_addr, out_stream);
 		this->loadFromDRAM(in, _db_0, para, iter);
 	} else {
-		this->feedStream(_db_0, para, out_stream);
+		this->feedStream(_db_0, para, bram_addr, out_stream);
 		this->loadFromDRAM(in, _db_1, para, iter);
 	}
 	cnt += 1;
@@ -154,9 +148,6 @@ void Doublebuffer_feature<T, data_width>::loadFromDRAM(
 	if (this->cnt == para.loop_cnt)
 		return;
 
-	//if (cnt)
-	//	this->iter_next(&iter, para);
-
 	load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz - 1;
 			input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
@@ -168,10 +159,8 @@ void Doublebuffer_feature<T, data_width>::loadFromDRAM(
                                    input_x * para.Cin_Iter+\
                                    input_y * para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
 				Stencil<T, data_width, 1, 1, 1> data = _feature_stream.read();
-				//TODO: add array reshape to this part, now we only consider this stencil has one element
 				_feature_buf[buffAddr] = data;
 			}
-			//normal situation to move feature map
 		}
 	}
 }
@@ -180,44 +169,19 @@ template<typename T, int data_width>
 void Doublebuffer_feature<T, data_width>::feedStream(
         PackedStencil<T, data_width, 1, 1, 1>* _feature_buf,
 		layerPara para,
+        hls::stream<uint32_t>& bram_addr,
 		hls::stream<PackedStencil<T, P_CIN, 1, 1, 1> > & out_stream) {
 #pragma HLS inline off
-	//if(this-> empty[flag])
-	//    return;
 
-    uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinOff = 0, coutOff = 0;
     const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
 							Stencil<T, P_CIN, 1, 1, 1> feature;
-							const int32_t featureBuffAddr = cinOff + \
-                                                            (xIter + xOff) * para.Cin_Iter+\
-                                                            (yIter + yOff) * para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
+
+                            uint32_t featureBuffAddr = bram_addr.read();
                             feature = _feature_buf[featureBuffAddr];
 							out_stream.write(feature);
-
-                            cinOff ++;
-                            if (cinOff == para.Cin_Iter){
-                                cinOff = 0;
-                                xOff ++;
-                                if (xOff == para.Ksz){
-                                    xOff = 0;
-                                    yOff ++;
-                                    if (yOff == para.Ksz){
-                                        yOff = 0;
-                                        coutOff ++;
-                                        if(coutOff == para.Cout_Iter){
-                                            coutOff = 0;
-                                            xIter += para.Stride;
-                                            if(xIter == para.X_SZ){
-                                                xIter = 0;
-                                                yIter += para.Stride;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
 
 	}
 }
@@ -236,13 +200,15 @@ template<typename T, int dw1, int dw2>
 void Doublebuffer_weight<T, dw1, dw2>::call(
         hls::stream<PackedStencil<T, dw1*dw2, 1, 1, 1>> &_weight_stream,
 		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream,
+        hls::stream<uint32_t> & bram_id,
+        hls::stream<uint32_t> & bram_addr,
 	    layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag) {
-		this->feedStream(_db_1, para, out_stream);
+		this->feedStream(_db_1, bram_id, bram_addr, para, out_stream);
 		this->loadFromDRAM(_weight_stream, _db_0, para, iter);
 	} else {
-		this->feedStream(_db_0, para, out_stream);
+		this->feedStream(_db_0, bram_id, bram_addr, para, out_stream);
 		this->loadFromDRAM(_weight_stream, _db_1, para, iter);
 	}
 	cnt += 1;
@@ -292,47 +258,39 @@ void Doublebuffer_weight<T, dw1, dw2>::loadFromDRAM(
 template<typename T, int dw1, int dw2>
 void Doublebuffer_weight<T, dw1, dw2>::feedStream(
         PackedStencil<T, dw1, dw2, 1, 1> (*_weight_buf)[W_BUFF_SIZE],
+        hls::stream<uint32_t> &bram_id,
+        hls::stream<uint32_t> &bram_addr,
 		layerPara para,
 		hls::stream<PackedStencil<T, P_CIN, P_COUT, 1, 1>> & out_stream){
-	/* if(this->empty[flag])
-	 return;*/
 #pragma HLS inline off
-    int32_t weightBuffId = 0;
-    int32_t weightBuffAddr = 0;
-
     const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
-    const uint32_t BuffBound = para.Cin_Iter * para.Ksz * para.Ksz;
 feed_stream_weight: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
                             assert((P_CIN == dw1) && (P_COUT == dw2));
 							Stencil<T, P_CIN, P_COUT, 1, 1> weight;
-                            weight = _weight_buf[weightBuffId][weightBuffAddr];
+                            uint32_t buff_addr = bram_addr.read();
+                            uint32_t buff_id = bram_id.read();
+                            weight = _weight_buf[buff_id][buff_addr];
 							out_stream.write(weight);
-
-                            weightBuffAddr += 1;
-                            if(weightBuffAddr == BuffBound){
-                                weightBuffAddr = 0;
-                                weightBuffId += 1;
-                                if(weightBuffId == para.Cout_Iter){
-                                    weightBuffId = 0;
-                                }
-                            }
 	}
 }
 
 template<typename T, int data_width>
 void Doublebuffer_psum<T, data_width>::call(
-		hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & in_stream,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & _output,
+        hls::stream<uint32_t> & bram_addr,
+        hls::stream<bool> & load_sig,
+        hls::stream<bool> & write_sig,
 		layerPara para, tilingID iter) {
 #pragma HLS inline
 	if (flag == false) {
-		receive_stream(in_stream, _db_0, para, iter);
+		receive_stream(in_stream, _db_0, bram_addr, load_sig, write_sig, para, iter);
 		writeToDRAM(_output, _db_1, para, iter);
 		cnt += 1;
 	} else {
-		receive_stream(in_stream, _db_1, para, iter);
+		receive_stream(in_stream, _db_1, bram_addr, load_sig, write_sig, para, iter);
 		writeToDRAM(_output, _db_0, para, iter);
 		cnt += 1;
 	}
@@ -371,7 +329,7 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 				int32_t outBuffAddr = output_c +\
                                       output_x * para.Cout_Iter +\
-                                      output_y * para.Cout_Iter * para.X_SZ;
+                                      output_y * para.Cout_Iter * para.oX_SZ;
 				Stencil<T, data_width, 1, 1, 1>  temp;
 				assert(data_width == P_COUT);
                 temp = _psum_buf[outBuffAddr];
@@ -381,10 +339,19 @@ void Doublebuffer_psum<T, data_width>::writeToDRAM(
 	}
 }
 
+/**********************************
+ * data need to transfer:
+ * 1. addr
+ * 2. init the buff
+ * 3. write back data
+***********************************/
 template<typename T, int data_width>
 void Doublebuffer_psum<T, data_width>::receive_stream(
-		hls::stream<PackedStencil<T, P_COUT, 1, 1, 1>> & in_stream,
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> & in_stream,
 		PackedStencil<T, data_width, 1, 1, 1>* _psum_buf,
+        hls::stream<uint32_t> & bram_addr,
+        hls::stream<bool> & load_sig,
+        hls::stream<bool> & write_sig,
         layerPara para, tilingID iter) {
 #pragma HLS inline off
 
@@ -394,10 +361,7 @@ void Doublebuffer_psum<T, data_width>::receive_stream(
 		reg(i, 0, 0, 0) = 0;
 	}
 
-//TODO: the nested loops' sequence may be changed
-
-    uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinBlk = 0, coutBlk = 0;
-    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Cout_Iter * para.Cin_Iter * para.Ksz *para.Ksz;
 
 receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS PIPELINE II=1
@@ -405,47 +369,26 @@ receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
 
-		        	    	int32_t outBuffAddr = coutBlk + xIter * para.Cout_Iter+\
-		        	    	            		  yIter * para.Cout_Iter * para.X_SZ;
-		        	    	if ((iter.tilingIDc_i != 0) && (cinBlk == 0) && (xOff == 0) && (yOff == 0)){
-		        	    		reg = _psum_buf[outBuffAddr];
-		        	    	}
+                            const uint32_t outBuffAddr = bram_addr.read();
+		        	    	bool load = load_sig.read();
+		        	    	bool write = write_sig.read();
+		        	    	if (load){
+                                reg = _psum_buf[outBuffAddr];
+                            }
 
 							Stencil<T, P_COUT, 1, 1, 1> _temp = in_stream.read();
 							for (int coutIter = 0; coutIter < P_COUT; coutIter++) {
 #pragma HLS UNROLL
 								reg(coutIter, 0, 0, 0) += _temp(coutIter, 0, 0, 0);
 							}
-							if ((cinBlk == para.Cin_Iter - 1) && (yOff == para.Ksz-1) && (xOff == para.Ksz-1)){
-								_psum_buf[outBuffAddr] = reg;
+							if (write){
+                                _psum_buf[outBuffAddr] = reg;
 								for ( int coutIter = 0; coutIter < P_COUT; coutIter ++){
 #pragma HLS UNROLL
 									reg(coutIter, 0, 0, 0) = 0;
 								}
 							}
 
-                            //loop iter update
-                            cinBlk ++;
-                            if (cinBlk == para.Cin_Iter){
-                                cinBlk = 0;
-                                xOff ++;
-                                if (xOff == para.Ksz){
-                                    xOff = 0;
-                                    yOff ++;
-                                    if (yOff == para.Ksz){
-                                        yOff = 0;
-                                        coutBlk ++;
-                                        if(coutBlk == para.Cout_Iter){
-                                            coutBlk = 0;
-                                            xIter ++;
-                                            if(xIter == para.oX_SZ){
-                                                xIter = 0;
-                                                yIter ++;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
 	}
 
 }
