@@ -65,9 +65,9 @@ iter.tilingIDy = 0;
 
  //define the BRAM
 
- Doublebuffer_feature<dtype, P_CIN> feature;
- Doublebuffer_weight<dtype, P_CIN, P_COUT> weight;
- Doublebuffer_psum<dtype_double, P_COUT> psum;
+ Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> feature;
+ Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight;
+ Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum;
 
 
  //define the stream
@@ -80,9 +80,12 @@ iter.tilingIDy = 0;
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weight_long("in_wt");
  hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> weight_short("out_wt");
+ hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stencil("stencil_wt");
 #pragma HLS STREAM variable=weight_long depth=1
 #pragma HLS STREAM variable=weight_short depth=1
 #pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
+#pragma HLS STREAM variable=weight_stencil depth=1
+#pragma HLS RESOURCE variable=weight_stencil core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream;
  hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream;
@@ -122,13 +125,14 @@ feature_pad(unpadded_feature_short, padded_feature, para);
 
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
+stencil_convert_weight(weight_short, weight_stencil, para);
 
 FeatureAddrGen(feature_addr, para);
 WeightAddrGen(weight_id, weight_addr, para);
 OutputAddrGen(output_addr, ld, st, para);
 
 read_input(padded_feature, feature_addr, feature, feature_stream, para);
-read_weight(weight_short, weight_id, weight_addr, weight, weight_stream, para);
+read_weight(weight_stencil, weight_id, weight_addr, weight, weight_stream, para);
 
 compute(feature_stream, weight_stream, psum_stream, para);
 

@@ -366,6 +366,39 @@ static void datawidth_convert_weight(
 	 } // for _output_s0_y_yo
 }
 
+static void stencil_convert_weight(
+		hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &out,
+		layerPara para){
+
+	struct tilingID iter;
+		iter.tilingIDc_i = 0;
+		iter.tilingIDc_o = 0;
+		iter.tilingIDx = 0;
+		iter.tilingIDy = 0;
+
+    int32_t input_count = para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+
+	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+	 {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+	  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+	  {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+	   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+	   {
+	#pragma HLS LOOP_TRIPCOUNT max=2
+
+		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+		{
+	#pragma HLS LOOP_TRIPCOUNT max=2
+	        StreamWord2Stencil<dtype, P_CIN*P_COUT, P_CIN, P_COUT, 1, 1>(in, out, iter, para, input_count);
+
+	    }//for tiling Input channel
+	   } // for _output_s0_c_co
+	  } // for _output_s0_x_xo
+	 } // for _output_s0_y_yo
+}
 
 static void datawidth_convert_output(
 		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
@@ -402,7 +435,7 @@ static void datawidth_convert_output(
 
 static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
         hls::stream<uint32_t> &bram_addr,
-		Doublebuffer_feature<dtype, P_CIN> &feature,
+		Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
@@ -441,10 +474,10 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 static void read_weight(
-        hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &weightMemStream,
+        hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weightMemStream,
         hls::stream<uint32_t> & weight_id,
         hls::stream<uint32_t> & weight_addr,
-		Doublebuffer_weight<dtype, P_CIN, P_COUT> &weight,
+		Doublebuffer_weight<P_CIN, P_COUT,1 ,1, W_BUFF_SIZE, W_BUFF_BANK, dtype> &weight,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		layerPara para){
 
@@ -519,7 +552,7 @@ static void write_back(
         hls::stream<uint32_t> & bram_addr,
         hls::stream<bool> & load_sig,
         hls::stream<bool> & store_sig,
-		Doublebuffer_psum<dtype_double, P_COUT> &psum,
+		Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> &psum,
 		layerPara para){
 //#pragma HLS inline
 
