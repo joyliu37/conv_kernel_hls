@@ -58,6 +58,7 @@ void dp_conv_kernel(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> & fea
     const uint32_t num_iter = X_SZ * Y_SZ * Ch_Iter;
 
 db_conv: for (int itr = 0; itr < num_iter; itr ++){
+#pragma HLS PIPELINE II=1
              feature_reg = feature_stream.read();
              weight_reg = weight_stream.read();
              for(int chIter = 0; chIter < P_CH; chIter ++){
@@ -67,6 +68,7 @@ db_conv: for (int itr = 0; itr < num_iter; itr ++){
                  for(int k = 0; k < K_DP; k ++){
                      for(int kk = 0; kk < K_DP; kk ++){
                          _tmp_mul = feature_reg(chIter, k, kk, 0) * weight_reg(chIter, k, kk, 0);
+                         //printf("hw:%d * %d = %d\n", feature_reg(chIter, k, kk, 0), weight_reg(chIter, k, kk, 0), _tmp_mul);
                          _conv1_acc += _tmp_mul;
                      }
                  }

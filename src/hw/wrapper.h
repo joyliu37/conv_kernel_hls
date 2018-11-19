@@ -30,12 +30,12 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	/*for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
-#pragma HLS LOOP_TRIPCOUNT max=2
-		Mem2Stream_feature<dtype, DATAWIDTH>(_clamped, featureStream, para, iter);
+#pragma HLS LOOP_TRIPCOUNT max=2*/
+		Mem2Stream_feature_debug<dtype, DATAWIDTH>(_clamped, featureStream, para, iter);
 
-    }//for tiling Input channel
+    //}//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
@@ -515,13 +515,13 @@ static void stencil_convert_weight(
 }
 
 static void datawidth_convert_feature_dp(
-		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
 
-    int32_t input_count = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Cout_Iter;
+    int32_t input_count = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Cout_SZ/DATAWIDTH;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -533,7 +533,7 @@ static void datawidth_convert_feature_dp(
 	   {
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-	        StreamDataWidthConverter<dtype, P_COUT, P_CH>(in, out, P_COUT, P_CH, input_count);
+	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(in, out, P_COUT, P_CH, input_count);
 
 	   } // for _output_s0_c_co
 	  } // for _output_s0_x_xo
@@ -552,8 +552,8 @@ static void datawidth_convert_output(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    //int32_t input_count = para.oX_SZ * para.oY_SZ * Ch_Iter;
-    int32_t input_count = (para.oX_SZ + para.prePad*2) * (para.oY_SZ + para.prePad*2) * para.Cout_Iter;
+    int32_t input_count = para.oX_SZ * para.oY_SZ * Ch_Iter;
+    //int32_t input_count = (para.oX_SZ + para.prePad*2) * (para.oY_SZ + para.prePad*2) * para.Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {

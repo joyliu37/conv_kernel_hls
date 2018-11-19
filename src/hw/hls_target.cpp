@@ -158,7 +158,7 @@ DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cout_n);
 weight2Buff(weightDP_long, weight_dp, Ch_Iter * Cout_n);
 
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
-datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
+/*datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
 feature_pad(unpadded_feature_short, padded_feature, para);
 
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
@@ -178,7 +178,8 @@ write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
 
 ReLU(relu_long, output_double, para);
 Truncate(output_double, output_short, para);
-/*datawidth_convert_feature_dp(output_short, output_dp, para);
+*/
+datawidth_convert_feature_dp(unpadded_feature, output_dp, para);
 //feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
 
 read_inputLB(output_dp, dp_feature_stream, para, para.oX_SZ + (para.prePad<<1), Ch_Iter);
@@ -188,8 +189,8 @@ computeDP(dp_feature_stream, dp_weight_stream, output_stream, para, para.oX_SZ, 
 
 ReLU(output_stream, output_relu, para, Ch_Iter);
 Truncate(output_relu, output_stream_short, para, Ch_Iter);
-datawidth_convert_output(output_stream_short, output_long, para, Ch_Iter);*/
-datawidth_convert_output(output_short, output_long, para, Ch_Iter);
+datawidth_convert_output(output_stream_short, output_long, para, Ch_Iter);
+//datawidth_convert_output(output_short, output_long, para, Ch_Iter);
 DMA_output_tiling_wrapper(_output, output_long, para);
 
 }

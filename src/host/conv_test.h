@@ -95,6 +95,34 @@ void stencil2image(dtype* image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image
 
 }
 
+void weightDP2stencil(dtype* weightDP, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weightDP_stencil, int fs, int Ch){
+    dtype reshape_weight[fs*fs*Ch];
+
+    int Ch_Iter = Ch/COUTN/P_CH;
+
+    for(int chBlk = 0; chBlk < Ch_Iter * COUTN; chBlk ++){
+        for(int yOff = 0; yOff < fs; yOff ++){
+            for(int xOff = 0; xOff < fs; xOff ++){
+                for (int i = 0; i < P_CH; i ++){
+                    int addr_org = yOff * fs * Ch + xOff * Ch + chBlk * P_CH + i;
+                    int addr_new = chBlk * fs * fs * P_CH +\
+                                   yOff * fs * P_CH +\
+                                   xOff * P_CH + i;
+                    reshape_weight[addr_new] = weightDP[addr_org];
+                }
+            }
+        }
+    }
+
+    for(int i = 0; i < fs*fs*Ch/DATAWIDTH; i ++){
+        Stencil<dtype, DATAWIDTH, 1, 1, 1> temp;
+        for (int pos = 0; pos < DATAWIDTH; pos ++){
+            temp(pos, 0, 0, 0) = reshape_weight[i*DATAWIDTH + pos];
+        }
+        weightDP_stencil[i] = temp;
+    }
+}
+
 void weight2stencil(dtype* weight,
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weight_stencil,
 		int fs, int iCh, int oCh){
@@ -162,9 +190,12 @@ void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
                 for (int fx = 0; fx < fs; fx ++){
                     for (int fy = 0; fy < fs; fy ++){
                         //if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
+                            dtype a = input[(y*stride + fy ) * (cols+2) * Ch + (x*stride + fx) * Ch + c];
+                            dtype b = weight[fy*fs*Ch + fx*Ch + c];
                             res_sw_tmp[y*cols*Ch + x*Ch + c] +=
-                            input[(y*stride + fy - anchor) * cols * Ch + (x*stride +fx - anchor) * Ch + c]
+                            input[(y*stride + fy ) * (cols+2) * Ch + (x*stride + fx) * Ch + c]
                             * weight[fy*fs*Ch + fx*Ch + c];
+                            //printf("sw: %d * %d = %d\n",a, b, res_sw_tmp[y*cols*Ch+x*Ch + c] );
 
 
                     }
@@ -185,7 +216,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
 		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool, int prepad){
     int row_pad = rows + 2*prepad;
     int col_pad = cols + 2*prepad;
-    int anchor = 1;
+    int anchor = 2;
 
 	dtype_double res_sw_tmp[row_pad * col_pad * oCh];
 	for (int i = 0 ; i < row_pad * col_pad * oCh; i++)
@@ -198,7 +229,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
     		for (int fy = 0; fy < fs; fy++) {
     		  for (int fx = 0; fx < fs; fx++){
     			  if( (y+fy > prepad) && (y+fy < rows+1+prepad) && (x+fx > prepad) && (x+fx < cols+1+prepad) )
-    				  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * col_pad * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
+    				  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * cols * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
     		  }
     		}
     	  }

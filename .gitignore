@@ -2,4 +2,5 @@ hls_cnn_db
 *.log
 *.app
 *.jou
+out
 src/zynq_host/run_zynq
