@@ -6,19 +6,23 @@
 template<typename T, int data_width>
 void StreamPad(hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
-		layerPara para, tilingID iter) {
+		const size_t X_SZ, const size_t Y_SZ, const size_t Cin_Iter,
+        const int32_t x_lb, const int32_t y_lb,
+        const int32_t x_ub, const int32_t y_ub) {
 //#pragma HLS inline
-	int32_t x_lb = para.Anchor - iter.tilingIDx * para.X_SZ;
+/*	int32_t x_lb = para.Anchor - iter.tilingIDx * para.X_SZ;
 	int32_t y_lb = para.Anchor - iter.tilingIDy * para.Y_SZ;
 	int32_t x_ub = para.Anchor - iter.tilingIDx * para.X_SZ + para.Width;
 	int32_t y_ub = para.Anchor - iter.tilingIDy * para.Y_SZ + para.Height;
-	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
+*/	Stencil<T, data_width, 1, 1, 1> out_data, in_data;
 #pragma HLS ARRAY_PARTITION variable=out_data.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=in_data.value complete dim=0
-	stream_pad: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz - 1;
-			input_y++) {
+	/*stream_pad: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz - 1; input_y++) {
 		for (int input_x = 0; input_x < para.X_SZ + para.Ksz - 1; input_x++) {
-			for (int input_c = 0; input_c < para.Cin_Iter; input_c++) {
+			for (int input_c = 0; input_c < para.Cin_Iter; input_c++) */
+stream_pad: for(int input_y = 0; input_y < Y_SZ; input_y ++){
+                for(int input_x = 0; input_x < X_SZ; input_x ++){
+                    for(int input_c = 0; input_c < Cin_Iter; input_c ++){
 #pragma HLS PIPELINE II=1
 				if ((input_x < x_lb) || (input_y < y_lb) || (input_x >= x_ub) || (input_y >= y_ub)) {
 					//possible bug: may need to write my own initialization
@@ -89,7 +93,7 @@ template<typename T, int in_data_width, int out_data_width>
 void StreamDataWidthConverter(
 		hls::stream<PackedStencil<T, in_data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, out_data_width, 1, 1, 1>> &out,
-		tilingID iter, layerPara para, int inWidth, int outWidth, int input_num) {
+		int inWidth, int outWidth, int input_num) {
 //#pragma HLS inline
 	if (in_data_width > out_data_width) {
 		for (int i = 0; i < input_num; i++){
@@ -141,7 +145,7 @@ template<typename T, int data_width, size_t EXTENT_0, size_t EXTENT_1, size_t EX
 void StreamWord2Stencil(
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &out,
-		tilingID iter, layerPara para, int input_num) {
+		int input_num) {
     static_assert(data_width == EXTENT_0 * EXTENT_1 * EXTENT_2 * EXTENT_3, "Input output size does not match");
     Stencil<T, data_width, 1, 1, 1> inData;
     Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> outData;
@@ -162,4 +166,29 @@ void StreamWord2Stencil(
     }
 }
 
+
+template<typename T, int data_width, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3 >
+void StreamWord2Stencil(
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
+		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> *buffer,
+		size_t input_num) {
+    static_assert(data_width == EXTENT_0 * EXTENT_1 * EXTENT_2 * EXTENT_3, "Input output size does not match");
+    Stencil<T, data_width, 1, 1, 1> inData;
+    Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> outData;
+#pragma HLS ARRAY_PARTITION variable=inData.value complete dim=0
+#pragma HLS ARRAY_PARTITION variable=outData.value complete dim=0
+
+    for (int i = 0; i < input_num; i ++){
+#pragma HLS PIPELINE II=1
+        inData = in.read();
+        for (size_t id3 = 0; id3 < EXTENT_3; id3++)
+        for (size_t id2 = 0; id2 < EXTENT_2; id2++)
+        for (size_t id1 = 0; id1 < EXTENT_1; id1++)
+        for (size_t id0 = 0; id0 < EXTENT_0; id0++)
+        {
+            outData(id0, id1, id2, id3) = inData(id0 + id1*EXTENT_0 + id2*EXTENT_0*EXTENT_1 + id3*EXTENT_0*EXTENT_1*EXTENT_2, 0, 0, 0);
+        }
+        buffer[i] = outData;
+    }
+}
 #endif

@@ -12,7 +12,7 @@ void FeatureAddrGen1D(hls::stream<uint32_t> & addr, layerPara para, int num_iter
 #pragma HLS pipeline II=1
         const int32_t featureBuffAddr = cinOff + \
                                     (xIter + xOff) * para.Cin_Iter+\
-                                    (yIter + yOff) * para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
+                                    (yIter + yOff) * para.Cin_Iter * (para.X_SZ + para.Ksz + (para.prePad << 1) - 1);
 
 		addr.write(featureBuffAddr);
 
@@ -29,7 +29,7 @@ void FeatureAddrGen1D(hls::stream<uint32_t> & addr, layerPara para, int num_iter
                     if(coutOff == para.Cout_Iter){
                         coutOff = 0;
                         xIter += para.Stride;
-                        if(xIter == para.X_SZ){
+                        if(xIter == para.X_SZ + (para.prePad << 1)){
                             xIter = 0;
                             yIter += para.Stride;
                         }
@@ -76,7 +76,7 @@ void OutputAddrGen1D(
 #pragma HLS pipeline II=1
         const int32_t featureBuffAddr = coutOff + \
                                         xIter * para.Cout_Iter+\
-                                        yIter * para.Cout_Iter * para.oX_SZ;
+                                        yIter * para.Cout_Iter * (para.oX_SZ + (para.prePad<<1));
 
 		addr.write(featureBuffAddr);
 		if ((iter.tilingIDc_i != 0) && (cinOff == 0) && (xOff == 0) && (yOff == 0))
@@ -102,7 +102,7 @@ void OutputAddrGen1D(
                     if(coutOff == para.Cout_Iter){
                         coutOff = 0;
                         xIter += 1;
-                        if(xIter == para.oX_SZ){
+                        if(xIter == para.oX_SZ + (para.prePad << 1)){
                             xIter = 0;
                             yIter += 1;
                         }
@@ -112,4 +112,28 @@ void OutputAddrGen1D(
         }
     }
 }
+
+/*
+void DpAddrGen1D(hls::stream<uint32_t> & addr, dpLayerPara para, int num_iter) {
+
+    uint8_t xIter = 0, yIter = 0, chOff = 0;
+    for (int i = 0; i < num_iter; i ++){
+#pragma HLS pipeline II=1
+        const int32_t featureBuffAddr = chOff * para.Ch_Iter + X_Iter
+                                    yIter * para.Ch_Iter * para.X_SZ;
+
+		addr.write(featureBuffAddr);
+
+        chOff ++;
+        if (chOff == para.Ch_Iter){
+            chOff = 0;
+                xIter += para.Stride;
+                if(xIter == para.X_SZ){
+                    xIter = 0;
+                    yIter += para.Stride;
+            }
+        }
+    }
+}
+*/
 #endif

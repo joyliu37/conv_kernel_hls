@@ -10,6 +10,7 @@ void hls_target(
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_0,//[32*124*32],
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_1,//[34*126*32],
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_2,//[32*32*9]
+		PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_3,//[32*32*9]
 		uint8_t Ksz,
 		uint8_t Xsz,
 		uint8_t Ysz,
@@ -20,6 +21,7 @@ void hls_target(
 		uint8_t Cout_n,
 		uint8_t Cout_SZ,
         uint8_t Stride,
+        uint8_t Ch_Iter,
 		bool pool
 );
 

@@ -154,16 +154,15 @@ void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT,
 	if (this->cnt == para.loop_cnt)
 		return;
 
-	load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz - 1;
-			input_y++) {
+	load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz + (para.prePad<<1) - 1;input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-		for (int input_x = 0; input_x < para.X_SZ + para.Ksz - 1; input_x++) {
+		for (int input_x = 0; input_x < para.X_SZ + para.Ksz + (para.prePad<<1)- 1; input_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
 			for (int input_c = 0; input_c < para.Cin_Iter; input_c++) {
 #pragma HLS PIPELINE II=1
 				int32_t buffAddr = input_c +\
                                    input_x * para.Cin_Iter+\
-                                   input_y * para.Cin_Iter * (para.X_SZ + para.Ksz - 1);
+                                   input_y * para.Cin_Iter * (para.X_SZ + para.Ksz + (para.prePad << 1) - 1);
 				Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
 				_feature_buf[buffAddr] = data;
 			}
@@ -180,7 +179,7 @@ void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream) {
 #pragma HLS inline off
 
-    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t bound = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
@@ -274,7 +273,7 @@ void Doublebuffer_weight<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT_0
 		layerPara para,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream){
 #pragma HLS inline off
-    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
+    const uint32_t bound = (para.oX_SZ + (para.prePad << 1)) * (para.oY_SZ + (para.prePad << 1)) * para.Cout_Iter * para.Ksz * para.Ksz * para.Cin_Iter;
 feed_stream_weight: for (int iter = 0; iter < bound; iter++) {
 #pragma HLS LOOP_TRIPCOUNT max=36864
 #pragma HLS PIPELINE II=1
@@ -336,14 +335,14 @@ void Doublebuffer_psum<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>
 	if (iter.tilingIDc_i || (this->cnt == 0))
 		return;
 
-	write_back_without_pool_y: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
-		write_back_without_pool_x: for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
+	write_back_without_pool_y: for (int output_y = 0; output_y < para.oY_SZ + (para.prePad<<1); output_y++) {
+		write_back_without_pool_x: for (int output_x = 0; output_x < para.oX_SZ + (para.prePad<<1); output_x++) {
 			write_back_without_pool_c: for (int output_c = 0; output_c < para.Cout_Iter; output_c++) {
 #pragma HLS PIPELINE II=1
 #pragma HLS DEPENDENCE variable=_psum_buf inter false
 				int32_t outBuffAddr = output_c +\
                                       output_x * para.Cout_Iter +\
-                                      output_y * para.Cout_Iter * para.oX_SZ;
+                                      output_y * para.Cout_Iter * (para.oX_SZ + (para.prePad<<1));
 				Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>  temp;
                 temp = _psum_buf[outBuffAddr];
 				_output.write(temp);
@@ -378,7 +377,7 @@ void Doublebuffer_psum<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>
 		reg(id0, id1, id2, id3) = 0;
 	}
 
-    const uint32_t bound = para.oX_SZ * para.oY_SZ * para.Cout_Iter * para.Cin_Iter * para.Ksz *para.Ksz;
+    const uint32_t bound = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Cout_Iter * para.Cin_Iter * para.Ksz *para.Ksz;
 
 receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS PIPELINE II=1

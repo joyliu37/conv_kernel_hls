@@ -8,12 +8,12 @@
 #define HW_COSIM
 
 
-#define ROWS 32//68
-#define COLS 32//68
+#define ROWS 16//68
+#define COLS 16//68
 #define ICH 64//32,8
 #define OCH 64//16,8
 #define FS 3
-#define STRIDE 2
+#define STRIDE 1
 
 #define XN 2
 #define YN 2
@@ -147,28 +147,66 @@ void weight2stencil(dtype* weight,
     }
 }
 
+void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
+        int rows, int cols, int Ch, int fs, int stride){
+    dtype_double res_sw_tmp[rows/stride*cols/stride*Ch];
+    for (int i = 0; i < rows/stride * cols/stride * Ch; i++){
+        res_sw_tmp[i] = 0;
+    }
+
+    int anchor = (fs - 1)/2;
+
+    for(int y = 0; y < rows /stride; y ++){
+        for (int x = 0; x < cols/stride; x ++){
+            for (int c = 0; c < Ch; c ++){
+                for (int fx = 0; fx < fs; fx ++){
+                    for (int fy = 0; fy < fs; fy ++){
+                        //if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
+                            res_sw_tmp[y*cols*Ch + x*Ch + c] +=
+                            input[(y*stride + fy - anchor) * cols * Ch + (x*stride +fx - anchor) * Ch + c]
+                            * weight[fy*fs*Ch + fx*Ch + c];
+
+
+                    }
+                }
+                if(res_sw_tmp[y*cols*Ch + x*Ch + c] < 0)
+                    res_sw_tmp[y*cols*Ch + x*Ch + c] = 0;
+            }
+        }
+    }
+
+
+    for (int i = 0; i < rows * cols * Ch; i++){
+        res[i] = (dtype)res_sw_tmp[i];
+    }
+}
+
 void conv_sw(dtype* input, dtype* weight, dtype* res, \
-		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool){
-	dtype_double res_sw_tmp[rows * cols * oCh];
-	for (int i = 0 ; i < rows * cols * oCh; i++)
+		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool, int prepad){
+    int row_pad = rows + 2*prepad;
+    int col_pad = cols + 2*prepad;
+    int anchor = 1;
+
+	dtype_double res_sw_tmp[row_pad * col_pad * oCh];
+	for (int i = 0 ; i < row_pad * col_pad * oCh; i++)
     	res_sw_tmp[i] = 0;
 
 	for (int k = 0; k < oCh; k++) {
-      for (int y = 0; y < rows/stride; y++) {
-    	for (int x = 0; x < cols/stride; x++) {
+      for (int y = 0; y < row_pad/stride; y++) {
+    	for (int x = 0; x < col_pad/stride; x++) {
     	  for (int c = 0; c < iCh; c++) {
     		for (int fy = 0; fy < fs; fy++) {
     		  for (int fx = 0; fx < fs; fx++){
-    			  if( (y+fy > 0) && (y+fy < rows+1) && (x+fx > 0) && (x+fx < cols+1) )
-    				  res_sw_tmp[ y*cols*oCh+x*oCh + k] += input[(y*stride+fy-1) * (cols)*iCh + (x*stride+fx-1)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
+    			  if( (y+fy > prepad) && (y+fy < rows+1+prepad) && (x+fx > prepad) && (x+fx < cols+1+prepad) )
+    				  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * col_pad * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
     		  }
     		}
     	  }
     	  //add ReLU
     	  //cout << (int)(res_sw_tmp[ y*cols*oCh+x*oCh + k]) <<endl;
-    	  if (res_sw_tmp[ y*cols*oCh+x*oCh + k] < 0 ){
+    	  if (res_sw_tmp[ y*col_pad*oCh+x*oCh + k] < 0 ){
     		  //cout<<"enter ReLU"<<endl;
-    		  res_sw_tmp[ y*cols*oCh+x*oCh + k] = 0;
+    		  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] = 0;
     	  }
     	}
       }
@@ -184,7 +222,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
     	  }
       }
       else
-          for (int i = 0 ; i < rows/stride * cols/stride * oCh; i++){
+          for (int i = 0 ; i < row_pad/stride * col_pad/stride * oCh; i++){
     	  	    	res[i] = (dtype)(res_sw_tmp[i]);
 
           }
@@ -200,7 +238,7 @@ void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer
 	   		cout << " || res_sw: ";
 	   		cout << hex << (int)(res_sw[i]) <<dec << endl;
 	   		err_cnt++;
-	   	}
+	    }
 	}
 }
 

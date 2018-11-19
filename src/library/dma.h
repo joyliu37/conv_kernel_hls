@@ -14,10 +14,10 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 	Stencil<T, data_width, 1, 1, 1> temp;
 
     //handle the edge case for blocking the feature map
-    const int8_t x_low = -(iter.tilingIDx > 0) * para.Anchor;
-    const int8_t y_low = -(iter.tilingIDy > 0) * para.Anchor;
-    const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * para.Anchor;
-    const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * para.Anchor;
+    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor + para.prePad);
+    const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor + para.prePad);
+    const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor + para.prePad);
+    const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor + para.prePad);
 
 	load_feature2Stream: for (int input_y = y_low; input_y < y_high; input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
@@ -63,6 +63,18 @@ load_weight2Stream: for (int output_c = 0; output_c < para.Cout_Iter; output_c++
     }
 }
 
+template<typename T, size_t data_width>
+void Stream2Mem_weight_continous(
+        PackedStencil<T, data_width, 1, 1, 1> *_weight,
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+        size_t length){
+    Stencil<T, data_width, 1, 1, 1> temp;
+load_weight2Stream_continous: for (size_t ddrAddr = 0; ddrAddr < length; ddrAddr ++){
+                                  temp = _weight[ddrAddr];
+                                  out.write(temp);
+                              }
+}
+
 
 
 template<typename T, int data_width>
@@ -74,14 +86,17 @@ void Stream2Mem_output(
 
 	Stencil<T, data_width, 1, 1, 1> temp;
 #pragma ARRAY_PARTITION variable=temp.value complete dim=0
-store_stream2out: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
-	for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
+store_stream2out: for (int output_y = 0; output_y < para.oY_SZ + 2; output_y++) {
+	for (int output_x = 0; output_x < para.oX_SZ + 2; output_x++) {
 		for (int output_c = 0; output_c < para.Cout_SZ/data_width; output_c++) {
 #pragma HLS PIPELINE II=1
 			temp = in.read();
+            //TODO: fix bug change para.width to output width in case of stride
+            if (( output_y <1 ) || (output_x < 1) || (output_y > para.oY_SZ ) || (output_x > para.oX_SZ))
+                    continue;
 			int32_t outputAddr = output_c + para.Cout_SZ * iter.tilingIDc_o / data_width +\
-					(iter.tilingIDx * para.oX_SZ + output_x) * para.Chout / data_width +\
-					(iter.tilingIDy * para.oY_SZ + output_y) * para.Chout * para.Width / data_width;
+					(iter.tilingIDx * para.oX_SZ -1 + output_x) * para.Chout / data_width +\
+					(iter.tilingIDy * para.oY_SZ -1 + output_y) * para.Chout * para.Width / data_width;
 			_output[outputAddr] = temp;
 		}
 	}

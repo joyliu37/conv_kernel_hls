@@ -11,6 +11,7 @@ void hls_target(
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_0,//[32*124*32],output
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_1,//[34*126*32],input_FM
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_2,//input weight
+PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_3,//input weight for dp
 const uint8_t Ksz,
 const uint8_t Xsz,
 const uint8_t Ysz,
@@ -21,6 +22,7 @@ const uint8_t Cin_SZ,
 const uint8_t Cout_n,
 const uint8_t Cout_SZ,
 const uint8_t Stride,
+const uint8_t Ch_Iter,
 bool pool)
 
 {
@@ -35,10 +37,12 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Cin_SZ bundle=control
 #pragma HLS INTERFACE s_axilite port=Cout_SZ bundle=control
 #pragma HLS INTERFACE s_axilite port=Stride bundle=control
+#pragma HLS INTERFACE s_axilite port=Ch_Iter bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 9 port=arg_2
 
 
  // alias the arguments
@@ -46,9 +50,11 @@ bool pool)
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_output = arg_0;
  //dtype *_weight = arg_2;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
+ PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weightDP = arg_3;
 
  layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, pool);
 
+/*
 struct tilingID iter;
 iter.tilingIDc_i = 0;
 iter.tilingIDc_o = 0;
@@ -62,13 +68,16 @@ iter.tilingIDy = 0;
 
  int conv_cnt = 0;
  int wb_cnt = 0;
-
+*/
  //define the BRAM
 
  Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> feature;
  Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight;
  Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum;
+printf("ok!\n");
 
+//buffer for DP weight
+ PackedStencil<dtype, P_CH, K_DP, K_DP, 1> weight_dp[W_DP_BUFF_SIZE];
 
  //define the stream
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> unpadded_feature("in_fm");
@@ -87,15 +96,19 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=weight_stencil depth=1
 #pragma HLS RESOURCE variable=weight_stencil core=FIFO_LUTRAM
 
- hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream;
- hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream;
+ hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weightDP_long("in_wt_dp");
+#pragma HLS STREAM variable=weightDP_long depth=1
+
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream("conv_f");
+ hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stream("conv_w");
 #pragma HLS STREAM variable=feature_stream depth=1
 //#pragma HLS_RESOURCE variable=feature_stream core=FIFO_LUTRAM
 #pragma HLS STREAM variable=weight_stream depth=1
 #pragma HLS RESOURCE variable=weight_stream core=FIFO_LUTRAM
 
- hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> psum_stream;
+ hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> psum_stream("conv_psum");
 #pragma HLS STREAM variable=psum_stream depth=1
+
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
  hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> relu_long("relu_l");
@@ -104,6 +117,26 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=output_short depth=1
 #pragma HLS STREAM variable=output_double depth=1
 #pragma HLS STREAM variable=relu_long depth=1
+
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp("out_dp");
+#pragma HLS STREAM varible=output_dp depth=1
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp_pad("out_dp_pad");
+#pragma HLS STREAM varible=output_dp_pad depth=1
+ hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
+#pragma HLS STREAM varible=dp_feature_stream depth=1
+#pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
+
+ hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
+#pragma HLS STREAM varible=dp_weight_stream depth=1
+#pragma HLS RESOURCE variable=dp_weight_stream core=FIFO_LUTRAM
+
+
+ hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
+#pragma HLS STREAM varible=output_stream depth=1
+ hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_relu("relu_stencil");
+#pragma HLS STREAM varible=output_relu depth=1
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_short");
+#pragma HLS STREAM varible=output_stream_short depth=1
 
  hls::stream<uint32_t> feature_addr("f_addr");
  hls::stream<uint32_t> weight_id("w_id");
@@ -119,6 +152,11 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=st depth=1
 
 #pragma HLS dataflow
+
+ //buffer all the depthwise conv weight on chip
+DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cout_n);
+weight2Buff(weightDP_long, weight_dp, Ch_Iter * Cout_n);
+
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
 datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
 feature_pad(unpadded_feature_short, padded_feature, para);
@@ -140,7 +178,18 @@ write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
 
 ReLU(relu_long, output_double, para);
 Truncate(output_double, output_short, para);
-datawidth_convert_output(output_short, output_long, para);
+/*datawidth_convert_feature_dp(output_short, output_dp, para);
+//feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
+
+read_inputLB(output_dp, dp_feature_stream, para, para.oX_SZ + (para.prePad<<1), Ch_Iter);
+read_weightDP(weight_dp, dp_weight_stream, para, Ch_Iter);
+computeDP(dp_feature_stream, dp_weight_stream, output_stream, para, para.oX_SZ, para.oY_SZ, Ch_Iter);
+//output_db(output_stream, output_addr, output_reorg, para, dpX_SZ, Ch_Iter);
+
+ReLU(output_stream, output_relu, para, Ch_Iter);
+Truncate(output_relu, output_stream_short, para, Ch_Iter);
+datawidth_convert_output(output_stream_short, output_long, para, Ch_Iter);*/
+datawidth_convert_output(output_short, output_long, para, Ch_Iter);
 DMA_output_tiling_wrapper(_output, output_long, para);
 
 }
