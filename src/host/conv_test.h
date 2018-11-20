@@ -52,7 +52,7 @@ void initial_weight(dtype* weight, int fs, int iCh, int oCh){
 			for (int idx2 = 0; idx2 < iCh; idx2++)
 				for (int idx3 = 0; idx3 < oCh; idx3++) {
                     int seed = rand()%32 - 16;
-					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx0-idx1);
+					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx0-idx1) + seed;
 				}
 }
 

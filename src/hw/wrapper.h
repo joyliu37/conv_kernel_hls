@@ -30,12 +30,12 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-	/*for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
-#pragma HLS LOOP_TRIPCOUNT max=2*/
-		Mem2Stream_feature_debug<dtype, DATAWIDTH>(_clamped, featureStream, para, iter);
+#pragma HLS LOOP_TRIPCOUNT max=2
+		Mem2Stream_feature<dtype, DATAWIDTH>(_clamped, featureStream, para, iter);
 
-    //}//for tiling Input channel
+    }//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
@@ -93,7 +93,7 @@ static void weight2Buff(
 
     const size_t num_iter = K_DP * K_DP * P_CH * Ch_Iter/DATAWIDTH;
     hls::stream<PackedStencil<dtype, P_CH * K_DP * K_DP, 1, 1, 1>> weight_short;
-#pragma HLS STREAM vaiable = weight_short depth=1
+#pragma HLS STREAM variable = weight_short depth=1
 #pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
     StreamDataWidthConverter<dtype, DATAWIDTH, P_CH * K_DP * K_DP>(weight_stream, weight_short, DATAWIDTH, P_CH * K_DP * K_DP, num_iter);
     StreamWord2Stencil<dtype, P_CH*K_DP*K_DP>(weight_short, weight_buff, Ch_Iter);
@@ -515,13 +515,13 @@ static void stencil_convert_weight(
 }
 
 static void datawidth_convert_feature_dp(
-		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
+		hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
 
-    int32_t input_count = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Cout_SZ/DATAWIDTH;
+    int32_t input_count = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -533,7 +533,7 @@ static void datawidth_convert_feature_dp(
 	   {
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(in, out, P_COUT, P_CH, input_count);
+	        StreamDataWidthConverter<dtype, P_COUT, P_CH>(in, out, P_COUT, P_CH, input_count);
 
 	   } // for _output_s0_c_co
 	  } // for _output_s0_x_xo

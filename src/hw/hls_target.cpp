@@ -42,7 +42,7 @@ bool pool)
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
 #pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
 #pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
-#pragma HLS INTERFACE m_axi depth = 9 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 18 port=arg_3
 
 
  // alias the arguments
@@ -74,7 +74,6 @@ iter.tilingIDy = 0;
  Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> feature;
  Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight;
  Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum;
-printf("ok!\n");
 
 //buffer for DP weight
  PackedStencil<dtype, P_CH, K_DP, K_DP, 1> weight_dp[W_DP_BUFF_SIZE];
@@ -119,24 +118,24 @@ printf("ok!\n");
 #pragma HLS STREAM variable=relu_long depth=1
 
  hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp("out_dp");
-#pragma HLS STREAM varible=output_dp depth=1
+#pragma HLS STREAM variable=output_dp depth=1
  hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp_pad("out_dp_pad");
-#pragma HLS STREAM varible=output_dp_pad depth=1
+#pragma HLS STREAM variable=output_dp_pad depth=1
  hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
-#pragma HLS STREAM varible=dp_feature_stream depth=1
+#pragma HLS STREAM variable=dp_feature_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
-#pragma HLS STREAM varible=dp_weight_stream depth=1
+#pragma HLS STREAM variable=dp_weight_stream depth=1
 #pragma HLS RESOURCE variable=dp_weight_stream core=FIFO_LUTRAM
 
 
  hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
-#pragma HLS STREAM varible=output_stream depth=1
+#pragma HLS STREAM variable=output_stream depth=1
  hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_relu("relu_stencil");
-#pragma HLS STREAM varible=output_relu depth=1
+#pragma HLS STREAM variable=output_relu depth=1
  hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_short");
-#pragma HLS STREAM varible=output_stream_short depth=1
+#pragma HLS STREAM variable=output_stream_short depth=1
 
  hls::stream<uint32_t> feature_addr("f_addr");
  hls::stream<uint32_t> weight_id("w_id");
@@ -158,7 +157,7 @@ DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cout_n);
 weight2Buff(weightDP_long, weight_dp, Ch_Iter * Cout_n);
 
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
-/*datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
+datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
 feature_pad(unpadded_feature_short, padded_feature, para);
 
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
@@ -178,8 +177,7 @@ write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
 
 ReLU(relu_long, output_double, para);
 Truncate(output_double, output_short, para);
-*/
-datawidth_convert_feature_dp(unpadded_feature, output_dp, para);
+datawidth_convert_feature_dp(output_short, output_dp, para);
 //feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
 
 read_inputLB(output_dp, dp_feature_stream, para, para.oX_SZ + (para.prePad<<1), Ch_Iter);
