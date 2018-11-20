@@ -320,7 +320,7 @@ static void call(stream<PackedStencil<T, IN_EXTENT_0, IN_EXTENT_1, EXTENT_2, EXT
 //Case work for depthwise conv
 static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXTENT_3> > &in_stream,
                  stream<PackedStencil<T, EXTENT_2, OUT_EXTENT_0, OUT_EXTENT_1, EXTENT_3> > &out_stream,
-                 size_t Ch_Iter, size_t X_Iter) {
+                 const uint8_t Ch_Iter, const uint8_t X_Iter) {
     static_assert(IMG_EXTENT_1 > OUT_EXTENT_1, "output extent is larger than image.");
     static_assert(OUT_EXTENT_1 > IN_EXTENT_1, "input extent is larger than output."); // TODO handle this situation.
     static_assert(IMG_EXTENT_1 % IN_EXTENT_1 == 0, "image extent is not divisible by input."); // TODO handle this situation.
@@ -344,13 +344,13 @@ static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXT
 #pragma HLS STREAM variable=slice_stream depth=1
 #pragma HLS RESOURCE variable=slice_stream core=FIFO_SRL
 
-    size_t write_id_row = 0; // the line index of coming stencil in the linebuffer
-    size_t write_id_col_x = 0;// the column index of output stencil
-    size_t write_id_col_ch = 0;// the column offset of output stencil
+    uint8_t write_id_row = 0; // the line index of coming stencil in the linebuffer
+    uint8_t write_id_col_x = 0;// the column index of output stencil
+    uint8_t write_id_col_ch = 0;// the column offset of output stencil
 
     //need keep track of the read id pointer
-    size_t read_id_col = 0;
-    size_t read_id_row = 0;
+    uint8_t read_id_col = 0;
+    uint8_t read_id_row = 0;
 
  LB2D_buf:for (size_t row = 0; row < IDX_EXTENT_1 + 1; row++) {
 #pragma HLS LOOP_FLATTEN off
@@ -360,9 +360,6 @@ static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXT
             // linebuffer write
             const size_t write_id_col = write_id_col_x * Ch_Iter + write_id_col_ch;
             //size_t write_idx_1 = row % BUFFER_EXTENT_1; // the line index of coming stencil in the linebuffer
-            if (write_id_row >= BUFFER_EXTENT_1) {
-                write_id_row -= BUFFER_EXTENT_1;
-            }
             //read data from linebuffer
             if (row >= BUFFER_EXTENT_1 - 1) {
                 // fetch data from buffer
@@ -385,6 +382,9 @@ static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXT
                     if(write_id_col_ch == Ch_Iter){
                         write_id_col_ch = 0;
                         write_id_row ++;
+                        if (write_id_row >= BUFFER_EXTENT_1) {
+                            write_id_row -= BUFFER_EXTENT_1;
+                        }
                     }
                 }
             }
