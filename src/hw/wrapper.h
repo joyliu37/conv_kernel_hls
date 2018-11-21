@@ -202,12 +202,13 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void FeatureAddrGen(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
-	iter.tilingIDc_i = 0;
-	iter.tilingIDc_o = 0;
-	iter.tilingIDx = 0;
-	iter.tilingIDy = 0;
 
-    const uint32_t num_iter = (para.oX_SZ + (para.prePad<<1)) * (para.oY_SZ + (para.prePad<<1)) * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint8_t ext_x = para.oX_SZ + (para.prePad << 1);
+    const uint8_t ext_y = para.oY_SZ + (para.prePad << 1);
+    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+
+    const uint8_t bound_x = para.X_SZ + para.Ksz + (para.prePad<<1) - 1;
+
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -221,7 +222,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        FeatureAddrGen1D(out, para, num_iter);
+        FeatureAddrGen1D(out, num_iter,
+                ext_x, para.Stride, para.Ksz, para.Ksz,
+                para.Cin_Iter, para.Cout_Iter, bound_x,para.Cin_Iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -673,11 +676,11 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
 		layerPara para){
 
 	struct tilingID iter;
-	iter.tilingIDc_i = 0;
-	iter.tilingIDc_o = 0;
-	iter.tilingIDx = 0;
-	iter.tilingIDy = 0;
-	feature.call_start(padded_feature, para, iter);
+    const uint8_t bound_y = para.Y_SZ + para.Ksz + (para.prePad<<1) - 1;
+    const uint8_t bound_x = para.X_SZ + para.Ksz + (para.prePad<<1) - 1;
+    const uint8_t bound_ch = para.Cin_Iter;
+    const uint32_t feed_bound = (para.oX_SZ + (para.prePad << 1)) * (para.oY_SZ + (para.prePad << 1)) * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+	feature.call_start(padded_feature, bound_y, bound_x, bound_ch);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -696,7 +699,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, para, iter);
+		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, bound_ch);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel
@@ -745,11 +748,9 @@ static void read_weight(
 		layerPara para){
 
 	struct tilingID iter;
-	iter.tilingIDc_i = 0;
-	iter.tilingIDc_o = 0;
-	iter.tilingIDx = 0;
-	iter.tilingIDy = 0;
-	weight.call_start(weightMemStream, para, iter);
+
+    const uint32_t feed_bound = (para.oX_SZ + (para.prePad << 1)) * (para.oY_SZ + (para.prePad << 1)) * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+	weight.call_start(weightMemStream, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -766,9 +767,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 //#pragma HLS DEPENDENCE variable=weight inter false
 //#pragma HLS DEPENDENCE variable=weight intra false
-        //debug
-        //std::cout <<"inputw iter no." << iter.tilingIDc_i <<std::endl;
-		weight.call(weightMemStream, weight_stream, weight_id, weight_addr, para, iter);
+		weight.call(weightMemStream, weight_stream, weight_id, weight_addr, feed_bound, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -820,6 +819,10 @@ static void write_back(
 //#pragma HLS inline
 
 	struct tilingID iter;
+    const uint8_t bound_y = para.oX_SZ + (para.prePad << 1);
+    const uint8_t bound_x = para.oY_SZ + (para.prePad << 1);
+    const uint8_t bound_ch = para.Cout_Iter;
+    const uint32_t feed_bound = bound_x * bound_y * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -837,7 +840,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 //#pragma HLS DEPENDENCE variable=psum inter false
 //#pragma HLS DEPENDENCE variable=psum intra false
-		psum.call(in_stream, _output, bram_addr, load_sig, store_sig, para, iter);
+
+
+		psum.call(in_stream, _output, bram_addr, load_sig, store_sig, feed_bound, bound_y, bound_x, bound_ch);
         //debug
         //std::cout <<"output iter no." << iter.tilingIDc_i <<std::endl;
 
@@ -846,11 +851,11 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
 
-iter.tilingIDc_i = 0;
+/*iter.tilingIDc_i = 0;
 iter.tilingIDc_o = para.Cout_n;
 iter.tilingIDx = para.X_n - 1;
-iter.tilingIDy = para.Y_n - 1;
-psum.call_finish(_output, para, iter);
+iter.tilingIDy = para.Y_n - 1;*/
+psum.call_finish(_output, bound_y, bound_x, bound_ch);
 }
 
 #endif
