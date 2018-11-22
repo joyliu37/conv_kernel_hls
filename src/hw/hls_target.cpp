@@ -52,7 +52,7 @@ bool pool)
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weight = arg_2;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weightDP = arg_3;
 
- layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, pool);
+ layerPara para(Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, Ch_Iter, pool);
 
 /*
 struct tilingID iter;
@@ -75,8 +75,8 @@ iter.tilingIDy = 0;
 
  //define the stream
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> unpadded_feature("in_fm");
- hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> unpadded_feature_short("in_short_fm");
- hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature("out_fm");
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> unpadded_feature_short("in_short_fm");
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> padded_feature("out_fm");
 #pragma HLS STREAM variable=unpadded_feature depth=1
 #pragma HLS STREAM variable=padded_feature depth=1
 #pragma HLS STREAM variable=unpadded_feature_short depth=1
@@ -99,9 +99,9 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=output_long depth=1
 #pragma HLS STREAM variable=output_short depth=1
 
- hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp("out_dp");
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> output_dp("out_dp");
 #pragma HLS STREAM variable=output_dp depth=1
- hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_dp_pad("out_dp_pad");
+ hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> output_dp_pad("out_dp_pad");
 #pragma HLS STREAM variable=output_dp_pad depth=1
 
 hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_short");
@@ -123,13 +123,14 @@ DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
 stencil_convert_weight(weight_short, weight_stencil, para);
 
-convModule(padded_feature, weight_stencil, output_short, para);
+convDPModule(padded_feature, weight_dp, output_stream_short, para);
 
-datawidth_convert_feature_dp(output_short, output_dp, para);
-feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
-convDPModule(output_dp_pad, weight_dp, output_stream_short, para, Ch_Iter);
+datawidth_convert_feature_dp(output_stream_short, output_dp, para);
+feature_dp_pad(output_dp, output_dp_pad, para);
 
-datawidth_convert_output(output_stream_short, output_long, para, Ch_Iter);
+convModule(output_dp_pad, weight_stencil, output_short, para);
+
+datawidth_convert_output(output_short, output_long, para);
 //datawidth_convert_output(output_short, output_long, para, Ch_Iter);
 DMA_output_tiling_wrapper(_output, output_long, para);
 

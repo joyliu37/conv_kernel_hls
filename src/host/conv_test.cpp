@@ -40,16 +40,16 @@ int main()
     static dtype res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
-    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false, 0);
-    image2stencil(res_sw_0, res_sw_0_stencil, ROWS, COLS, OCH);
-    conv_dp_sw(res_sw_0, weight_0, res_sw_1, ROWS/STRIDE, COLS/STRIDE, OCH, FS, 1);
+    conv_dp_sw((dtype*)image, weight_0, res_sw_1, ROWS/STRIDE, COLS/STRIDE, OCH, FS, 1);
+    conv_sw(res_sw_1, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false, 0);
+    //image2stencil(res_sw_0, res_sw_0_stencil, ROWS, COLS, OCH);
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
 #ifdef HW_COSIM
 	hls_target(res_stencil, image_stencil, weight_stencil, weight_dp_stencil, 3, 8, 8, 2, 2, 2, 32, 2, 32, 1, 1, false);
 	stencil2image(res_0, res_stencil, ROWS, COLS, OCH);
 
-    check_err(res_0, res_sw_1, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);
+    check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);
 
    if (err_cnt)
       cout << "ERROR: " << err_cnt << " mismatches detected!" << endl;

@@ -180,7 +180,7 @@ load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 		}
 	}
 }
-
+/*
 //handle the data shuffle when conv followed depthwise conv
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t IN_EXTENT_0, size_t BUFFER_EXTENT, typename T>
@@ -224,7 +224,7 @@ load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 		}
 	}
 }
-
+*/
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT, typename T>
 void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>::feedStream(

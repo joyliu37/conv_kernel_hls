@@ -61,6 +61,7 @@ struct layerPara{
 	uint8_t Cout_n;
     uint8_t Cout_SZ;
     uint8_t Cout_Iter;
+    uint8_t Ch_Iter;
     uint8_t Stride;
     uint8_t loop_cnt;
     uint8_t prePad;
@@ -85,6 +86,7 @@ struct layerPara{
             uint8_t Cout_n_,
             uint8_t Cout_SZ_,
             uint8_t Stride_,
+            uint8_t Ch_Iter_,
             bool pool_){
         Ksz = Ksz_;
         X_n = X_n_;
@@ -98,6 +100,8 @@ struct layerPara{
         Cout_SZ = Cout_SZ_;
         Cout_Iter = Cout_SZ / P_COUT;
         Stride = Stride_;
+
+        Ch_Iter = Ch_Iter_;
 
         oX_SZ = X_SZ / Stride;
         oY_SZ = Y_SZ / Stride;
