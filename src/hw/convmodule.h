@@ -8,8 +8,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
         hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1> > & in_weight_stencil,
         hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1> > & out_feature_stencil,
         layerPara para){
-#pragma HLS dataflow
-
+#pragma HLS inline
     //addr gen
     hls::stream<uint32_t> feature_addr("f_addr");
     hls::stream<uint32_t> weight_id("w_id");
@@ -66,7 +65,7 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
         PackedStencil<dtype, P_CH, K_DP, K_DP, 1> * in_weight_stencil,
         hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & out_feature_stencil,
         layerPara para, const uint8_t Ch_Iter){
-#pragma HLS dataflow
+#pragma HLS inline
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_stream depth=1

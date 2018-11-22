@@ -126,8 +126,8 @@ stencil_convert_weight(weight_short, weight_stencil, para);
 convModule(padded_feature, weight_stencil, output_short, para);
 
 datawidth_convert_feature_dp(output_short, output_dp, para);
-//feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
-convDPModule(output_dp, weight_dp, output_stream_short, para, Ch_Iter);
+feature_dp_pad(output_dp, output_dp_pad, para, Ch_Iter);
+convDPModule(output_dp_pad, weight_dp, output_stream_short, para, Ch_Iter);
 
 datawidth_convert_output(output_stream_short, output_long, para, Ch_Iter);
 //datawidth_convert_output(output_short, output_long, para, Ch_Iter);

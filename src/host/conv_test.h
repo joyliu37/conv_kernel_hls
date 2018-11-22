@@ -189,14 +189,14 @@ void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
             for (int c = 0; c < Ch; c ++){
                 for (int fx = 0; fx < fs; fx ++){
                     for (int fy = 0; fy < fs; fy ++){
-                        //if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
-                            dtype a = input[(y*stride + fy ) * (cols+2) * Ch + (x*stride + fx) * Ch + c];
+                        if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
+                            dtype a = input[(y*stride + fy ) * (cols) * Ch + (x*stride + fx) * Ch + c];
                             dtype b = weight[fy*fs*Ch + fx*Ch + c];
                             res_sw_tmp[y*cols*Ch + x*Ch + c] +=
-                            input[(y*stride + fy ) * (cols+2) * Ch + (x*stride + fx) * Ch + c]
+                            input[(y*stride + fy-anchor ) * (cols) * Ch + (x*stride + fx-anchor) * Ch + c]
                             * weight[fy*fs*Ch + fx*Ch + c];
                             //printf("sw: %d * %d = %d\n",a, b, res_sw_tmp[y*cols*Ch+x*Ch + c] );
-
+                        }
 
                     }
                 }
@@ -216,7 +216,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
 		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool, int prepad){
     int row_pad = rows + 2*prepad;
     int col_pad = cols + 2*prepad;
-    int anchor = 2;
+    int anchor = 1;
 
 	dtype_double res_sw_tmp[row_pad * col_pad * oCh];
 	for (int i = 0 ; i < row_pad * col_pad * oCh; i++)

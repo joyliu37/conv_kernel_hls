@@ -181,6 +181,50 @@ load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 	}
 }
 
+//handle the data shuffle when conv followed depthwise conv
+template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
+    size_t IN_EXTENT_0, size_t BUFFER_EXTENT, typename T>
+void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, IN_EXTENT_0, BUFFER_EXTENT, T>::loadFromDRAM(
+		hls::stream<PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &_feature_stream,
+		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
+        const uint8_t bound_y, const uint8_t bound_x, const uint8_t bound_ch) {
+#pragma HLS inline off
+
+    static_assert(EXTENT_0 % IN_EXTENT_0 == 0, "double buffer dim is not divisible by input extent.\n");
+    static_assert(EXTENT_0 > IN_EXTENT_0, "Input extent is larger than the double buffer dim.\n");
+
+	if (this->cnt == loop_cnt)
+		return;
+
+    const uint8_t IDX_CH_MUL = EXTENT_0 / IN_EXTENT_0;
+
+	//load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz + (para.prePad<<1) - 1;input_y++) {
+load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
+#pragma HLS LOOP_TRIPCOUNT max=18
+		for (int input_c = 0; input_c < bound_ch; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=4
+		for (int mul_c = 0; mul_c < IDX_CH_MUL; input_c++) {
+		for (int input_x = 0; input_x < bound_x; input_x++) {
+#pragma HLS LOOP_TRIPCOUNT max=18
+#pragma HLS PIPELINE II=1
+				int32_t buffAddr = input_c +\
+                                   input_x * bound_ch+\
+                                   input_y * bound_ch * bound_x;
+				Stencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
+				Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> temp = _feature_buf[bufAddr];
+
+                for(size_t idx3 = 0; idx < EXTENT_3; idx3++)
+				for(size_t idx2 = 0; idx < EXTENT_2; idx2++)
+				for(size_t idx1 = 0; idx < EXTENT_1; idx1++)
+                for(size_t idx0 = 0; idx < IN_EXTENT_0; idx0++){
+                    temp(idx0 + mul_c * IN_EXTENT_0, idx1, idx2, idx3) = data(idx0, idx1, idx2, idx3);
+                }
+                 _feature_buf[buffAddr] = temp;
+			}
+		}
+	}
+}
+
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT, typename T>
 void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>::feedStream(

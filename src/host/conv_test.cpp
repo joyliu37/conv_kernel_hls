@@ -9,7 +9,7 @@ int main()
 
 	static dtype image[(ROWS)*(COLS)*ICH];
 	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image_stencil[ROWS*COLS*ICH/DATAWIDTH];
-	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> res_sw_0_stencil[(ROWS+2)*(COLS+2)*ICH/DATAWIDTH];
+	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> res_sw_0_stencil[(ROWS)*(COLS)*ICH/DATAWIDTH];
 
 	static dtype weight_0[FS*FS*ICH*OCH];
 	static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> weight_stencil[FS*FS*ICH*OCH/DATAWIDTH];
@@ -31,8 +31,8 @@ int main()
 	//hls_target(res_1, res_0, weight_0, 3, 4, 4, 1, 2, false);
 	//hls_target(res_pool, image, weight_0, 3, 2, 2, 2, 2, true);
 
-    static dtype res_sw_0[(ROWS + 2) * (COLS + 2) * OCH];
-    initial_buf(res_sw_0, (ROWS + 2) * (COLS + 2) * OCH);
+    static dtype res_sw_0[(ROWS ) * (COLS ) * OCH];
+    initial_buf(res_sw_0, (ROWS ) * (COLS ) * OCH);
 
     static dtype res_sw_1[ROWS * COLS * OCH];
     initial_buf(res_sw_1, ROWS * COLS * OCH);
@@ -40,8 +40,8 @@ int main()
     static dtype res_sw_pool[(ROWS>>1) * (COLS>>1) * OCH];
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
-    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false, 1);
-    image2stencil(res_sw_0, res_sw_0_stencil, ROWS+2, COLS+2, OCH);
+    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false, 0);
+    image2stencil(res_sw_0, res_sw_0_stencil, ROWS, COLS, OCH);
     conv_dp_sw(res_sw_0, weight_0, res_sw_1, ROWS/STRIDE, COLS/STRIDE, OCH, FS, 1);
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 

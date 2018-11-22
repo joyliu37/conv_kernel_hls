@@ -47,11 +47,13 @@ void FeatureAddrGen1D(hls::stream<uint32_t> & addr, const uint32_t num_iter,
 
 void WeightAddrGen2D(hls::stream<uint32_t> & addrID,
         hls::stream<uint32_t> & addr,
-        layerPara para, int num_iter) {
+        const uint32_t num_iter,
+        const uint32_t buff_bound,
+        const uint8_t id_bound) {
 
     uint32_t weight_buff_id = 0;
     uint32_t weight_buff_addr = 0;
-    const uint32_t buff_bound = para.Cin_Iter * para.Ksz *para.Ksz;
+    //const uint32_t buff_bound = para.Cin_Iter * para.Ksz *para.Ksz;
     for (int i = 0; i < num_iter; i ++){
 #pragma HLS pipeline II=1
 
@@ -62,7 +64,7 @@ void WeightAddrGen2D(hls::stream<uint32_t> & addrID,
         if(weight_buff_addr == buff_bound){
             weight_buff_addr = 0;
             weight_buff_id ++;
-            if(weight_buff_id == para.Cout_Iter){
+            if(weight_buff_id == id_bound){
                 weight_buff_id = 0;
             }
         }
@@ -73,40 +75,44 @@ void OutputAddrGen1D(
         hls::stream<uint32_t> & addr,
         hls::stream<bool> & load_sig,
         hls::stream<bool> & store_sig,
-        layerPara para, int num_iter, tilingID iter) {
+        int num_iter, const uint8_t tilingIDc_i,
+        const uint8_t ext_x, // const uint8_t stride, need stride when we support deconv
+        const uint8_t off_x, const uint8_t off_y,
+        const uint8_t ext_chin, const uint8_t ext_chout,
+        const uint8_t bound_x, const uint8_t bound_ch) {
 
     uint8_t xIter = 0, yIter = 0, xOff = 0, yOff = 0, cinOff = 0, coutOff = 0;
     for (int i = 0; i < num_iter; i ++){
 #pragma HLS pipeline II=1
         const int32_t featureBuffAddr = coutOff + \
-                                        xIter * para.Cout_Iter+\
-                                        yIter * para.Cout_Iter * (para.oX_SZ + (para.prePad<<1));
+                                        xIter * bound_ch+\
+                                        yIter * bound_ch * bound_x;
 
 		addr.write(featureBuffAddr);
-		if ((iter.tilingIDc_i != 0) && (cinOff == 0) && (xOff == 0) && (yOff == 0))
+		if ((tilingIDc_i != 0) && (cinOff == 0) && (xOff == 0) && (yOff == 0))
             load_sig.write(true);
         else
             load_sig.write(false);
 
-        if ((cinOff== para.Cin_Iter - 1) && (yOff == para.Ksz-1) && (xOff == para.Ksz-1))
+        if ((cinOff== ext_chin - 1) && (yOff == off_y-1) && (xOff == off_x-1))
             store_sig.write(true);
         else
             store_sig.write(false);
 
         cinOff ++;
-        if (cinOff == para.Cin_Iter){
+        if (cinOff == ext_chin){
             cinOff = 0;
             xOff ++;
-            if (xOff == para.Ksz){
+            if (xOff == off_x){
                 xOff = 0;
                 yOff ++;
-                 if (yOff == para.Ksz){
+                 if (yOff == off_y){
                     yOff = 0;
                     coutOff ++;
-                    if(coutOff == para.Cout_Iter){
+                    if(coutOff == ext_chout){
                         coutOff = 0;
                         xIter += 1;
-                        if(xIter == para.oX_SZ + (para.prePad << 1)){
+                        if(xIter == ext_x){
                             xIter = 0;
                             yIter += 1;
                         }
