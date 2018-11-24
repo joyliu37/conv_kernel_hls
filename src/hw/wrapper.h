@@ -92,11 +92,11 @@ static void weight2Buff(
         size_t Ch_Iter){
 
     const size_t num_iter = K_DP * K_DP * P_CH * Ch_Iter/DATAWIDTH;
-    hls::stream<PackedStencil<dtype, P_CH * K_DP * K_DP, 1, 1, 1>> weight_short;
+    hls::stream<PackedStencil<dtype, P_CH , 1, 1, 1>> weight_short;
 #pragma HLS STREAM variable = weight_short depth=1
 #pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
-    StreamDataWidthConverter<dtype, DATAWIDTH, P_CH * K_DP * K_DP>(weight_stream, weight_short, DATAWIDTH, P_CH * K_DP * K_DP, num_iter);
-    StreamWord2Stencil<dtype, P_CH*K_DP*K_DP>(weight_short, weight_buff, Ch_Iter);
+    StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(weight_stream, weight_short, DATAWIDTH, P_CH, num_iter);
+    StreamWord2StencilBuff<dtype, P_CH>(weight_short, weight_buff, Ch_Iter);
 
 
 }
@@ -190,7 +190,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
        for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i ++){
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-        StreamPad<dtype, P_CIN>(in, out,
+            StreamPadDP<dtype, P_CIN>(in, out,
                 para.X_SZ + para.Ksz - 1,
                 para.Y_SZ + para.Ksz - 1,
                 para.Cin_Iter,
@@ -618,7 +618,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature intra false
 
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-        linebuffer_2D<11>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + para.prePad + para.Ksz - 1, para.Y_SZ + para.prePad + para.Ksz - 1);
+        linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + para.prePad + para.Ksz - 1, para.Y_SZ + para.prePad + para.Ksz - 1);
 
      }
    }//for tiling Input channel
@@ -710,7 +710,7 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
     const uint8_t bound_x = para.X_SZ + para.Ksz + - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	feature.call_start(padded_feature, bound_y, bound_x, bound_ch);
+	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter, 1);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -729,7 +729,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, bound_ch);
+		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Ch_Iter, 1);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel
@@ -759,14 +759,14 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 
        //put it into a function buffer2Kernel()
-       const size_t conv_dp_iter = (para.oX_SZ + para.prePad) * (para.oY_SZ + para.prePad) * para.Ch_Iter;
+       const size_t conv_dp_iter = (para.X_SZ + para.prePad) * (para.Y_SZ + para.prePad) * para.Ch_Iter;
        size_t id_ch = 0;
        size_t id_x = 0;
        for (size_t addr = 0; addr < conv_dp_iter; addr ++){
 #pragma HLS pipeline II=1
            weightStream.write(buffer[id_ch + iter.tilingIDc_i * para.Ch_Iter]);
            id_x ++;
-           if (id_x == para.X_SZ){
+           if (id_x == para.X_SZ + para.prePad){
                id_x = 0;
                 id_ch ++;
                 if(id_ch == para.Ch_Iter){

@@ -112,8 +112,8 @@ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_sho
 #pragma HLS dataflow
 
  //buffer all the depthwise conv weight on chip
-DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cout_n);
-weight2Buff(weightDP_long, weight_dp, Ch_Iter * Cout_n);
+DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cin_n);
+weight2Buff(weightDP_long, weight_dp, Ch_Iter *  Cin_n);
 
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
 datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);

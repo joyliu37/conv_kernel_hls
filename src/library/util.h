@@ -20,6 +20,7 @@
 #define OFM_BUFF_SIZE (MAX_X_SZ + 2) * (MAX_Y_SZ + 2) * MAX_COUT_SZ / P_COUT
 #define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
+#define LINEBUFFER_SIZE 44
 
 #define W_DP_BUFF_SIZE K_DP * K_DP * MAX_DP_SZ / P_CH
 
@@ -36,7 +37,7 @@
 #define P_COUT 8
 #define P_COUT_bit 3
 
-#define P_CH 32
+#define P_CH 8
 #define K_DP 3
 
 #define DATAWIDTH 32
