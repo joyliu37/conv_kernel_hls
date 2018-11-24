@@ -97,6 +97,7 @@ void Stream2Mem_weight_continous(
         size_t length){
     Stencil<T, data_width, 1, 1, 1> temp;
 load_weight2Stream_continous: for (size_t ddrAddr = 0; ddrAddr < length; ddrAddr ++){
+#pragma HLS PIPELINE II=1
                                   temp = _weight[ddrAddr];
                                   out.write(temp);
                               }

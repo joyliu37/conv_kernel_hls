@@ -618,7 +618,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature intra false
 
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-        linebuffer_2D<11, 11>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + para.prePad + para.Ksz - 1);
+        linebuffer_2D<11>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + para.prePad + para.Ksz - 1, para.Y_SZ + para.prePad + para.Ksz - 1);
 
      }
    }//for tiling Input channel
@@ -761,11 +761,18 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
        //put it into a function buffer2Kernel()
        const size_t conv_dp_iter = (para.oX_SZ + para.prePad) * (para.oY_SZ + para.prePad) * para.Ch_Iter;
        size_t id_ch = 0;
+       size_t id_x = 0;
        for (size_t addr = 0; addr < conv_dp_iter; addr ++){
+#pragma HLS pipeline II=1
            weightStream.write(buffer[id_ch + iter.tilingIDc_i * para.Ch_Iter]);
-           id_ch ++;
-           if(id_ch == para.Ch_Iter)
-               id_ch = 0;
+           id_x ++;
+           if (id_x == para.X_SZ){
+               id_x = 0;
+                id_ch ++;
+                if(id_ch == para.Ch_Iter){
+                    id_ch = 0;
+                }
+           }
        }
    }
   }
