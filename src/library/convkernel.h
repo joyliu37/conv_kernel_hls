@@ -45,7 +45,7 @@ void conv_kernel(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> & feature_str
 void dp_conv_kernel(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> & feature_stream,
         hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> & weight_stream,
         hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> & output_stream,
-        uint8_t X_SZ, uint8_t Y_SZ, uint8_t Ch_Iter){
+        const uint32_t num_iter){
 #pragma HLS inline off
 
     Stencil<dtype, P_CH, K_DP, K_DP, 1> feature_reg;
@@ -55,7 +55,6 @@ void dp_conv_kernel(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> & fea
 #pragma HLS ARRAY_PARTITION variable=weight_reg.value complete dim=0
 #pragma HLS ARRAY_PARTITION variable=output_reg.value complete dim=0
 
-    const uint32_t num_iter = X_SZ * Y_SZ * Ch_Iter;
 
 db_conv: for (int itr = 0; itr < num_iter; itr ++){
 #pragma HLS PIPELINE II=1
