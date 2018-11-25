@@ -324,11 +324,11 @@ static void call(stream<PackedStencil<T, IN_EXTENT_0, IN_EXTENT_1, EXTENT_2, EXT
 }
 };
 
-/*
+
 template <size_t IMG_EXTENT_0,size_t EXTENT_2, size_t EXTENT_3,
 	  size_t IN_EXTENT_0, size_t IN_EXTENT_1,
 	  size_t OUT_EXTENT_0, size_t OUT_EXTENT_1, typename T>
-class optLinebuffer2D {
+class combOptLinebuffer2D {
 public:
 //Case work for depthwise conv
 static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXTENT_3> > &in_stream,
@@ -427,7 +427,7 @@ static void call(stream<PackedStencil<T, EXTENT_2, IN_EXTENT_0, IN_EXTENT_1, EXT
     }
 }
 };
-*/
+
 
 template <size_t IMG_EXTENT_0, size_t EXTENT_0, size_t EXTENT_2, size_t EXTENT_3,
 	  size_t IN_EXTENT_1, size_t OUT_EXTENT_1, typename T>
@@ -711,6 +711,18 @@ void linebuffer_2D(stream<PackedStencil<T, IN_EXTENT_0, IN_EXTENT_1, EXTENT_2, E
 #pragma HLS INLINE
     Linebuffer2D<IMG_EXTENT_0,  IMG_EXTENT_1,  EXTENT_2,  EXTENT_3,
                  IN_EXTENT_0,  IN_EXTENT_1,  OUT_EXTENT_0,  OUT_EXTENT_1, T>::call(in_stream, out_stream);
+}
+
+
+template <size_t IMG_EXTENT_0, size_t EXTENT_0, size_t EXTENT_3,
+	  size_t IN_EXTENT_1, size_t IN_EXTENT_2,
+      size_t OUT_EXTENT_1, size_t OUT_EXTENT_2, typename T>
+void linebuffer_2D(stream<PackedStencil<T, EXTENT_0, IN_EXTENT_1, IN_EXTENT_2, EXTENT_3> > &in_stream,
+                   stream<PackedStencil<T, EXTENT_0, OUT_EXTENT_1, OUT_EXTENT_2, EXTENT_3> > &out_stream,
+                   const size_t Ch_Iter, const size_t X_SZ, const size_t Y_SZ) {
+#pragma HLS INLINE
+    combOptLinebuffer2D<IMG_EXTENT_0, EXTENT_0, EXTENT_3,
+                 IN_EXTENT_1, IN_EXTENT_2, OUT_EXTENT_2, OUT_EXTENT_2, T>::call(in_stream, out_stream, Ch_Iter, X_SZ, Y_SZ);
 }
 
 template <size_t IMG_EXTENT_0, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_3,

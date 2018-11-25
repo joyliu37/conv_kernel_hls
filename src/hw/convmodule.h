@@ -71,7 +71,7 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 #pragma HLS STREAM variable=dp_feature_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
     hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_fm_stencil");
-#pragma HLS STREAM variable=dp_feature_1d_stream depth=8
+#pragma HLS STREAM variable=dp_feature_1d_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_SRL
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
@@ -80,6 +80,8 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 
     hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
 #pragma HLS STREAM variable=output_stream depth=1
+    //read_inputLB(in_feature_stencil, dp_feature_stream, para);
+    //split the linebuffer into two separate module, to meeting timing
     read_inputLB2D(in_feature_stencil, dp_feature_1d_stream, para);
     read_inputLB1D(dp_feature_1d_stream, dp_feature_stream, para);
     read_weightDP(in_weight_stencil, dp_weight_stream, para);

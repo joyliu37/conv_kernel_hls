@@ -93,9 +93,10 @@ iter.tilingIDy = 0;
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weightDP_long("in_wt_dp");
 #pragma HLS STREAM variable=weightDP_long depth=1
  hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> weightDP_tmp("in_wt_dp");
-#pragma HLS STREAM variable=weightDP_tmp depth=9
+#pragma HLS STREAM variable=weightDP_tmp depth=1
  hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP, 1, 1, 1>> weightDP_in("in_wt_dp");
 #pragma HLS STREAM variable=weightDP_in depth=1
+#pragma HLS RESOURCE variable=weightDP_in core=FIFO_LUTRAM
 
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
@@ -111,8 +112,6 @@ iter.tilingIDy = 0;
 hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_short");
 #pragma HLS STREAM variable=output_stream_short depth=1
 
-
-
 #pragma HLS dataflow
 
  //buffer all the depthwise conv weight on chip
@@ -121,21 +120,27 @@ datawidth_convert_weightDP1(weightDP_long, weightDP_tmp, Ch_Iter *  Cin_n);
 datawidth_convert_weightDP2(weightDP_tmp, weightDP_in, Ch_Iter *  Cin_n);
 StreamWord2Stencil<dtype, P_CH*K_DP*K_DP>(weightDP_in, weight_dp, para.Ch_Iter*para.Cin_n);
 
+//load feature and pad
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
 datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
 feature_pad(unpadded_feature_short, padded_feature, para);
 
+//load weight
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
 stencil_convert_weight(weight_short, weight_stencil, para);
 
+//depthwise conv
 convDPModule(padded_feature, weight_dp, output_stream_short, para);
 
+//pad again for the pointwise convolution
 datawidth_convert_feature_dp(output_stream_short, output_dp, para);
 feature_dp_pad(output_dp, output_dp_pad, para);
 
+//pointwise convolution module
 convModule(output_dp_pad, weight_stencil, output_short, para);
 
+//post processing
 datawidth_convert_output(output_short, output_long, para);
 //datawidth_convert_output(output_short, output_long, para, Ch_Iter);
 DMA_output_tiling_wrapper(_output, output_long, para);
