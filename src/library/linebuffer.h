@@ -443,7 +443,7 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
     //static_assert(OUT_EXTENT_1 % IN_EXTENT_1 == 0, "output extent is not divisible by input."); // TODO handle this situation.
     static_assert(IMG_EXTENT_0 % EXTENT_0 == 0, "image extent is not divisible by input."); // TODO handle this situation.
     static_assert(IMG_EXTENT_0 > EXTENT_0, "image extent is not larger than input."); // TODO handle this situation.
-    assert(IMG_EXTENT_0 == Ch_Iter * X_Iter);
+    assert(IMG_EXTENT_0 > Ch_Iter * X_Iter);
 #pragma HLS INLINE
 //#pragma HLS DATAFLOW
 
@@ -468,7 +468,7 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
 
  LB2D_buf:for (size_t row = 0; row < IDX_EXTENT_1 + 1; row++) {
 #pragma HLS LOOP_FLATTEN off
-        for (size_t col = 0; col < IDX_EXTENT_0; col++) {
+        for (size_t col = 0; col < Ch_Iter * X_Iter; col++) {
 #pragma HLS DEPENDENCE array inter false
 #pragma HLS PIPELINE II=1
             // linebuffer write

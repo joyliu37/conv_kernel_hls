@@ -40,4 +40,4 @@ csim_design -clean -compiler gcc
 csynth_design
 cosim_design 
 #-trace_level all
-#export_design -rtl verilog -format ip_catalog
+export_design -rtl verilog -format ip_catalog
