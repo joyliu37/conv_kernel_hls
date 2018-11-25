@@ -86,18 +86,33 @@ static void DMA_weightDP(
 
 }
 
-static void weight2Buff(
+static void datawidth_convert_weightDP1(
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &weight_stream,
-        PackedStencil<dtype, P_CH, K_DP, K_DP, 1> * weight_buff,
+        hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> & weight_buff,
         size_t Ch_Iter){
 
     const size_t num_iter = K_DP * K_DP * P_CH * Ch_Iter/DATAWIDTH;
-    hls::stream<PackedStencil<dtype, P_CH , 1, 1, 1>> weight_short;
-#pragma HLS STREAM variable = weight_short depth=1
-#pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
-    StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(weight_stream, weight_short, DATAWIDTH, P_CH, num_iter);
-    StreamWord2StencilBuff<dtype, P_CH>(weight_short, weight_buff, Ch_Iter);
+    //hls::stream<PackedStencil<dtype, P_CH , 1, 1, 1>> weight_short_temp;
+//#pragma HLS STREAM variable = weight_short_temp depth=1
+    //hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP , 1, 1, 1>> weight_short;
+//#pragma HLS STREAM variable = weight_short depth=1
+//#pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
+    //StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(weight_stream, weight_short, DATAWIDTH, P_CH, num_iter);
+    //StreamWord2StencilBuff<dtype, P_CH>(weight_short, weight_buff, Ch_Iter);
 
+    StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(weight_stream, weight_buff, DATAWIDTH, P_CH, num_iter);
+    //StreamWord2Stencil<dtype, P_CH*K_DP*K_DP>(weight_short, weight_buff, Ch_Iter);
+
+}
+
+
+static void datawidth_convert_weightDP2(
+        hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &weight_stream,
+        hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP, 1, 1, 1>> &weight_buff,
+        size_t Ch_Iter){
+
+    const size_t num_iter_temp = K_DP * K_DP *  Ch_Iter;
+    StreamDataWidthConverter<dtype, P_CH, P_CH*K_DP*K_DP>(weight_stream, weight_buff, P_CH, P_CH*K_DP*K_DP, num_iter_temp);
 
 }
 
@@ -540,7 +555,7 @@ static void datawidth_convert_feature_dp(
 
 	struct tilingID iter;
 
-    int32_t input_count = (para.oX_SZ + (para.prePad)) * (para.oY_SZ + (para.prePad)) * para.Ch_Iter;
+    int32_t input_count = (para.X_SZ + (para.prePad)) * (para.Y_SZ + (para.prePad)) * para.Ch_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -555,7 +570,7 @@ static void datawidth_convert_feature_dp(
 	   {
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-	        StreamDataWidthConverter<dtype, P_CH, P_COUT>(in, out, P_CH, P_COUT, input_count);
+	        StreamDataWidthConverter<dtype, P_CH, P_CIN>(in, out, P_CH, P_CIN, input_count);
 
 	   }
        } // for _output_s0_c_co
@@ -596,8 +611,8 @@ static void datawidth_convert_output(
 }
 
 
-static void read_inputLB(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
-		hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &feature_stream,
+static void read_inputLB2D(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
+		hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &feature_stream,
 		layerPara para){
 
 	struct tilingID iter;
@@ -621,6 +636,40 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
         linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + para.prePad + para.Ksz - 1, para.Y_SZ + para.prePad + para.Ksz - 1);
 
      }
+   }//for tiling Input channel
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+
+static void read_inputLB1D(hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &padded_feature,
+		hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &feature_stream,
+		layerPara para){
+
+	struct tilingID iter;
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+	for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+  	  for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+//#pragma HLS DEPENDENCE variable=feature inter false
+//#pragma HLS DEPENDENCE variable=feature intra false
+
+          const size_t Y_Iter = (para.Y_SZ + para.prePad) * para.Ch_Iter;
+          for (uint8_t i = 0; i < Y_Iter; i ++){
+        //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
+        linebuffer_1D(padded_feature, feature_stream, para.X_SZ + para.prePad + para.Ksz - 1);
+     }
+    }
    }//for tiling Input channel
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
@@ -706,8 +755,8 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
 		layerPara para){
 
 	struct tilingID iter;
-    const uint8_t bound_y = para.Y_SZ + para.Ksz + - 1;
-    const uint8_t bound_x = para.X_SZ + para.Ksz + - 1;
+    const uint8_t bound_y = para.Y_SZ + para.Ksz - 1;
+    const uint8_t bound_x = para.X_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter, 1);

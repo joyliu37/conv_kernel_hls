@@ -70,6 +70,9 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
+    hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_fm_stencil");
+#pragma HLS STREAM variable=dp_feature_1d_stream depth=8
+#pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_SRL
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
 #pragma HLS STREAM variable=dp_weight_stream depth=1
@@ -77,7 +80,8 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 
     hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
 #pragma HLS STREAM variable=output_stream depth=1
-    read_inputLB(in_feature_stencil, dp_feature_stream, para);
+    read_inputLB2D(in_feature_stencil, dp_feature_1d_stream, para);
+    read_inputLB1D(dp_feature_1d_stream, dp_feature_stream, para);
     read_weightDP(in_weight_stencil, dp_weight_stream, para);
     computeDP(dp_feature_stream, dp_weight_stream, output_stream, para, para.X_SZ + para.prePad, para.Y_SZ + para.prePad, para.Ch_Iter);
 //output_db(output_stream, output_addr, output_reorg, para, dpX_SZ, Ch_Iter);

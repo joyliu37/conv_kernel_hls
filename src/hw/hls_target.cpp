@@ -92,6 +92,10 @@ iter.tilingIDy = 0;
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weightDP_long("in_wt_dp");
 #pragma HLS STREAM variable=weightDP_long depth=1
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> weightDP_tmp("in_wt_dp");
+#pragma HLS STREAM variable=weightDP_tmp depth=9
+ hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP, 1, 1, 1>> weightDP_in("in_wt_dp");
+#pragma HLS STREAM variable=weightDP_in depth=1
 
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
@@ -113,7 +117,9 @@ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_sho
 
  //buffer all the depthwise conv weight on chip
 DMA_weightDP(_weightDP, weightDP_long, Ch_Iter * Cin_n);
-weight2Buff(weightDP_long, weight_dp, Ch_Iter *  Cin_n);
+datawidth_convert_weightDP1(weightDP_long, weightDP_tmp, Ch_Iter *  Cin_n);
+datawidth_convert_weightDP2(weightDP_tmp, weightDP_in, Ch_Iter *  Cin_n);
+StreamWord2Stencil<dtype, P_CH*K_DP*K_DP>(weightDP_in, weight_dp, para.Ch_Iter*para.Cin_n);
 
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
 datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
