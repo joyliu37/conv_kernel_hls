@@ -134,12 +134,12 @@ stencil_convert_weight(weight_short, weight_stencil, para);
 convDPModule(padded_feature, weight_dp, output_stream_short, para);
 
 //pad again for the pointwise convolution
-datawidth_convert_feature_dp(output_stream_short, output_dp, para);
+//datawidth_convert_feature_dp(output_stream_short, output_dp, para);
 //1x1 conv no need to pad
 //feature_dp_pad(output_dp, output_dp_pad, para);
 
 //pointwise convolution module
-convModule(output_dp, weight_stencil, output_short, para);
+convModule(output_stream_short, weight_stencil, output_short, para);
 
 //post processing
 datawidth_convert_output(output_short, output_long, para);

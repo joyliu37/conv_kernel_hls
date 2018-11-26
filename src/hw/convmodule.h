@@ -4,7 +4,7 @@
 #include "wrapper.h"
 
 
-void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_stencil,
+void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_stencil,
         hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1> > & in_weight_stencil,
         hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1> > & out_feature_stencil,
         layerPara para){
@@ -44,7 +44,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
 #pragma HLS STREAM variable=relu_long depth=1
 
     //define the BRAM
-    Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
+    Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
     Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight(para.loop_cnt);
     Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum(para.Cin_n);
 

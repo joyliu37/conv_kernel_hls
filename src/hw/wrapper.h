@@ -796,9 +796,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 */
 
-static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
+static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
         hls::stream<uint32_t> &bram_addr,
-		Doublebuffer_feature<P_CIN, 1, 1, 1, IFM_BUFF_SIZE, dtype> &feature,
+		Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
@@ -807,7 +807,7 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
     const uint8_t bound_x = para.X_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter, 1);
+	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -826,7 +826,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Ch_Iter, 1);
+		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Ch_Iter);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel
