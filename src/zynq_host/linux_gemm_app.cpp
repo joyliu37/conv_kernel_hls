@@ -9,6 +9,8 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include "xhls_target_hw.h"
+#include "conv_test.h"
 //#include "Stencil.h"
 //#include <time.h>
 
@@ -27,9 +29,10 @@
 #define GPIO_DATA_OFFSET     0
 #define GPIO_DIRECTION_OFFSET     4
 
-#define DDR_BASE_ARG0_ADDRESS    0x30000000
+#define DDR_BASE_ARG0_ADDRESS    0x40000000
 #define DDR_BASE_ARG1_ADDRESS    0x10000000
 #define DDR_BASE_ARG2_ADDRESS    0x20000000
+#define DDR_BASE_ARG3_ADDRESS    0x00000000
 
 #define XGPIO_CHAN_OFFSET  8
 
@@ -59,6 +62,7 @@
 #define XHLS_TARGET_CONFIG_ADDR_IER     0x8
 #define XHLS_TARGET_CONFIG_ADDR_ISR     0xc
 */
+/*
 #define XHLS_TARGET_CONTROL_ADDR_AP_CTRL      0x00
 #define XHLS_TARGET_CONTROL_ADDR_GIE          0x04
 #define XHLS_TARGET_CONTROL_ADDR_IER          0x08
@@ -83,7 +87,7 @@
 #define XHLS_TARGET_CONTROL_BITS_COUT_SZ_DATA 8
 #define XHLS_TARGET_CONTROL_ADDR_POOL_DATA    0x58
 #define XHLS_TARGET_CONTROL_BITS_POOL_DATA    1
-
+*/
 #define XHLS_TARGET_CR_RESET_MASK 0x00000004
 
 #define XHLS_TARGET_AP_START_MASK 0x00000001
@@ -144,12 +148,13 @@
 
 
 #define WEIGHT_BYTESIZE 3*3*64*64
-#define OUTPUT_BYTESIZE 4*4*64
-#define INPUT_BYTESIZE 4*4*64//1048576
-#define DATAWIDTH 32
+#define OUTPUT_BYTESIZE 16*16*64
+#define INPUT_BYTESIZE 16*16*64//1048576
+//#define DATAWIDTH 32
 
 #define P_COUT 8
 #define P_CIN 8
+#define P_CH 8
 //#define BUFFER_BYTESIZE         262144  // Length of the buffers for DMA transfer
 
 /*void clearcache(char* begin, char* end)
@@ -168,8 +173,8 @@
 typedef int8_t dtype;
 typedef uint8_t dtype_u;
 
-    static int row = 4;
-    static int col = 4;
+    static int row = 16;
+    static int col = 16;
     static int iCh = 64;
     static int oCh = 64;
     static int Ksz = 3;
@@ -237,11 +242,12 @@ void initial_ouput(dtype *image){
 }
 
 void initial_weight(dtype *weight){
+    srand(1995);
     for (int idx = 0; idx < Ksz; idx ++){
         for (int idy = 0; idy < Ksz; idy ++){
             for (int idi = 0; idi < iCh; idi ++){
                 for (int ido = 0; ido < oCh; ido ++){
-                    weight[ido*iCh*Ksz*Ksz + idi*Ksz*Ksz + idy*Ksz + idx] = (dtype)(idx-idy);
+                    weight[ido*iCh*Ksz*Ksz + idi*Ksz*Ksz + idy*Ksz + idx] = (dtype)(idx-idy) + rand()%32 - 16;
                 }
             }
         }
@@ -307,31 +313,40 @@ int main()
     void *mapped_base_1, *mapped_dev_base_1;
     off_t dev_base_1 = DDR_BASE_ARG1_ADDRESS;
 
-    //int memfd_2;
+    int memfd_2;
     void *mapped_base_2, *mapped_dev_base_2;
     off_t dev_base_2 = DDR_BASE_ARG2_ADDRESS;
+
+    int memfd_3;
+    void *mapped_base_3, *mapped_dev_base_3;
+    off_t dev_base_3 = DDR_BASE_ARG3_ADDRESS;
 
     //unsigned int TimeOut = 5;
     unsigned int ResetMask;
     unsigned int RegValue;
     dtype SrcArray0[INPUT_BYTESIZE ];
+    dtype SrcArray0_tmp[INPUT_BYTESIZE ];
     dtype SrcArray1[WEIGHT_BYTESIZE ];
-    dtype SrcArray1_reshape[WEIGHT_BYTESIZE];
+    //dtype SrcArray1_reshape[WEIGHT_BYTESIZE ];
     dtype DestArray[OUTPUT_BYTESIZE ];
+    dtype DestArray_sw[OUTPUT_BYTESIZE ];
 
     //define the confiuration
-    uint8_t X_SZ = 2;
+    uint8_t X_SZ = 8;
     uint8_t X_n = 2;
-    uint8_t Y_SZ = 2;
+    uint8_t Y_SZ = 8;
     uint8_t Y_n = 2;
     uint8_t K_SZ = 3;
     uint8_t Cin_SZ = 32;
     uint8_t Cin_n = 2;
     uint8_t Cout_SZ = 32;
     uint8_t Cout_n = 2;
+    uint8_t Ch_Iter = 4;
+    uint8_t Stride= 1;
     bool pool = 0;
 
-    //PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray0_packed[INPUT_BYTESIZE/DATAWIDTH];
+    PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray2_packed[WEIGHT_BYTESIZE/DATAWIDTH];
+    PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray1_packed[WEIGHT_BYTESIZE/DATAWIDTH];
 
     //initial the parameter of experiment layer
     /*======================================================================================
@@ -347,8 +362,11 @@ int main()
     initial_input(SrcArray0);
     //image2stencil(SrcArray0, SrcArray0_packed);
     initial_weight(SrcArray1);
-    weight_reshape(SrcArray1, SrcArray1_reshape);
-    initial_ouput(DestArray);
+    weight2stencil(SrcArray1, SrcArray1_packed, Ksz, iCh, oCh, P_CIN, P_COUT, Cin_n, Cout_n);
+    weightDP2stencil(SrcArray1, SrcArray2_packed, K_SZ, iCh, P_CH, Cin_n);
+    //initial_ouput(DestArray);
+    conv_dp_sw(SrcArray0, SrcArray1, SrcArray0_tmp, row, col, iCh, Ksz, 1);
+    conv_sw(SrcArray0_tmp, SrcArray1, DestArray_sw, row, col, oCh, iCh, Ksz, Stride, false, 0);
         /*======================================================================================
         STEP 2 : Map the kernel memory location starting from 0x20000000 to the User layer
         ========================================================================================*/
@@ -409,12 +427,33 @@ int main()
 
 
     mapped_dev_base_2 = mapped_base_2 + (dev_base_2 & DDR_MAP_MASK);
-    memcpy(mapped_dev_base_2, SrcArray1_reshape, (WEIGHT_BYTESIZE)*sizeof(dtype));
+    memcpy(mapped_dev_base_2, SrcArray1_packed, (WEIGHT_BYTESIZE)*sizeof(dtype));
     printf("Src1 set to: %lu\n", *((unsigned long *) mapped_dev_base_2));
     //clearcache(dev_base_1, dev_base_1+4096);
     //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
 
     if (munmap(mapped_base_2, DDR_MAP_SIZE) == -1)
+    {
+        printf("Can't unmap memory from user space.\n");
+        exit(0);
+    }
+
+    mapped_base_3 = mmap(0, DDR_MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd_1, dev_base_3 & ~DDR_MAP_MASK);
+    if (mapped_base_2 == (void *) -1)
+    {
+        printf("Can't map the memory to user space.\n");
+        exit(0);
+    }
+    printf("Memory mapped at address %p.\n", mapped_base_3);
+
+
+    mapped_dev_base_3 = mapped_base_3 + (dev_base_3 & DDR_MAP_MASK);
+    memcpy(mapped_dev_base_3, SrcArray2_packed, (WEIGHT_BYTESIZE)*sizeof(dtype));
+    printf("Src2 set to: %lu\n", *((unsigned long *) mapped_dev_base_3));
+    //clearcache(dev_base_1, dev_base_1+4096);
+    //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
+
+    if (munmap(mapped_base_3, DDR_MAP_SIZE) == -1)
     {
         printf("Can't unmap memory from user space.\n");
         exit(0);
@@ -457,6 +496,8 @@ int main()
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA)) = (unsigned long)Cin_n;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_SZ_DATA)) = (unsigned long)Cout_SZ;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_N_DATA)) = (unsigned long)Cout_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_STRIDE_DATA)) = (unsigned long)Stride;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CH_ITER_DATA)) = (unsigned long)Ch_Iter;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_POOL_DATA)) = (unsigned long)pool;
     // get the address of the device in user space which will be an offset from the base
     // that was mapped as memory is mapped at the start of a page
@@ -620,7 +661,9 @@ int main()
                    return 1;
            }
        }*/
-       int err_cnt = check_err(SrcArray0, SrcArray1, DestArray);
+       int err_cnt = 0;
+       check_err(DestArray, DestArray_sw, row, col, oCh,1, err_cnt);
+        //check_err(SrcArray0, SrcArray1, DestArray);
        if (err_cnt == 0)
            printf("Result verification is Successful \n\r");
        else

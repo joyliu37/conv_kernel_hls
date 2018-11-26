@@ -90,9 +90,9 @@ iter.tilingIDy = 0;
 #pragma HLS STREAM variable=weight_stencil depth=1
 #pragma HLS RESOURCE variable=weight_stencil core=FIFO_LUTRAM
 
- hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weightDP_long("in_wt_dp");
+ hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weightDP_long("in_wt_dp_l");
 #pragma HLS STREAM variable=weightDP_long depth=1
- hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> weightDP_tmp("in_wt_dp");
+ hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> weightDP_tmp("in_wt_dp_tmp");
 #pragma HLS STREAM variable=weightDP_tmp depth=1
  hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP, 1, 1, 1>> weightDP_in("in_wt_dp");
 #pragma HLS STREAM variable=weightDP_in depth=1
@@ -135,10 +135,11 @@ convDPModule(padded_feature, weight_dp, output_stream_short, para);
 
 //pad again for the pointwise convolution
 datawidth_convert_feature_dp(output_stream_short, output_dp, para);
-feature_dp_pad(output_dp, output_dp_pad, para);
+//1x1 conv no need to pad
+//feature_dp_pad(output_dp, output_dp_pad, para);
 
 //pointwise convolution module
-convModule(output_dp_pad, weight_stencil, output_short, para);
+convModule(output_dp, weight_stencil, output_short, para);
 
 //post processing
 datawidth_convert_output(output_short, output_long, para);

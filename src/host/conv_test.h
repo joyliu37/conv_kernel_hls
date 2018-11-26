@@ -1,25 +1,37 @@
 #ifndef CONV_TEST_H
 #define CONV_TEST_H
 
-#include "hls_target.h"
 #include<iostream>
 #include <stdlib.h>
+#include "Stencil.h"
 
 #define HW_COSIM
 
 
 #define ROWS 16//68
 #define COLS 16//68
-#define ICH 64//32,8
+#define ICH 32//32,8
 #define OCH 64//16,8
-#define FS 3
+#define FS 1
+#define FS_DP 3
 #define STRIDE 1
+
+#ifndef DATAWIDTH
+#define DATAWIDTH 32
+#endif
 
 #define XN 2
 #define YN 2
-#define CINN 2
-#define COUTN 2
+#define CINN 1
+#define COUTN 1
 
+#ifndef dtype
+#define dtype int8_t
+#endif
+
+#ifndef dtype_double
+#define dtype_double int16_t
+#endif
 
 typedef uint16_t t;
 typedef uint32_t rt;
@@ -33,7 +45,7 @@ void initial_input(dtype*, int, int, int);
 void check_err(dtype* res, dtype* res_sw, int rows, int cols, int oCh, int layer_No, int & err_cnt);
 void image2stencil(dtype* , PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* , int, int, int);
 void stencil2image(dtype* , PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* , int, int, int);
-void weight2stencil(dtype* ,PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *,int, int, int);
+void weight2stencil(dtype* ,PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *,int, int, int, int, int);
 
 
 dtype max(dtype a, dtype b){
@@ -52,7 +64,7 @@ void initial_weight(dtype* weight, int fs, int iCh, int oCh){
 			for (int idx2 = 0; idx2 < iCh; idx2++)
 				for (int idx3 = 0; idx3 < oCh; idx3++) {
                     int seed = rand()%32 - 16;
-					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx0-idx1) + seed;
+					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx2-idx3);// + seed;
 				}
 }
 
@@ -95,12 +107,12 @@ void stencil2image(dtype* image, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *image
 
 }
 
-void weightDP2stencil(dtype* weightDP, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weightDP_stencil, int fs, int Ch){
+void weightDP2stencil(dtype* weightDP, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weightDP_stencil, int fs, int Ch, int P_CH, int cin_n){
     dtype reshape_weight[fs*fs*Ch];
 
-    int Ch_Iter = Ch/COUTN/P_CH;
+    int Ch_Iter = Ch/cin_n/P_CH;
 
-    for(int chBlk = 0; chBlk < Ch_Iter * COUTN; chBlk ++){
+    for(int chBlk = 0; chBlk < Ch_Iter * cin_n; chBlk ++){
         for(int yOff = 0; yOff < fs; yOff ++){
             for(int xOff = 0; xOff < fs; xOff ++){
                 for (int i = 0; i < P_CH; i ++){
@@ -125,14 +137,14 @@ void weightDP2stencil(dtype* weightDP, PackedStencil<dtype, DATAWIDTH, 1, 1, 1> 
 
 void weight2stencil(dtype* weight,
 		PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *weight_stencil,
-		int fs, int iCh, int oCh){
+		int fs, int iCh, int oCh, int P_CIN, int P_COUT, int cin_n, int cout_n){
     dtype reshape_weight[iCh*oCh*fs*fs];
 
-    int Cin_Iter = ICH/CINN / P_CIN;
-    int Cout_Iter = OCH/ COUTN / P_COUT;
+    int Cin_Iter = ICH/ cin_n/ P_CIN;
+    int Cout_Iter = OCH/ cout_n/ P_COUT;
 
-    for (int coutBlk = 0; coutBlk < Cout_Iter * COUTN; coutBlk ++){
-    	for (int cinBlk = 0; cinBlk < Cin_Iter * CINN; cinBlk ++){
+    for (int coutBlk = 0; coutBlk < Cout_Iter * cout_n; coutBlk ++){
+    	for (int cinBlk = 0; cinBlk < Cin_Iter * cin_n; cinBlk ++){
     	    for (int yOff = 0; yOff < fs; yOff ++){
     		    for (int xOff = 0; xOff < fs; xOff ++){
                     for (int ii = 0; ii < P_COUT; ii++){
@@ -140,7 +152,7 @@ void weight2stencil(dtype* weight,
                             int addr_org = (coutBlk*P_COUT + ii) *fs*fs*iCh +\
                                        	   yOff * fs * iCh + xOff * iCh +\
 										   cinBlk*P_CIN + jj;
-                            int addr_new = coutBlk * fs * fs * Cin_Iter * CINN * P_CIN *P_COUT +\
+                            int addr_new = coutBlk * fs * fs * Cin_Iter * cin_n * P_CIN *P_COUT +\
                             				cinBlk * fs * fs * P_COUT * P_CIN+\
 											yOff * fs * P_COUT * P_CIN+\
 											xOff * P_COUT * P_CIN+\
@@ -216,7 +228,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
 		int rows, int cols, int oCh, int iCh, int fs, int stride, bool pool, int prepad){
     int row_pad = rows + 2*prepad;
     int col_pad = cols + 2*prepad;
-    int anchor = 1;
+    int anchor = (fs - 1)/2;
 
 	dtype_double res_sw_tmp[row_pad * col_pad * oCh];
 	for (int i = 0 ; i < row_pad * col_pad * oCh; i++)
@@ -228,7 +240,7 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
     	  for (int c = 0; c < iCh; c++) {
     		for (int fy = 0; fy < fs; fy++) {
     		  for (int fx = 0; fx < fs; fx++){
-    			  if( (y+fy > prepad) && (y+fy < rows+1+prepad) && (x+fx > prepad) && (x+fx < cols+1+prepad) )
+    			  if( (y+fy >=anchor + prepad ) && (y+fy < rows+anchor+prepad) && (x+fx >= anchor+ prepad) && (x+fx < cols+anchor+prepad) )
     				  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * cols * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
     		  }
     		}

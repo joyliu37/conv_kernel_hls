@@ -12,19 +12,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_X_SZ 16
-#define MAX_Y_SZ 16
-#define MAX_K_SZ 5
+#define MAX_X_SZ 56
+#define MAX_Y_SZ 56
+#define MAX_K_SZ 1
 
 #define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
 #define OFM_BUFF_SIZE (MAX_X_SZ + 2) * (MAX_Y_SZ + 2) * MAX_COUT_SZ / P_COUT
 #define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
-#define LINEBUFFER_SIZE 88
+#define LINEBUFFER_SIZE 56*32
 
 #define W_DP_BUFF_SIZE K_DP * K_DP * MAX_DP_SZ / P_CH
 
-#define MAX_CIN_SZ 64
+#define MAX_CIN_SZ 32
 //#define Cin_SZ_bit 5
 #define MAX_COUT_SZ 64
 #define MAX_DP_SZ 64
@@ -32,12 +32,12 @@
 //#define Cin_Iter 4
 //#define Cout_Iter 4
 
-#define P_CIN 8
-#define P_CIN_bit 3
-#define P_COUT 8
-#define P_COUT_bit 3
+#define P_CIN 32
+#define P_CIN_bit 5
+#define P_COUT 64
+#define P_COUT_bit 6
 
-#define P_CH 8
+#define P_CH 32
 #define K_DP 3
 
 #define DATAWIDTH 32
@@ -49,7 +49,7 @@ typedef int16_t dtype_double;
 
 
 struct layerPara{
-	uint8_t Ksz;
+    uint8_t Ksz;
 	uint8_t X_n;
 	uint8_t X_SZ;
     uint8_t oX_SZ;
@@ -72,12 +72,14 @@ struct layerPara{
 	uint16_t Chin;
 	uint16_t Chout;
 
-	uint16_t Anchor;
+	uint8_t Anchor;
+	uint8_t Anchor_dp;
 
 	bool pool;
 
     public:
-    layerPara(uint8_t Ksz_,
+    layerPara(
+            uint8_t Ksz_,
             uint8_t X_n_,
             uint8_t X_SZ_,
             uint8_t Y_n_,
@@ -119,7 +121,8 @@ struct layerPara{
         Chout = Cout_n * Cout_SZ;
 
         Anchor = (Ksz - 1) >> 1;
-        prePad = 1;
+        Anchor_dp = (K_DP - 1)>>1;
+        prePad = 0;
     }
 };
 

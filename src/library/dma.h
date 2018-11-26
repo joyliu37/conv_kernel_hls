@@ -14,10 +14,10 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 	Stencil<T, data_width, 1, 1, 1> temp;
 
     //handle the edge case for blocking the feature map
-    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor + para.prePad);
-    const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor + para.prePad);
-    const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor + para.prePad);
-    const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor + para.prePad);
+    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor_dp+ para.prePad);
+    const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor_dp + para.prePad);
+    const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor_dp + para.prePad);
+    const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor_dp + para.prePad);
 
 	load_feature2Stream: for (int input_y = y_low; input_y < y_high; input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
@@ -36,7 +36,7 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		}
 	}
 }
-
+/*
 template<typename T, int data_width>
 void Mem2Stream_feature_debug(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
@@ -63,7 +63,7 @@ void Mem2Stream_feature_debug(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 			}
 		}
 	}
-}
+}*/
 
 template<typename T, int data_width>
 void Mem2Stream_weight(
