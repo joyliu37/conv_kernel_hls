@@ -171,11 +171,11 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //StreamPad<dtype, P_CIN>(in, out, para, iter);
 
-        uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
-        uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
+        //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
+        //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
         StreamPad<dtype, P_CH>(in, out,
-                para.X_SZ + K_DP + prepad_x - 1,
-                para.Y_SZ + K_DP + prepad_y - 1,
+                para.X_SZ + K_DP - 1,
+                para.Y_SZ + K_DP - 1,
                 para.Ch_Iter,
                 para.Anchor_dp - iter.tilingIDx * para.X_SZ,
                 para.Anchor_dp - iter.tilingIDy * para.Y_SZ,
@@ -377,9 +377,10 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
-        uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad;
-        uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad;
-	    uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
+        //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad;
+        //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad;
+	    //uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
+	    uint32_t size = para.X_SZ * para.Y_SZ * Ch_Iter;
         StreamTruncate<T, T_truc, EXTENT_0>(in, out, size);
     }
    }// for _output_s0_c_co
@@ -436,9 +437,10 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
-        uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
-        uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
-	    uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
+        //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
+        //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
+	    //uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
+	    uint32_t size = para.X_SZ * para.Y_SZ * Ch_Iter;
         StreamReLU<dtype_double, P_CH>(in, out, size);
     }
    } // for _output_s0_c_co
@@ -674,9 +676,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature intra false
 
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-        const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
-        const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
-        linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + prepad_x + K_DP - 1, para.Y_SZ + prepad_y + K_DP - 1);
+        //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
+        //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
+        linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + K_DP - 1, para.Y_SZ + K_DP - 1);
 
      }
    }//for tiling Input channel
@@ -707,12 +709,12 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-          const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
-          const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
-          const size_t Y_Iter = (para.Y_SZ + prepad_y) * para.Ch_Iter;
+          //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
+          //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
+          const size_t Y_Iter = (para.Y_SZ) * para.Ch_Iter;
           for (uint8_t i = 0; i < Y_Iter; i ++){
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-        linebuffer_1D(padded_feature, feature_stream, para.X_SZ + prepad_x + K_DP - 1);
+        linebuffer_1D(padded_feature, feature_stream, para.X_SZ + K_DP - 1);
      }
     }
    }//for tiling Input channel
@@ -740,10 +742,11 @@ static void computeDP(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &fe
 		for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
-            const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
-            const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
+            //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
+            //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
 
-            const uint32_t input_count = (para.X_SZ + prepad_x ) * (para.Y_SZ + prepad_y ) * para.Ch_Iter;
+            //const uint32_t input_count = (para.X_SZ + prepad_x ) * (para.Y_SZ + prepad_y ) * para.Ch_Iter;
+            const uint32_t input_count = para.X_SZ * para.Y_SZ * para.Ch_Iter;
 			dp_conv_kernel(feature_stream, weight_stream, output_stream, input_count);
 
         //debug
@@ -856,16 +859,17 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 
        //put it into a function buffer2Kernel()
-        const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
-        const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
-       const size_t conv_dp_iter = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * para.Ch_Iter;
+        //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
+        //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
+       //const size_t conv_dp_iter = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * para.Ch_Iter;
+       const size_t conv_dp_iter = para.X_SZ * para.Y_SZ * para.Ch_Iter;
        size_t id_ch = 0;
        size_t id_x = 0;
        for (size_t addr = 0; addr < conv_dp_iter; addr ++){
 #pragma HLS pipeline II=1
            weightStream.write(buffer[id_ch + iter.tilingIDc_i * para.Ch_Iter]);
            id_x ++;
-           if (id_x == para.X_SZ + para.prePad){
+           if (id_x == para.X_SZ){
                id_x = 0;
                 id_ch ++;
                 if(id_ch == para.Ch_Iter){

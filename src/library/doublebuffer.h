@@ -10,14 +10,14 @@ private:
 	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_0[BUFFER_EXTENT];
 	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_1[BUFFER_EXTENT];
     //partiotion the double buffer to handle the difference between in/out rate
-#pragma HLS ARRAY_PARTITION variable=_db_0 block factor=2
-#pragma HLS ARRAY_PARTITION variable=_db_1 block factor=2
 
 	bool flag;
 	int cnt;
     int loop_cnt;
 public:
 	Doublebuffer_feature(const int loop_cnt_) {
+#pragma HLS ARRAY_PARTITION variable=_db_0 block factor=2
+#pragma HLS ARRAY_PARTITION variable=_db_1 block factor=2
 		flag = false;
 		cnt = 0;
         loop_cnt = loop_cnt_;
@@ -106,6 +106,8 @@ private:
 
 public:
 	Doublebuffer_weight(int loop_cnt_) {
+#pragma HLS resource variable=_db_0 core=RAM_1P_LUTRAM
+#pragma HLS resource variable=_db_1 core=RAM_1P_LUTRAM
 		flag = false;
 		cnt = 0;
         loop_cnt = loop_cnt_;

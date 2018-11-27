@@ -32,7 +32,7 @@
 #define DDR_BASE_ARG0_ADDRESS    0x40000000
 #define DDR_BASE_ARG1_ADDRESS    0x10000000
 #define DDR_BASE_ARG2_ADDRESS    0x20000000
-#define DDR_BASE_ARG3_ADDRESS    0x00000000
+#define DDR_BASE_ARG3_ADDRESS    0x30000000
 
 #define XGPIO_CHAN_OFFSET  8
 
@@ -395,7 +395,7 @@ int main()
      STEP 3 : Copy the Data to the DDR Memory at location 0x20000000
      ========================================================================================*/
     memcpy(mapped_dev_base_1, SrcArray0, (INPUT_BYTESIZE)*sizeof(dtype));
-    printf("Src0 set to: %lu\n", *((unsigned long *) mapped_dev_base_1));
+    printf("Src0 set to: %p\n", *((unsigned long *) mapped_dev_base_1));
     //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
     //clearcache(dev_base_1, dev_base_1+4096);
     /*======================================================================================
@@ -428,7 +428,7 @@ int main()
 
     mapped_dev_base_2 = mapped_base_2 + (dev_base_2 & DDR_MAP_MASK);
     memcpy(mapped_dev_base_2, SrcArray1_packed, (WEIGHT_BYTESIZE)*sizeof(dtype));
-    printf("Src1 set to: %lu\n", *((unsigned long *) mapped_dev_base_2));
+    printf("Src1 set to: %p\n", *((unsigned long *) mapped_dev_base_2));
     //clearcache(dev_base_1, dev_base_1+4096);
     //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
 
@@ -439,7 +439,7 @@ int main()
     }
 
     mapped_base_3 = mmap(0, DDR_MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd_1, dev_base_3 & ~DDR_MAP_MASK);
-    if (mapped_base_2 == (void *) -1)
+    if (mapped_base_3 == (void *) -1)
     {
         printf("Can't map the memory to user space.\n");
         exit(0);
@@ -449,7 +449,7 @@ int main()
 
     mapped_dev_base_3 = mapped_base_3 + (dev_base_3 & DDR_MAP_MASK);
     memcpy(mapped_dev_base_3, SrcArray2_packed, (WEIGHT_BYTESIZE)*sizeof(dtype));
-    printf("Src2 set to: %lu\n", *((unsigned long *) mapped_dev_base_3));
+    printf("Src2 set to: %p\n", *((unsigned long *) mapped_dev_base_3));
     //clearcache(dev_base_1, dev_base_1+4096);
     //cacheflush(mapped_dev_base_1, BUFFER_BYTESIZE, DCACHE);
 
@@ -557,7 +557,7 @@ int main()
           *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL)) = (unsigned long)RegValue ;
 
       }
-      //printf("start hw\n");
+      printf("start hw\n");
       //Set the Source Address
       //*((volatile unsigned long *) (mapped_dev_base + XAXICDMA_SRCADDR_OFFSET)) = (unsigned long)DDR_BASE_ADDRESS;
       //Set the Destination Address
