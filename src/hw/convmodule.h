@@ -72,7 +72,7 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 #pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
     hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_1d_stream depth=1
-#pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_SRL
+#pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_LUTRAM
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
 #pragma HLS STREAM variable=dp_weight_stream depth=1

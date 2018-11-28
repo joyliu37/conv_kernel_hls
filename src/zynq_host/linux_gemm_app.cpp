@@ -147,7 +147,7 @@
 //#define DDR_WRITE_OFFSET 0x10000000
 
 
-#define WEIGHT_BYTESIZE 3*3*64*64
+#define WEIGHT_BYTESIZE 1*1*64*64
 #define OUTPUT_BYTESIZE 16*16*64
 #define INPUT_BYTESIZE 16*16*64//1048576
 //#define DATAWIDTH 32
@@ -177,7 +177,7 @@ typedef uint8_t dtype_u;
     static int col = 16;
     static int iCh = 64;
     static int oCh = 64;
-    static int Ksz = 3;
+    static int Ksz = 1;
 
 void initial_input(dtype *image){
     for (int c = 0; c < iCh; c++){
@@ -341,7 +341,7 @@ int main()
     uint8_t Cin_n = 2;
     uint8_t Cout_SZ = 32;
     uint8_t Cout_n = 2;
-    uint8_t Ch_Iter = 4;
+    uint8_t Ch_Iter = 8;
     uint8_t Stride= 1;
     bool pool = 0;
 
@@ -365,8 +365,8 @@ int main()
     weight2stencil(SrcArray1, SrcArray1_packed, Ksz, iCh, oCh, P_CIN, P_COUT, Cin_n, Cout_n);
     weightDP2stencil(SrcArray1, SrcArray2_packed, K_SZ, iCh, P_CH, Cin_n);
     //initial_ouput(DestArray);
-    conv_dp_sw(SrcArray0, SrcArray1, SrcArray0_tmp, row, col, iCh, Ksz, 1);
-    conv_sw(SrcArray0_tmp, SrcArray1, DestArray_sw, row, col, oCh, iCh, Ksz, Stride, false, 0);
+    conv_dp_sw(SrcArray0, SrcArray1, SrcArray0_tmp, row, col, iCh, K_SZ, 1);
+    conv_sw(SrcArray0_tmp, SrcArray1, DestArray_sw, row, col, oCh, iCh, 1, Stride, false, 0);
         /*======================================================================================
         STEP 2 : Map the kernel memory location starting from 0x20000000 to the User layer
         ========================================================================================*/
@@ -491,7 +491,7 @@ int main()
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_X_N_DATA)) = (unsigned long)X_n;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_YSZ_DATA)) = (unsigned long)Y_SZ;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_Y_N_DATA)) = (unsigned long)Y_n;
-    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_KSZ_DATA)) = (unsigned long)K_SZ;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_KSZ_DATA)) = (unsigned long)Ksz;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_SZ_DATA)) = (unsigned long)Cin_SZ;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA)) = (unsigned long)Cin_n;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_SZ_DATA)) = (unsigned long)Cout_SZ;
@@ -557,7 +557,7 @@ int main()
           *((volatile unsigned long *) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_AP_CTRL)) = (unsigned long)RegValue ;
 
       }
-      printf("start hw\n");
+      //printf("start hw\n");
       //Set the Source Address
       //*((volatile unsigned long *) (mapped_dev_base + XAXICDMA_SRCADDR_OFFSET)) = (unsigned long)DDR_BASE_ADDRESS;
       //Set the Destination Address

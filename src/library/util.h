@@ -12,15 +12,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_X_SZ 56
-#define MAX_Y_SZ 56
-#define MAX_K_SZ 4
+#define MAX_X_SZ 32
+#define MAX_Y_SZ 32
+#define MAX_K_SZ 1
 
 #define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
 #define OFM_BUFF_SIZE (MAX_X_SZ + 2) * (MAX_Y_SZ + 2) * MAX_COUT_SZ / P_COUT
 #define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
-#define LINEBUFFER_SIZE 56*32
+#define LINEBUFFER_SIZE 32*32
 
 #define W_DP_BUFF_SIZE K_DP * K_DP * MAX_DP_SZ / P_CH
 
@@ -32,12 +32,12 @@
 //#define Cin_Iter 4
 //#define Cout_Iter 4
 
-#define P_CIN 32
-#define P_CIN_bit 5
-#define P_COUT 64
-#define P_COUT_bit 6
+#define P_CIN 8
+#define P_CIN_bit 3
+#define P_COUT 8
+#define P_COUT_bit 3
 
-#define P_CH 16
+#define P_CH 4
 #define K_DP 3
 
 #define DATAWIDTH 32
