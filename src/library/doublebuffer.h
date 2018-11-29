@@ -106,8 +106,8 @@ private:
 
 public:
 	Doublebuffer_weight(int loop_cnt_) {
-#pragma HLS resource variable=_db_0 core=RAM_1P_LUTRAM
-#pragma HLS resource variable=_db_1 core=RAM_1P_LUTRAM
+#pragma HLS resource variable=_db_0 core=RAM_1P_BRAM
+#pragma HLS resource variable=_db_1 core=RAM_1P_BRAM
 		flag = false;
 		cnt = 0;
         loop_cnt = loop_cnt_;
@@ -220,22 +220,30 @@ void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, IN_EXTENT_0, OUT_EXTENT_
 	if (this->cnt == loop_cnt)
 		return;
 
-	//load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz + (para.prePad<<1) - 1;input_y++) {
-load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
+    uint8_t input_x = 0, input_y = 0, input_c = 0;
+load_feature: for(int itr = 0; itr < bound_y * bound_ch * bound_x; itr ++){
+    /*for (int input_y = 0; input_y < bound_y;input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
 		for (int input_c = 0; input_c < bound_ch; input_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=4
 		    for (int input_x = 0; input_x < bound_x; input_x++) {
-#pragma HLS LOOP_TRIPCOUNT max=18
+#pragma HLS LOOP_TRIPCOUNT max=18*/
 #pragma HLS PIPELINE II=1
-				int32_t buffAddr = input_c +\
-                                   input_x * bound_ch +\
-                                   input_y * bound_ch * bound_x ;
-				Stencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
-				_feature_buf[buffAddr] = data;
+		int32_t buffAddr = input_c +\
+                           input_x * bound_ch +\
+                           input_y * bound_ch * bound_x ;
+		Stencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
+		_feature_buf[buffAddr] = data;
 
-		    }
-	    }
+        input_x ++;
+        if(input_x == bound_x){
+            input_x = 0;
+            input_c ++;
+            if(input_c == bound_ch){
+                input_c = 0;
+                input_y ++;
+            }
+        }
     }
 }
 

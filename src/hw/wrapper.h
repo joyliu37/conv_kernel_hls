@@ -620,7 +620,7 @@ static void datawidth_convert_output(
 	  } // for _output_s0_x_xo
 	 } // for _output_s0_y_yo
 }
-
+/*
 static void read_inputLB(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
 		hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &feature_stream,
 		layerPara para){
@@ -652,7 +652,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
 
-}
+}*/
 
 static void read_inputLB2D(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
 		hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &feature_stream,
@@ -712,10 +712,10 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
           //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
           //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
           const size_t Y_Iter = (para.Y_SZ) * para.Ch_Iter;
-          for (uint8_t i = 0; i < Y_Iter; i ++){
+          //for (uint8_t i = 0; i < Y_Iter; i ++){
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-        linebuffer_1D(padded_feature, feature_stream, para.X_SZ + K_DP - 1);
-     }
+        linebuffer_1D(padded_feature, feature_stream, para.X_SZ + K_DP - 1, Y_Iter);
+     //}
     }
    }//for tiling Input channel
   } // for _output_s0_x_xo
