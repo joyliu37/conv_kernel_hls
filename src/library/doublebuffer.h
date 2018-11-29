@@ -106,8 +106,8 @@ private:
 
 public:
 	Doublebuffer_weight(int loop_cnt_) {
-#pragma HLS resource variable=_db_0 core=RAM_1P_BRAM
-#pragma HLS resource variable=_db_1 core=RAM_1P_BRAM
+//#pragma HLS resource variable=_db_0 core=RAM_1P_BRAM
+//#pragma HLS resource variable=_db_1 core=RAM_1P_BRAM
 		flag = false;
 		cnt = 0;
         loop_cnt = loop_cnt_;
@@ -229,7 +229,9 @@ load_feature: for(int itr = 0; itr < bound_y * bound_ch * bound_x; itr ++){
 		    for (int input_x = 0; input_x < bound_x; input_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=18*/
 #pragma HLS PIPELINE II=1
-		int32_t buffAddr = input_c +\
+
+        //uint32_t buffAddr = input_x + input_c * bound_x + input_y * bound_ch * bound_x;
+		uint32_t buffAddr = input_c +\
                            input_x * bound_ch +\
                            input_y * bound_ch * bound_x ;
 		Stencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
@@ -444,10 +446,9 @@ load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 	}
 }
 */
-/*
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>::feedStream(
+void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFFER_EXTENT, T>::feedStream(
         PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
         hls::stream<uint32_t>& bram_addr,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,
@@ -465,7 +466,7 @@ feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 							out_stream.write(feature);
 
 	}
-}*/
+}
 
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT_0, size_t BUFFER_EXTENT_1, typename T>

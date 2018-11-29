@@ -4,7 +4,7 @@
 #include "wrapper.h"
 
 
-void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_stencil,
+void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_stencil,
         hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1> > & in_weight_stencil,
         hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1> > & out_feature_stencil,
         layerPara para){
@@ -44,7 +44,8 @@ void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_s
 #pragma HLS STREAM variable=relu_long depth=1
 
     //define the BRAM
-    Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
+    //Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
+    Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
     Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight(para.loop_cnt);
     Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum(para.Cin_n);
 
@@ -69,14 +70,14 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_stream depth=1
-#pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_LUTRAM
+#pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_SRL
     hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_1d_stream depth=1
-#pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_LUTRAM
+#pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_SRL
 
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_weight_stream("dp_w_stencil");
 #pragma HLS STREAM variable=dp_weight_stream depth=1
-#pragma HLS RESOURCE variable=dp_weight_stream core=FIFO_LUTRAM
+#pragma HLS RESOURCE variable=dp_weight_stream core=FIFO_SRL
 
     hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
 #pragma HLS STREAM variable=output_stream depth=1
