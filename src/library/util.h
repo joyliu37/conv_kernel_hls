@@ -37,7 +37,7 @@
 #define P_COUT 8
 #define P_COUT_bit 3
 
-#define P_CH 8
+#define P_CH 4
 #define K_DP 3
 
 #define DATAWIDTH 32
