@@ -12,17 +12,17 @@ PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_0,//[32*124*32],output
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_1,//[34*126*32],input_FM
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_2,//input weight
 PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* arg_3,//input weight for dp
-const uint8_t Ksz,
-const uint8_t Xsz,
-const uint8_t Ysz,
-const uint8_t X_n,
-const uint8_t Y_n,
-const uint8_t Cin_n,
-const uint8_t Cin_SZ,
-const uint8_t Cout_n,
-const uint8_t Cout_SZ,
-const uint8_t Stride,
-const uint8_t Ch_Iter,
+const uint16_t Ksz,
+const uint16_t Xsz,
+const uint16_t Ysz,
+const uint16_t X_n,
+const uint16_t Y_n,
+const uint16_t Cin_n,
+const uint16_t Cin_SZ,
+const uint16_t Cout_n,
+const uint16_t Cout_SZ,
+const uint16_t Stride,
+const uint16_t Ch_Iter,
 bool pool)
 
 {
@@ -39,10 +39,10 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Stride bundle=control
 #pragma HLS INTERFACE s_axilite port=Ch_Iter bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
-#pragma HLS INTERFACE m_axi depth = 2048 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 2048 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
-#pragma HLS INTERFACE m_axi depth = 18 port=arg_3
+#pragma HLS INTERFACE m_axi depth = 3136 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 3136 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 8192 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 144 port=arg_3
 
 
  // alias the arguments

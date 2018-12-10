@@ -8,10 +8,10 @@
 #define HW_COSIM
 
 
-#define ROWS 16//68
-#define COLS 16//68
-#define ICH 64//32,8
-#define OCH 64//16,8
+#define ROWS 14//68
+#define COLS 14//68
+#define ICH 512//32,8
+#define OCH 512//16,8
 #define FS 1
 #define FS_DP 3
 #define STRIDE 1
@@ -23,7 +23,7 @@
 #define XN 2
 #define YN 2
 #define CINN 2
-#define COUTN 2
+#define COUTN 1
 
 #ifndef dtype
 #define dtype int8_t
@@ -202,8 +202,8 @@ void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
                 for (int fx = 0; fx < fs; fx ++){
                     for (int fy = 0; fy < fs; fy ++){
                         if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
-                            dtype a = input[(y*stride + fy ) * (cols) * Ch + (x*stride + fx) * Ch + c];
-                            dtype b = weight[fy*fs*Ch + fx*Ch + c];
+                            //dtype a = input[(y*stride + fy ) * (cols) * Ch + (x*stride + fx) * Ch + c];
+                            //dtype b = weight[fy*fs*Ch + fx*Ch + c];
                             res_sw_tmp[y*cols*Ch + x*Ch + c] +=
                             input[(y*stride + fy-anchor ) * (cols) * Ch + (x*stride + fx-anchor) * Ch + c]
                             * weight[fy*fs*Ch + fx*Ch + c];

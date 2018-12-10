@@ -7,8 +7,8 @@ template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t IN_EXTENT_0, size_t OUT_EXTENT_0, size_t BUFFER_EXTENT, typename T>
 class Doublebuffer_feature {
 private:
-	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_0[BUFFER_EXTENT];
-	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_1[BUFFER_EXTENT];
+	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_0[2*BUFFER_EXTENT];
+	PackedStencil<T, IN_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_1[2*BUFFER_EXTENT];
     //partiotion the double buffer to handle the difference between in/out rate
 
 	bool flag;

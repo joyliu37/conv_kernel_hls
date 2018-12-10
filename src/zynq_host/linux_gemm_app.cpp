@@ -147,14 +147,14 @@
 //#define DDR_WRITE_OFFSET 0x10000000
 
 
-#define WEIGHT_BYTESIZE 1*1*64*64
-#define OUTPUT_BYTESIZE 16*16*64
-#define INPUT_BYTESIZE 16*16*64//1048576
+#define WEIGHT_BYTESIZE 1*1*512*512
+#define OUTPUT_BYTESIZE 14*14*512
+#define INPUT_BYTESIZE 14*14*512//1048576
 //#define DATAWIDTH 32
 
-#define P_COUT 8
-#define P_CIN 8
-#define P_CH 8
+#define P_COUT 64
+#define P_CIN 32
+#define P_CH 16
 //#define BUFFER_BYTESIZE         262144  // Length of the buffers for DMA transfer
 
 /*void clearcache(char* begin, char* end)
@@ -173,11 +173,13 @@
 typedef int8_t dtype;
 typedef uint8_t dtype_u;
 
-    static int row = 16;
-    static int col = 16;
-    static int iCh = 64;
-    static int oCh = 64;
+    static int row = 14;
+    static int col = 14;
+    static int iCh = 512;
+    static int oCh = 512;
     static int Ksz = 1;
+
+    static int test_iter = 1000;
 
 void initial_input(dtype *image){
     for (int c = 0; c < iCh; c++){
@@ -332,17 +334,17 @@ int main()
     dtype DestArray_sw[OUTPUT_BYTESIZE ];
 
     //define the confiuration
-    uint8_t X_SZ = 8;
-    uint8_t X_n = 2;
-    uint8_t Y_SZ = 8;
-    uint8_t Y_n = 2;
-    uint8_t K_SZ = 3;
-    uint8_t Cin_SZ = 32;
-    uint8_t Cin_n = 2;
-    uint8_t Cout_SZ = 32;
-    uint8_t Cout_n = 2;
-    uint8_t Ch_Iter = 8;
-    uint8_t Stride= 1;
+    uint16_t X_SZ = 7;
+    uint16_t X_n = 2;
+    uint16_t Y_SZ = 7;
+    uint16_t Y_n = 2;
+    uint16_t K_SZ = 3;
+    uint16_t Cin_SZ = 256;
+    uint16_t Cin_n = 2;
+    uint16_t Cout_SZ = 512;
+    uint16_t Cout_n = 1;
+    uint16_t Ch_Iter = 16;
+    uint16_t Stride= 1;
     bool pool = 0;
 
     PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray2_packed[WEIGHT_BYTESIZE/DATAWIDTH];
@@ -505,7 +507,7 @@ int main()
       gettimeofday(&begin, NULL);
 
     int iter;
-    for (iter=0 ; iter < 1000; iter++) {
+    for (iter=0 ; iter < test_iter; iter++) {
     //printf("iter: %d\n", iter);
     //printf("GEMM was: %lu\n", *((unsigned long *) (mapped_dev_base + XHLS_TARGET_CONFIG_ADDR_AP_CTRL)));
     //Reset CDMA
@@ -662,7 +664,7 @@ int main()
            }
        }*/
        int err_cnt = 0;
-       check_err(DestArray, DestArray_sw, row, col, oCh,1, err_cnt);
+       check_err(DestArray, DestArray_sw, row, col, oCh, 1, err_cnt);
         //check_err(SrcArray0, SrcArray1, DestArray);
        if (err_cnt == 0)
            printf("Result verification is Successful \n\r");
