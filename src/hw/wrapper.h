@@ -222,6 +222,39 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  } // for _output_s0_y_yo
 
 }*/
+static void shuffleAddr(hls::stream<uint32_t> &out, layerPara para){
+
+	struct tilingID iter;
+
+    const uint8_t ext_x = para.X_SZ + K_DP - 1;
+    const uint8_t ext_ch = para.Ch_Iter;
+    const uint32_t num_iter = ext_x * ext_ch;
+
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        for (int y = 0; y < para.Y_SZ + K_DP - 1; y++){
+
+            shuffleAddrGen(out, num_iter, ext_x, ext_ch);
+
+        }
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
 
 static void FeatureAddrGen(hls::stream<uint32_t> &out, layerPara para){
 
@@ -798,6 +831,38 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 */
+
+static void shuffle_buff(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> & padded_feature,
+        hls::stream<uint32_t> &bram_addr,
+        Doublebuffer_feature<1, 1, 1, P_CH, P_CH, SHUFFLE_SIZE, dtype> &shuffle,
+        hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &shuffle_feature,
+        layerPara para){
+    struct tilingID iter;
+    const uint8_t bound_x = para.X_SZ + K_DP - 1;
+    const uint32_t feed_bound = bound_x * para.Ch_Iter;
+    shuffle.call_start(padded_feature, 1, bound_x, para.Ch_Iter);
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        for (int y = 0; y < para.Y_SZ + K_DP - 1; y++){
+            shuffle.call(padded_feature, shuffle_feature, bram_addr, feed_bound, 1, bound_x, para.Ch_Iter);
+
+        }
+    }
+   }
+  }
+ }
+}
 
 static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
         hls::stream<uint32_t> &bram_addr,

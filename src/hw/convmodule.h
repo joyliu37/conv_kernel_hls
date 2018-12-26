@@ -81,9 +81,20 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
 
     hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> output_stream("dp_o_stencil");
 #pragma HLS STREAM variable=output_stream depth=1
+
+    hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> shuffle_stream("dp_sh_stencil");
+#pragma HLS STREAM variable=shuffle_stream depth=1
+
+    hls::stream<uint32_t> shuffle_addr("shuffle_addr");
+#pragma HLS STREAM variable=shuffle_addr depth=1
     //read_inputLB(in_feature_stencil, dp_feature_stream, para);
     //split the linebuffer into two separate module, to meeting timing
-    read_inputLB2D(in_feature_stencil, dp_feature_1d_stream, para);
+    shuffleAddr(shuffle_addr, para);
+
+    Doublebuffer_feature<1, 1, 1, P_CH, P_CH, SHUFFLE_SIZE, dtype> shuffleDB(para.loop_cnt * (para.Y_SZ + K_DP - 1));
+
+    shuffle_buff(in_feature_stencil, shuffle_addr, shuffleDB, shuffle_stream, para);
+    read_inputLB2D(shuffle_stream, dp_feature_1d_stream, para);
     read_inputLB1D(dp_feature_1d_stream, dp_feature_stream, para);
     read_weightDP(in_weight_stencil, dp_weight_stream, para);
     computeDP(dp_feature_stream, dp_weight_stream, output_stream, para);

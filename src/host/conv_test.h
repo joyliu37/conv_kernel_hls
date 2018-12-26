@@ -8,10 +8,10 @@
 #define HW_COSIM
 
 
-#define ROWS 14//68
-#define COLS 14//68
-#define ICH 512//32,8
-#define OCH 512//16,8
+#define ROWS 112//68
+#define COLS 112//68
+#define ICH 32//32,8
+#define OCH 64//16,8
 #define FS 1
 #define FS_DP 3
 #define STRIDE 1
@@ -20,9 +20,9 @@
 #define DATAWIDTH 32
 #endif
 
-#define XN 2
-#define YN 2
-#define CINN 2
+#define XN 4
+#define YN 4
+#define CINN 1
 #define COUTN 1
 
 #ifndef dtype
@@ -63,7 +63,7 @@ void initial_weight(dtype* weight, int fs, int iCh, int oCh){
 		for (int idx1 = 0; idx1 < fs; idx1++)
 			for (int idx2 = 0; idx2 < iCh; idx2++)
 				for (int idx3 = 0; idx3 < oCh; idx3++) {
-                    int seed = rand()%32 - 16;
+                    //int seed = rand()%32 - 16;
 					weight[idx3*fs*fs*iCh + idx2*fs*fs + idx1*fs + idx0] = (dtype)(idx2-idx3);// + seed;
 				}
 }

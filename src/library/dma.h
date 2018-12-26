@@ -36,6 +36,38 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		}
 	}
 }
+
+
+template<typename T, int data_width>
+void Mem2Stream_feature_continous(PackedStencil<T, data_width, 1, 1, 1>* _feature,
+		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+        layerPara para, tilingID iter) {
+//#pragma HLS inline
+
+	Stencil<T, data_width, 1, 1, 1> temp;
+
+    //handle the edge case for blocking the feature map
+    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor_dp+ para.prePad);
+    const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor_dp + para.prePad);
+    const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor_dp + para.prePad);
+    const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor_dp + para.prePad);
+
+	load_feature2Stream: for (int input_y = y_low; input_y < y_high; input_y++) {
+#pragma HLS LOOP_TRIPCOUNT max=18
+		for (int input_x =0/* x_low * para.Cin_SZ/data_width*/; input_x < para.X_SZ * para.Cin_SZ/data_width; input_x++) {
+#pragma HLS LOOP_TRIPCOUNT max=56
+			//for (int input_c = 0; input_c < (para.Cin_SZ / data_width); input_c++) {
+//#pragma HLS LOOP_TRIPCOUNT max=2
+#pragma HLS PIPELINE II=1
+				//int32_t ddrC = input_x + iter.tilingIDx * para.X_SZ * para.Cin_SZ / data_width;
+				int32_t ddrAddr = input_x + iter.tilingIDx * para.X_SZ * para.Cin_chunk+\
+                                  (input_y + iter.tilingIDy * para.Y_SZ) * para.Cin_chunk * para.Width * para.Cin_n;
+				temp = _feature[ddrAddr];
+				out.write(temp);
+			}
+		}
+
+}
 /*
 template<typename T, int data_width>
 void Mem2Stream_feature_debug(PackedStencil<T, data_width, 1, 1, 1>* _feature,

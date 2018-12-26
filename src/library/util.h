@@ -21,6 +21,7 @@
 #define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
 #define LINEBUFFER_SIZE 32*32
+#define SHUFFLE_SIZE 256
 
 #define W_DP_BUFF_SIZE K_DP * K_DP * MAX_DP_SZ / P_CH
 
@@ -59,6 +60,7 @@ struct layerPara{
 	uint16_t Cin_n;
     uint16_t Cin_SZ;
     uint16_t Cin_Iter;
+    uint16_t Cin_chunk;
 	uint16_t Cout_n;
     uint16_t Cout_SZ;
     uint16_t Cout_Iter;
@@ -99,6 +101,9 @@ struct layerPara{
         Cin_n = Cin_n_;
         Cin_SZ = Cin_SZ_;
         Cin_Iter = Cin_SZ/P_CIN;
+
+        Cin_chunk = Cin_SZ/DATAWIDTH;
+
         Cout_n = Cout_n_;
         Cout_SZ = Cout_SZ_;
         Cout_Iter = Cout_SZ / P_COUT;

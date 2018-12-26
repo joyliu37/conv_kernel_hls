@@ -135,9 +135,9 @@ void StreamDataWidthConverter(
 //#pragma HLS inline
 	if (in_data_width > out_data_width) {
 		for (int i = 0; i < input_num; i++){
+#pragma HLS PIPELINE II=1
             Stencil<T, in_data_width, 1, 1, 1> inData = in.read();
             for (int i_unpack = 0; i_unpack < inWidth / outWidth; i_unpack++) {
-#pragma HLS PIPELINE II=1
                 Stencil<T, out_data_width, 1, 1, 1> outData;
 			    for (int ii = 0; ii < outWidth; ii++)
                     outData(ii, 0, 0, 0) = inData(ii + i_unpack * out_data_width, 0, 0, 0);

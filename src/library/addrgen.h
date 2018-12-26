@@ -5,6 +5,28 @@
 
 //codegen block from Halide
 
+void shuffleAddrGen(hls::stream<uint32_t> & addr, const uint32_t num_iter,
+        const uint8_t bound_x, const uint8_t bound_ch) {
+
+    uint8_t xIter = 0, chIter = 0;
+    for (int i = 0; i < num_iter; i ++){
+#pragma HLS pipeline II=1
+        const int32_t featureBuffAddr = chIter + xIter * bound_ch;
+
+		addr.write(featureBuffAddr);
+
+        xIter ++;
+        if (xIter == bound_x){
+            xIter = 0;
+            chIter ++;
+            if (chIter == bound_ch){
+                chIter = 0;
+
+            }
+        }
+    }
+}
+
 void FeatureAddrGen1D(hls::stream<uint32_t> & addr, const uint32_t num_iter,
         const uint8_t ext_x, const uint8_t stride,
         const uint8_t off_x, const uint8_t off_y,
