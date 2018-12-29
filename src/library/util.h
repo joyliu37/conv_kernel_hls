@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_X_SZ 7
+#define MAX_X_SZ 14
 #define MAX_Y_SZ 7
 #define MAX_K_SZ 1
 

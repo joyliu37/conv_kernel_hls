@@ -8,10 +8,10 @@
 #define HW_COSIM
 
 
-#define ROWS 112//68
-#define COLS 112//68
-#define ICH 32//32,8
-#define OCH 64//16,8
+#define ROWS 56//68
+#define COLS 56//68
+#define ICH 64//32,8
+#define OCH 128//16,8
 #define FS 1
 #define FS_DP 3
 #define STRIDE 1
@@ -20,8 +20,8 @@
 #define DATAWIDTH 32
 #endif
 
-#define XN 4
-#define YN 4
+#define XN 2
+#define YN 2
 #define CINN 1
 #define COUTN 1
 

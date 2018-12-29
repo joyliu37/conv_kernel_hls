@@ -608,6 +608,19 @@ void Doublebuffer_psum<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>
 	if ((this->acc_cnt) || (this->cnt == 0))
 		return;
 
+    uint32_t bound = bound_y * bound_x * bound_ch;
+    uint32_t addr = 0;
+    //fuse the loop
+write_back_loop_fuse: for (int itr = 0; itr < bound; itr ++){
+#pragma HLS PIPELINE II=1
+#pragma HLS DEPENDENCE variable=_psum_buf inter false
+
+                          Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> temp;
+                          temp = _psum_buf[addr];
+                          _output.write(temp);
+                          addr ++;
+
+                      }/*
 	write_back_without_pool_y: for (int output_y = 0; output_y < bound_y;output_y++) {
 		write_back_without_pool_x: for (int output_x = 0; output_x < bound_x; output_x++) {
 			write_back_without_pool_c: for (int output_c = 0; output_c < bound_ch; output_c++) {
@@ -621,7 +634,7 @@ void Doublebuffer_psum<EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3, BUFFER_EXTENT, T>
 				_output.write(temp);
 			}
 		}
-	}
+	}*/
 }
 
 /**********************************
