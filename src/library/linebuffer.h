@@ -486,7 +486,7 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
                         for (size_t st_idx_1 = 0; st_idx_1 < EXTENT_0; st_idx_1++)
                         for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_2; st_idx_0++)
                             slice(st_idx_0, st_idx_1, idx_line*IN_EXTENT_1 + st_idx_2, st_idx_3)
-                                = buffer[idx_line_in_buffer][col>>1](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                                = buffer[idx_line_in_buffer][col>>(Stride>>1)](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
                     }
 
                     // pass data from input
@@ -504,11 +504,13 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
             size_t write_idx_in_buffer = write_idx_1 + st_y;
             if(write_idx_in_buffer >= BUFFER_EXTENT_1)
                 write_idx_in_buffer -= BUFFER_EXTENT_1;
-            buffer[write_idx_in_buffer][col>>1] = in_stencil;
+            buffer[write_idx_in_buffer][col>>(Stride>>1)] = in_stencil;
 
+            //update stride iteration
             st_y ++;
             if(st_y == Stride)
                 st_y = 0;
+
             //update the write line
             if ( /*( st_y == Stride - 1 ) && */(col == Ch_Iter * X_Iter * Stride - 1)){
                 write_idx_1 += Stride;
