@@ -28,8 +28,8 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 #pragma HLS PIPELINE II=1
 				int32_t ddrC = input_c + iter.tilingIDc_i * para.Cin_SZ / data_width;
 				int32_t ddrAddr = ddrC +\
-                                  (input_x + iter.tilingIDx * para.X_SZ) * para.Chin / data_width+\
-                                  (input_y + iter.tilingIDy * para.Y_SZ) * para.Chin * para.Width / data_width;
+                                  (input_x + iter.tilingIDx * para.X_SZ) * para.Cin_chunk +\
+                                  (input_y + iter.tilingIDy * para.Y_SZ) * para.Cin_chunk * para.Width ;
 				temp = _feature[ddrAddr];
 				out.write(temp);
 			}
@@ -159,13 +159,12 @@ store_stream2out: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
             //        continue;
             //int32_t ddrC = output_c + para.Cout_SZ * iter.tilingIDc_o / data_width;
 			int32_t outputAddr = output_x +
-					(iter.tilingIDx * para.oX_SZ ) * para.Chout / data_width +
-					(iter.tilingIDy * para.oY_SZ + output_y) * para.Chout * para.Width / data_width;
+					(iter.tilingIDx * para.oX_SZ ) * para.Cout_chunk +
+					(iter.tilingIDy * para.oY_SZ + output_y) * para.Cout_chunk * para.oWidth;
 			_output[outputAddr] = temp;
 
 	}
 }
 }
-
 
 #endif

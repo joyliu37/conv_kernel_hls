@@ -228,7 +228,7 @@ static void shuffleAddr(hls::stream<uint32_t> &out, layerPara para){
 
     const uint8_t ext_x = para.X_SZ + K_DP - 1;
     const uint8_t ext_ch = para.Ch_Iter;
-    const uint32_t num_iter = ext_x * ext_ch;
+    const uint32_t num_iter = ext_x * ext_ch * para.Stride;
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -244,9 +244,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        for (int y = 0; y < para.Y_SZ + K_DP - 1; y++){
+        for (int y = 0; y < para.Y_SZ + K_DP - 1; y+=para.Stride){
 
-            shuffleAddrGen(out, num_iter, ext_x, ext_ch);
+            shuffleAddrGen(out, num_iter, ext_x, ext_ch, para.Stride);
 
         }
     }//for tiling Input channel
@@ -264,7 +264,7 @@ static void FeatureAddrGen(hls::stream<uint32_t> &out, layerPara para){
     const uint8_t ext_y = para.oY_SZ;
     const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
-    const uint8_t bound_x = para.X_SZ + para.Ksz - 1;
+    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -279,9 +279,11 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
+        //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
+        //TODO: add another input config for the conv stride
         FeatureAddrGen1D(out, num_iter,
-                ext_x, para.Stride, para.Ksz, para.Ksz,
-                para.Cin_Iter, para.Cout_Iter, bound_x,para.Cin_Iter);
+                ext_x, 1, para.Ksz, para.Ksz,
+                para.Cin_Iter, para.Cout_Iter, bound_x, para.Cin_Iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -413,7 +415,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
         //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad;
         //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad;
 	    //uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
-	    uint32_t size = para.X_SZ * para.Y_SZ * Ch_Iter;
+	    uint32_t size = para.oX_SZ * para.oY_SZ * Ch_Iter;
         StreamTruncate<T, T_truc, EXTENT_0>(in, out, size);
     }
    }// for _output_s0_c_co
@@ -473,7 +475,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
         //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
         //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
 	    //uint32_t size = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * Ch_Iter;
-	    uint32_t size = para.X_SZ * para.Y_SZ * Ch_Iter;
+	    uint32_t size = para.oX_SZ * para.oY_SZ * Ch_Iter;
         StreamReLU<dtype_double, P_CH>(in, out, size);
     }
    } // for _output_s0_c_co
@@ -711,7 +713,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
         //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
         //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
-        linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + K_DP - 1, para.Y_SZ + K_DP - 1);
+        linebuffer_2D<LINEBUFFER_SIZE>(padded_feature, feature_stream, para.Ch_Iter, para.X_SZ + K_DP - 1, para.Y_SZ + K_DP - 1, para.Stride);
 
      }
    }//for tiling Input channel
@@ -726,6 +728,7 @@ static void read_inputLB1D(hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &
 		layerPara para){
 
 	struct tilingID iter;
+    const size_t Y_Iter = para.oY_SZ * para.Ch_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -744,10 +747,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
           //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
           //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
-          const size_t Y_Iter = (para.Y_SZ) * para.Ch_Iter;
           for (uint8_t i = 0; i < Y_Iter; i ++){
         //hardcode the tilingSZ,4*8 = 32, TODO: change into the largest size
-            linebuffer_1D(padded_feature, feature_stream, para.X_SZ + K_DP - 1);
+            linebuffer_1D(padded_feature, feature_stream, para.X_SZ + K_DP - 1, para.Stride);
      }
     }
    }//for tiling Input channel
@@ -779,7 +781,7 @@ static void computeDP(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &fe
             //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
 
             //const uint32_t input_count = (para.X_SZ + prepad_x ) * (para.Y_SZ + prepad_y ) * para.Ch_Iter;
-            const uint32_t input_count = para.X_SZ * para.Y_SZ * para.Ch_Iter;
+            const uint32_t input_count = para.oX_SZ * para.oY_SZ * para.Ch_Iter;
 			dp_conv_kernel(feature_stream, weight_stream, output_stream, input_count);
 
         //debug
@@ -839,8 +841,8 @@ static void shuffle_buff(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> & padd
         layerPara para){
     struct tilingID iter;
     const uint8_t bound_x = para.X_SZ + K_DP - 1;
-    const uint32_t feed_bound = bound_x * para.Ch_Iter;
-    shuffle.call_start(padded_feature, 1, bound_x, para.Ch_Iter);
+    const uint32_t feed_bound = bound_x * para.Ch_Iter * para.Stride;
+    shuffle.call_start(padded_feature, para.Stride, bound_x, para.Ch_Iter);
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -854,8 +856,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        for (int y = 0; y < para.Y_SZ + K_DP - 1; y++){
-            shuffle.call(padded_feature, shuffle_feature, bram_addr, feed_bound, 1, bound_x, para.Ch_Iter);
+        for (int y = 0; y < para.Y_SZ + K_DP - 1; y+=para.Stride){
+            shuffle.call(padded_feature, shuffle_feature, bram_addr, feed_bound, para.Stride, bound_x, para.Ch_Iter);
 
         }
     }
@@ -871,8 +873,8 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_
 		layerPara para){
 
 	struct tilingID iter;
-    const uint8_t bound_y = para.Y_SZ + para.Ksz - 1;
-    const uint8_t bound_x = para.X_SZ + para.Ksz - 1;
+    const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
+    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter);
@@ -927,14 +929,14 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
         //const uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1)))*para.prePad ;
         //const uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1)))*para.prePad ;
        //const size_t conv_dp_iter = (para.X_SZ + prepad_x) * (para.Y_SZ + prepad_y) * para.Ch_Iter;
-       const size_t conv_dp_iter = para.X_SZ * para.Y_SZ * para.Ch_Iter;
+       const size_t conv_dp_iter = para.oX_SZ * para.oY_SZ * para.Ch_Iter;
        size_t id_ch = 0;
        size_t id_x = 0;
        for (size_t addr = 0; addr < conv_dp_iter; addr ++){
 #pragma HLS pipeline II=1
            weightStream.write(buffer[id_ch + iter.tilingIDc_i * para.Ch_Iter]);
            id_x ++;
-           if (id_x == para.X_SZ){
+           if (id_x == para.oX_SZ){
                id_x = 0;
                 id_ch ++;
                 if(id_ch == para.Ch_Iter){

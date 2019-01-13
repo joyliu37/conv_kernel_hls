@@ -62,13 +62,14 @@ class optLinebuffer1D {
 public:
 static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT_3> > &in_stream,
                  stream<PackedStencil<T, EXTENT_1, OUT_EXTENT_0, EXTENT_2, EXTENT_3> > &out_stream,
-                 const size_t img_ext) {
+                 const size_t img_ext, const size_t Stride) {
 #pragma HLS INLINE
 /*    static_assert(IMG_EXTENT_0 >= OUT_EXTENT_0, "image extent not is larger than output.");
     static_assert(OUT_EXTENT_0 > IN_EXTENT_0, "input extent is larger than output."); // TODO handle this situation.
     static_assert(IMG_EXTENT_0 % IN_EXTENT_0 == 0, "image extent is not divisible by input."); // TODO handle this situation.
     static_assert(OUT_EXTENT_0 % IN_EXTENT_0 == 0, "output extent is not divisible by input."); // TODO handle this situation.
 */
+    //hardcode the buffer_extent to fit stride = 2
     const size_t BUFFER_EXTENT = OUT_EXTENT_0 / IN_EXTENT_0;
     PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT_3> buffer[BUFFER_EXTENT];  // shift register
 #pragma HLS ARRAY_PARTITION variable=buffer complete dim=1
@@ -76,16 +77,21 @@ static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT
     PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT_3> in_stencil;
     PackedStencil<T, EXTENT_1, OUT_EXTENT_0, EXTENT_2, EXTENT_3> out_stencil;
 
- LB1D_shiftreg:for (size_t i = 0; i < img_ext; i += IN_EXTENT_0) {
+ LB1D_shiftreg:for (size_t i = 0; i < img_ext; i += IN_EXTENT_0*Stride)
+                   for (size_t st = 0; st < Stride; st++){
 #pragma HLS DEPENDENCE array inter false
 #pragma HLS LOOP_FLATTEN off
 #pragma HLS PIPELINE II=1
-        for (size_t j = 0; j < BUFFER_EXTENT - 1; j++) {
-            buffer[j] = buffer[j+1]; // left shift
-        }
+        //shift reg
+        //if ( st == 0 ){
+            for (size_t j = 0; j < BUFFER_EXTENT - 1; j++) {
+                buffer[j] = buffer[j+1]; // left shift
+            }
+        //}
         // read new stencil
         in_stencil = in_stream.read();
         buffer[BUFFER_EXTENT - 1] = in_stencil;
+        if (st == 0){
         if (i >= OUT_EXTENT_0 - IN_EXTENT_0) {
             // convert buffer to out_stencil, doing bit shuffling essentially
             for (size_t idx_3 = 0; idx_3 < EXTENT_3; idx_3++)
@@ -98,8 +104,9 @@ static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT
             }
             out_stream.write(out_stencil);
         }
+        }
     }
-}
+    }
 };
 
 
@@ -243,10 +250,10 @@ template <size_t EXTENT_0, size_t EXTENT_2, size_t EXTENT_3,
 	  size_t IN_EXTENT_1,  size_t OUT_EXTENT_1, typename T>
 void linebuffer_1D(stream<PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> > &in_stream,
 		   stream<PackedStencil<T, EXTENT_0, OUT_EXTENT_1, EXTENT_2, EXTENT_3> > &out_stream,
-           const size_t img_ext) {
+           const size_t img_ext, const size_t Stride) {
 #pragma HLS INLINE
     optLinebuffer1D<EXTENT_0,  EXTENT_2,  EXTENT_3,
-                 IN_EXTENT_1,  OUT_EXTENT_1, T>::call(in_stream, out_stream, img_ext);
+                 IN_EXTENT_1,  OUT_EXTENT_1, T>::call(in_stream, out_stream, img_ext, Stride);
 }
 
 template <size_t IMG_EXTENT_0, size_t IMG_EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
@@ -435,7 +442,7 @@ public:
 //Case work for depthwise conv
 static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT_3> > &in_stream,
                  stream<PackedStencil<T, EXTENT_2, EXTENT_0, OUT_EXTENT_1, EXTENT_3> > &out_stream,
-                 const uint8_t Ch_Iter, const uint8_t X_Iter, const uint8_t Y_Iter) {
+                 const uint8_t Ch_Iter, const uint8_t X_Iter, const uint8_t Y_Iter, const uint8_t Stride) {
     //static_assert(IMG_EXTENT_1 > OUT_EXTENT_1, "output extent is larger than image.");
     //static_assert(OUT_EXTENT_1 > IN_EXTENT_1, "input extent is larger than output."); // TODO handle this situation.
     //static_assert(IMG_EXTENT_1 % IN_EXTENT_1 == 0, "image extent is not divisible by input."); // TODO handle this situation.
@@ -443,6 +450,7 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
     static_assert(IMG_EXTENT_0 % EXTENT_0 == 0, "image extent is not divisible by input."); // TODO handle this situation.
     static_assert(IMG_EXTENT_0 > EXTENT_0, "image extent is not larger than input."); // TODO handle this situation.
     assert(IMG_EXTENT_0 > Ch_Iter * X_Iter);
+    assert(Stride <= 2); //Only support stride = 2 or stride =1
 #pragma HLS INLINE
 //#pragma HLS DATAFLOW
 
@@ -453,45 +461,63 @@ static void call(stream<PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT
     const size_t BUFFER_EXTENT_1 = OUT_EXTENT_1/ IN_EXTENT_1 - 1;
     PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT_3> buffer[BUFFER_EXTENT_1][IDX_EXTENT_0];
 #pragma HLS ARRAY_PARTITION variable=buffer complete dim=1
+#pragma HLS ARRAY_PARTITION variable=buffer cyclic factor=2 dim=2
 
     PackedStencil<T, EXTENT_2, EXTENT_0, OUT_EXTENT_1, EXTENT_3> slice;
 
-    size_t write_idx_1 = 0; // the line index of coming stencil in the linebuffer
- LB2D_buf:for (size_t row = 0; row < Y_Iter; row++) {
-#pragma HLS LOOP_FLATTEN off
-        for (size_t col = 0; col < X_Iter * Ch_Iter; col++) {
+    size_t write_idx_1 = 0, st_y = 0; // the line index of coming stencil in the linebuffer
+ LB2D_buf:for (size_t row = 0; row < Y_Iter; row += Stride) {
+      for (size_t col = 0; col < Ch_Iter * X_Iter * Stride; col ++) {
+            //for (uint8_t st_y = 0; st_y < Stride; st_y ++) {
+
 #pragma HLS DEPENDENCE array inter false
 #pragma HLS PIPELINE II=1
-            //size_t write_idx_1 = row % BUFFER_EXTENT_1; // the line index of coming stencil in the linebuffer
-            if (write_idx_1 >= BUFFER_EXTENT_1) {
-                write_idx_1 -= BUFFER_EXTENT_1;
-            }
             PackedStencil<T, EXTENT_2, EXTENT_0, IN_EXTENT_1, EXTENT_3> in_stencil = in_stream.read();
-            if (row >= BUFFER_EXTENT_1) {
-                // fetch data from buffer
-                for (size_t idx_line = 0; idx_line < BUFFER_EXTENT_1; idx_line++) {
-                    size_t idx_line_in_buffer = idx_line + write_idx_1;
-                    if (idx_line_in_buffer >= BUFFER_EXTENT_1)
-                        idx_line_in_buffer -= BUFFER_EXTENT_1;
+
+            if ( st_y == 0){
+                if (row >= BUFFER_EXTENT_1) {
+                    // fetch data from buffer
+                    for (size_t idx_line = 0; idx_line < BUFFER_EXTENT_1; idx_line++) {
+                        size_t idx_line_in_buffer = idx_line + write_idx_1;
+                        if (idx_line_in_buffer >= BUFFER_EXTENT_1)
+                            idx_line_in_buffer -= BUFFER_EXTENT_1;
+                        for (size_t st_idx_3 = 0; st_idx_3 < EXTENT_3; st_idx_3++)
+                        for (size_t st_idx_2 = 0; st_idx_2 < IN_EXTENT_1; st_idx_2++)
+                        for (size_t st_idx_1 = 0; st_idx_1 < EXTENT_0; st_idx_1++)
+                        for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_2; st_idx_0++)
+                            slice(st_idx_0, st_idx_1, idx_line*IN_EXTENT_1 + st_idx_2, st_idx_3)
+                                = buffer[idx_line_in_buffer][col>>1](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                    }
+
+                    // pass data from input
                     for (size_t st_idx_3 = 0; st_idx_3 < EXTENT_3; st_idx_3++)
                     for (size_t st_idx_2 = 0; st_idx_2 < IN_EXTENT_1; st_idx_2++)
                     for (size_t st_idx_1 = 0; st_idx_1 < EXTENT_0; st_idx_1++)
                     for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_2; st_idx_0++)
-                        slice(st_idx_0, st_idx_1, idx_line*IN_EXTENT_1 + st_idx_2, st_idx_3)
-                            = buffer[idx_line_in_buffer][col](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                        slice(st_idx_0, st_idx_1, BUFFER_EXTENT_1*IN_EXTENT_1 + st_idx_2, st_idx_3)
+                            = in_stencil(st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                    out_stream.write(slice);
                 }
-                // pass data from input
-                for (size_t st_idx_3 = 0; st_idx_3 < EXTENT_3; st_idx_3++)
-                for (size_t st_idx_2 = 0; st_idx_2 < IN_EXTENT_1; st_idx_2++)
-                for (size_t st_idx_1 = 0; st_idx_1 < EXTENT_0; st_idx_1++)
-                for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_2; st_idx_0++)
-                    slice(st_idx_0, st_idx_1, BUFFER_EXTENT_1*IN_EXTENT_1 + st_idx_2, st_idx_3)
-                        = in_stencil(st_idx_0, st_idx_1, st_idx_2, st_idx_3);
-                out_stream.write(slice);
             }
-            buffer[write_idx_1][col] = in_stencil;  // store the input in the buffer
+
+            // store the input in the buffer
+            size_t write_idx_in_buffer = write_idx_1 + st_y;
+            if(write_idx_in_buffer >= BUFFER_EXTENT_1)
+                write_idx_in_buffer -= BUFFER_EXTENT_1;
+            buffer[write_idx_in_buffer][col>>1] = in_stencil;
+
+            st_y ++;
+            if(st_y == Stride)
+                st_y = 0;
+            //update the write line
+            if ( /*( st_y == Stride - 1 ) && */(col == Ch_Iter * X_Iter * Stride - 1)){
+                write_idx_1 += Stride;
+                if (write_idx_1 >= BUFFER_EXTENT_1) {
+                    write_idx_1 -= BUFFER_EXTENT_1;
+                }
+            }
+        //}
         }
-        write_idx_1++;
     }
 
 }
@@ -799,10 +825,10 @@ template <size_t IMG_EXTENT_0, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_3
 	  size_t IN_EXTENT_2, size_t OUT_EXTENT_2, typename T>
 void linebuffer_2D(stream<PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> > &in_stream,
                    stream<PackedStencil<T, EXTENT_0, EXTENT_1, OUT_EXTENT_2, EXTENT_3> > &out_stream,
-                   const size_t Ch_Iter, const size_t X_SZ, const size_t Y_SZ) {
+                   const size_t Ch_Iter, const size_t X_SZ, const size_t Y_SZ, const size_t Stride) {
 #pragma HLS INLINE
     newLinebuffer2D<IMG_EXTENT_0,  EXTENT_1, EXTENT_0, EXTENT_3,
-                 IN_EXTENT_2, OUT_EXTENT_2, T>::call(in_stream, out_stream, Ch_Iter, X_SZ, Y_SZ);
+                 IN_EXTENT_2, OUT_EXTENT_2, T>::call(in_stream, out_stream, Ch_Iter, X_SZ, Y_SZ, Stride);
 }
 
 template <size_t IMG_EXTENT_0, size_t IMG_EXTENT_1, size_t IMG_EXTENT_2, size_t EXTENT_3,

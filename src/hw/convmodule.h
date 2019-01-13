@@ -71,7 +71,7 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
     hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> dp_feature_stream("dp_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_stream core=FIFO_SRL
-    hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_fm_stencil");
+    hls::stream<PackedStencil<dtype, P_CH, 1 , K_DP, 1>> dp_feature_1d_stream("dp_1d_fm_stencil");
 #pragma HLS STREAM variable=dp_feature_1d_stream depth=1
 #pragma HLS RESOURCE variable=dp_feature_1d_stream core=FIFO_SRL
 
@@ -91,7 +91,7 @@ void convDPModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature
     //split the linebuffer into two separate module, to meeting timing
     shuffleAddr(shuffle_addr, para);
 
-    Doublebuffer_feature<1, 1, 1, P_CH, P_CH, SHUFFLE_SIZE, dtype> shuffleDB(para.loop_cnt * (para.Y_SZ + K_DP - 1));
+    Doublebuffer_feature<1, 1, 1, P_CH, P_CH, SHUFFLE_SIZE, dtype> shuffleDB(para.loop_cnt * (para.Y_SZ + K_DP - 1) / para.Stride);
 
     shuffle_buff(in_feature_stencil, shuffle_addr, shuffleDB, shuffle_stream, para);
     read_inputLB2D(shuffle_stream, dp_feature_1d_stream, para);

@@ -6,22 +6,28 @@
 //codegen block from Halide
 
 void shuffleAddrGen(hls::stream<uint32_t> & addr, const uint32_t num_iter,
-        const uint8_t bound_x, const uint8_t bound_ch) {
+        const uint8_t bound_x, const uint8_t bound_ch, const uint8_t stride) {
 
-    uint8_t xIter = 0, chIter = 0;
+    assert(stride <= 2);
+
+    uint8_t xIter = 0, chIter = 0, yIter=0;
     for (int i = 0; i < num_iter; i ++){
 #pragma HLS pipeline II=1
-        const int32_t featureBuffAddr = chIter + xIter * bound_ch;
+        const int32_t featureBuffAddr = chIter + xIter * bound_ch + yIter * bound_ch * bound_x;
 
 		addr.write(featureBuffAddr);
 
-        xIter ++;
-        if (xIter == bound_x){
-            xIter = 0;
-            chIter ++;
-            if (chIter == bound_ch){
-                chIter = 0;
+        yIter ++;
+        if (yIter == stride){
+            yIter = 0;
+            xIter ++;
+            if (xIter == bound_x){
+                xIter = 0;
+                chIter ++;
+                if (chIter == bound_ch){
+                    chIter = 0;
 
+                }
             }
         }
     }

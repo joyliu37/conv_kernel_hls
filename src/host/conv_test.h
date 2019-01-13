@@ -8,13 +8,13 @@
 #define HW_COSIM
 
 
-#define ROWS 56//68
-#define COLS 56//68
+#define ROWS 28//68
+#define COLS 28//68
 #define ICH 64//32,8
 #define OCH 128//16,8
 #define FS 1
 #define FS_DP 3
-#define STRIDE 1
+#define STRIDE 2
 
 #ifndef DATAWIDTH
 #define DATAWIDTH 32
@@ -201,10 +201,10 @@ void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
             for (int c = 0; c < Ch; c ++){
                 for (int fx = 0; fx < fs; fx ++){
                     for (int fy = 0; fy < fs; fy ++){
-                        if ( (y+fy >= anchor) && (x+fx >= anchor) && (y+fy < rows + anchor) && (x+fx < cols + anchor) ){
+                        if ( (y*stride+fy >= anchor) && (x*stride+fx >= anchor) && (y*stride+fy < rows + anchor) && (x*stride+fx < cols + anchor) ){
                             //dtype a = input[(y*stride + fy ) * (cols) * Ch + (x*stride + fx) * Ch + c];
                             //dtype b = weight[fy*fs*Ch + fx*Ch + c];
-                            res_sw_tmp[y*cols*Ch + x*Ch + c] +=
+                            res_sw_tmp[y*cols/stride*Ch + x*Ch + c] +=
                             input[(y*stride + fy-anchor ) * (cols) * Ch + (x*stride + fx-anchor) * Ch + c]
                             * weight[fy*fs*Ch + fx*Ch + c];
                             //printf("sw: %d * %d = %d\n",a, b, res_sw_tmp[y*cols*Ch+x*Ch + c] );
@@ -212,14 +212,14 @@ void conv_dp_sw(dtype* input, dtype *weight, dtype* res,
 
                     }
                 }
-                if(res_sw_tmp[y*cols*Ch + x*Ch + c] < 0)
-                    res_sw_tmp[y*cols*Ch + x*Ch + c] = 0;
+                if(res_sw_tmp[y*cols/stride*Ch + x*Ch + c] < 0)
+                    res_sw_tmp[y*cols/stride*Ch + x*Ch + c] = 0;
             }
         }
     }
 
 
-    for (int i = 0; i < rows * cols * Ch; i++){
+    for (int i = 0; i < rows/stride * cols/stride * Ch; i++){
         res[i] = (dtype)res_sw_tmp[i];
     }
 }
