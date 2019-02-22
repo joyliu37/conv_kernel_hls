@@ -8,21 +8,21 @@
 #define HW_COSIM
 
 
-#define ROWS 28//68
-#define COLS 28//68
-#define ICH 64//32,8
-#define OCH 128//16,8
+#define ROWS 14//68
+#define COLS 14//68
+#define ICH 512//32,8
+#define OCH 512//16,8
 #define FS 1
 #define FS_DP 3
-#define STRIDE 2
+#define STRIDE 1
 
 #ifndef DATAWIDTH
 #define DATAWIDTH 32
 #endif
 
-#define XN 2
+#define XN 1
 #define YN 2
-#define CINN 1
+#define CINN 4
 #define COUTN 1
 
 #ifndef dtype
@@ -140,8 +140,8 @@ void weight2stencil(dtype* weight,
 		int fs, int iCh, int oCh, int P_CIN, int P_COUT, int cin_n, int cout_n){
     dtype reshape_weight[iCh*oCh*fs*fs];
 
-    int Cin_Iter = ICH/ cin_n/ P_CIN;
-    int Cout_Iter = OCH/ cout_n/ P_COUT;
+    int Cin_Iter = iCh/ cin_n/ P_CIN;
+    int Cout_Iter = oCh/ cout_n/ P_COUT;
 
     for (int coutBlk = 0; coutBlk < Cout_Iter * cout_n; coutBlk ++){
     	for (int cinBlk = 0; cinBlk < Cin_Iter * cin_n; cinBlk ++){

@@ -147,9 +147,9 @@
 //#define DDR_WRITE_OFFSET 0x10000000
 
 
-#define WEIGHT_BYTESIZE 1*1*512*512
-#define OUTPUT_BYTESIZE 14*14*512
-#define INPUT_BYTESIZE 14*14*512//1048576
+#define WEIGHT_BYTESIZE 1*1*1024*1024
+#define OUTPUT_BYTESIZE 28*28*1024
+#define INPUT_BYTESIZE 56*56*512//1048576
 //#define DATAWIDTH 32
 
 #define P_COUT 64
@@ -176,7 +176,7 @@ typedef uint8_t dtype_u;
     static int row = 14;
     static int col = 14;
     static int iCh = 512;
-    static int oCh = 512;
+    static int oCh = 1024;
     static int Ksz = 1;
 
     static int test_iter = 1000;
@@ -326,25 +326,25 @@ int main()
     //unsigned int TimeOut = 5;
     unsigned int ResetMask;
     unsigned int RegValue;
-    dtype SrcArray0[INPUT_BYTESIZE ];
-    dtype SrcArray0_tmp[INPUT_BYTESIZE ];
-    dtype SrcArray1[WEIGHT_BYTESIZE ];
+    dtype* SrcArray0 = new dtype[INPUT_BYTESIZE ];
+    dtype* SrcArray0_tmp = new dtype[INPUT_BYTESIZE ];
+    dtype* SrcArray1 = new dtype[WEIGHT_BYTESIZE ];
     //dtype SrcArray1_reshape[WEIGHT_BYTESIZE ];
-    dtype DestArray[OUTPUT_BYTESIZE ];
-    dtype DestArray_sw[OUTPUT_BYTESIZE ];
+    dtype* DestArray = new dtype[OUTPUT_BYTESIZE ];
+    dtype* DestArray_sw = new dtype[OUTPUT_BYTESIZE ];
 
     //define the confiuration
-    uint16_t X_SZ = 7;
-    uint16_t X_n = 2;
-    uint16_t Y_SZ = 7;
-    uint16_t Y_n = 2;
+    uint16_t X_SZ = 14;
+    uint16_t X_n = 1;
+    uint16_t Y_SZ = 14;
+    uint16_t Y_n = 1;
     uint16_t K_SZ = 3;
-    uint16_t Cin_SZ = 256;
-    uint16_t Cin_n = 2;
-    uint16_t Cout_SZ = 512;
+    uint16_t Cin_SZ = 128;
+    uint16_t Cin_n = 4;
+    uint16_t Cout_SZ = 1024;
     uint16_t Cout_n = 1;
-    uint16_t Ch_Iter = 16;
-    uint16_t Stride= 1;
+    uint16_t Ch_Iter = Cin_SZ/P_CH;
+    uint16_t Stride= 2;
     bool pool = 0;
 
     PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray2_packed[WEIGHT_BYTESIZE/DATAWIDTH];
@@ -367,8 +367,9 @@ int main()
     weight2stencil(SrcArray1, SrcArray1_packed, Ksz, iCh, oCh, P_CIN, P_COUT, Cin_n, Cout_n);
     weightDP2stencil(SrcArray1, SrcArray2_packed, K_SZ, iCh, P_CH, Cin_n);
     //initial_ouput(DestArray);
-    conv_dp_sw(SrcArray0, SrcArray1, SrcArray0_tmp, row, col, iCh, K_SZ, 1);
-    conv_sw(SrcArray0_tmp, SrcArray1, DestArray_sw, row, col, oCh, iCh, 1, Stride, false, 0);
+    printf("Start SW compute!\n");
+    conv_dp_sw(SrcArray0, SrcArray1, SrcArray0_tmp, row, col, iCh, K_SZ, Stride);
+    conv_sw(SrcArray0_tmp, SrcArray1, DestArray_sw, row, col, oCh, iCh, 1, 1, false, 0);
         /*======================================================================================
         STEP 2 : Map the kernel memory location starting from 0x20000000 to the User layer
         ========================================================================================*/
@@ -664,12 +665,17 @@ int main()
            }
        }*/
        int err_cnt = 0;
-       check_err(DestArray, DestArray_sw, row, col, oCh, 1, err_cnt);
+       check_err(DestArray, DestArray_sw, row/Stride, col/Stride, oCh, 1, err_cnt);
         //check_err(SrcArray0, SrcArray1, DestArray);
        if (err_cnt == 0)
            printf("Result verification is Successful \n\r");
        else
            printf("There are %d different!\n\r", err_cnt);
+    delete[] DestArray_sw;
+    delete[] DestArray;
+    delete[] SrcArray1;
+    delete[] SrcArray0_tmp;
+    delete[] SrcArray0;
 
     return 0;
 }
