@@ -10,9 +10,9 @@
 
 #define ROWS 14//68
 #define COLS 14//68
-#define ICH 512//32,8
-#define OCH 512//16,8
-#define FS 1
+#define ICH 128//32,8
+#define OCH 128//16,8
+#define FS 3
 #define FS_DP 3
 #define STRIDE 1
 
@@ -20,10 +20,10 @@
 #define DATAWIDTH 32
 #endif
 
-#define XN 1
+#define XN 2
 #define YN 2
-#define CINN 4
-#define COUTN 1
+#define CINN 2
+#define COUTN 2
 
 #ifndef dtype
 #define dtype int8_t

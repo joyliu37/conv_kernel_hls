@@ -146,8 +146,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 
-static void feature_pad(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &in,
-        hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &out,
+static void feature_pad(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &in,
+        hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -173,10 +173,10 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
         //uint8_t prepad_y = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * para.prePad;
         //uint8_t prepad_x = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * para.prePad;
-        StreamPad<dtype, P_CH>(in, out,
+        StreamPad<dtype, P_CIN>(in, out,
                 para.X_SZ + K_DP - 1,
                 para.Y_SZ + K_DP - 1,
-                para.Ch_Iter,
+                para.Cin_Iter,
                 para.Anchor_dp - iter.tilingIDx * para.X_SZ,
                 para.Anchor_dp - iter.tilingIDy * para.Y_SZ,
                 para.Anchor_dp + para.prePad - iter.tilingIDx * para.X_SZ + para.Width,
@@ -487,7 +487,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //TODO: make datawidth into define var
 static void datawidth_convert_feature(
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
-		hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &out,
+		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
 
 	struct tilingID iter;
@@ -514,7 +514,7 @@ static void datawidth_convert_feature(
     const uint8_t x_edge = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * (para.Anchor_dp + para.prePad);
     const uint8_t y_edge = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * (para.Anchor_dp + para.prePad);
     int32_t input_count = (para.X_SZ + x_edge) * (para.Y_SZ + y_edge) * para.Cin_SZ / DATAWIDTH;
-	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CH>(in, out, DATAWIDTH, P_CH, input_count);
+	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CIN>(in, out, DATAWIDTH, P_CIN, input_count);
 
 	    }//for tiling Input channel
 	   } // for _output_s0_c_co
@@ -866,9 +866,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  }
 }
 
-static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
+static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
         hls::stream<uint32_t> &bram_addr,
-		Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> &feature,
+		Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
@@ -877,7 +877,7 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_
     const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter);
+	feature.call_start(padded_feature, bound_y, bound_x, para.Cin_Iter);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -896,7 +896,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Ch_Iter);
+		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Cin_Iter);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel

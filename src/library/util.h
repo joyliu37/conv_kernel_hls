@@ -14,7 +14,7 @@
 
 #define MAX_X_SZ 14
 #define MAX_Y_SZ 7
-#define MAX_K_SZ 1
+#define MAX_K_SZ 3
 
 #define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
 #define OFM_BUFF_SIZE (MAX_X_SZ) * (MAX_Y_SZ) * MAX_COUT_SZ / P_COUT
