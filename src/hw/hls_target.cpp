@@ -101,7 +101,6 @@ stencil_convert_weight(weight_short, weight_stencil, para);
 
 //pointwise convolution module
 //convModule(output_dp, weight_stencil, output_short, para);
- std::cout << "go to here"<<std::endl;
 convModule(padded_feature, weight_stencil, output_short, para);
 
 //post processing

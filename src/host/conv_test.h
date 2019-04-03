@@ -8,8 +8,8 @@
 #define HW_COSIM
 
 
-#define ROWS 14//68
-#define COLS 14//68
+#define ROWS 28//68
+#define COLS 28//68
 #define ICH 128//32,8
 #define OCH 128//16,8
 #define FS 3

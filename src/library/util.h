@@ -13,12 +13,12 @@
 #include <stdint.h>
 
 #define MAX_X_SZ 14
-#define MAX_Y_SZ 7
+#define MAX_Y_SZ 14
 #define MAX_K_SZ 3
 
 #define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
 #define OFM_BUFF_SIZE (MAX_X_SZ) * (MAX_Y_SZ) * MAX_COUT_SZ / P_COUT
-#define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
+#define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN/2
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
 #define LINEBUFFER_SIZE 32*32
 #define SHUFFLE_SIZE 256

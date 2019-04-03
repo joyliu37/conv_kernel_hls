@@ -148,23 +148,24 @@ void Stream2Mem_output(
 #pragma ARRAY_PARTITION variable=temp.value complete dim=0
 store_stream2out: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-	for (int output_x = 0; output_x < para.oX_SZ * para.Cout_SZ / data_width; output_x++) {
+	for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-	//	for (int output_c = 0; output_c < para.Cout_SZ/data_width; output_c++) {
+		for (int output_c = 0; output_c < para.Cout_SZ/data_width; output_c++) {
 //#pragma HLS LOOP_TRIPCOUNT max=4
 #pragma HLS PIPELINE II=1
 			temp = in.read();
             //TODO: fix bug change para.width to output width in case of stride
             //if (( output_y <1 ) || (output_x < 1) || (output_y > para.oY_SZ ) || (output_x > para.oX_SZ))
             //        continue;
-            //int32_t ddrC = output_c + para.Cout_SZ * iter.tilingIDc_o / data_width;
-			int32_t outputAddr = output_x +
-					(iter.tilingIDx * para.oX_SZ ) * para.Cout_chunk +
+            int32_t ddrC = output_c + para.Cout_SZ / DATAWIDTH * iter.tilingIDc_o;
+			int32_t outputAddr = ddrC +
+					(iter.tilingIDx * para.oX_SZ + output_x) * para.Cout_chunk +
 					(iter.tilingIDy * para.oY_SZ + output_y) * para.Cout_chunk * para.oWidth;
 			_output[outputAddr] = temp;
 
-	}
-}
+	        }
+        }
+    }
 }
 
 #endif
