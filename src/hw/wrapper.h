@@ -877,7 +877,7 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_
     const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	feature.call_start(padded_feature, bound_y, bound_x, para.Ch_Iter);
+	feature.call_start(padded_feature, bound_x, para.Ch_Iter, bound_y, para.Ch_Iter, 1, para.Ch_Iter*bound_x);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -896,7 +896,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Ch_Iter);
+		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_x, para.Ch_Iter, bound_y, para.Ch_Iter, 1, para.Ch_Iter*bound_x);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel

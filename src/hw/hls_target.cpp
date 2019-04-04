@@ -39,10 +39,10 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Stride bundle=control
 #pragma HLS INTERFACE s_axilite port=Ch_Iter bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
-#pragma HLS INTERFACE m_axi depth = 6272 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 6272  port=arg_1
-#pragma HLS INTERFACE m_axi depth = 8192 port=arg_2
-#pragma HLS INTERFACE m_axi depth = 144 port=arg_3
+#pragma HLS INTERFACE m_axi depth = 1568 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 1568  port=arg_1
+#pragma HLS INTERFACE m_axi depth = 1024 port=arg_2
+#pragma HLS INTERFACE m_axi depth = 72 port=arg_3
 
 
  // alias the arguments

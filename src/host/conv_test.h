@@ -10,8 +10,8 @@
 
 #define ROWS 14//68
 #define COLS 14//68
-#define ICH 512//32,8
-#define OCH 512//16,8
+#define ICH 128//32,8
+#define OCH 128//16,8
 #define FS 1
 #define FS_DP 3
 #define STRIDE 1
