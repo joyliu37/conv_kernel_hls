@@ -12,42 +12,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_X_SZ 14
-#define MAX_Y_SZ 7
-#define MAX_K_SZ 1
-
-#define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
-#define OFM_BUFF_SIZE (MAX_X_SZ) * (MAX_Y_SZ) * MAX_COUT_SZ / P_COUT
-#define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN
-#define W_BUFF_BANK MAX_COUT_SZ / P_COUT
-#define LINEBUFFER_SIZE 32*32
-#define SHUFFLE_SIZE 256
-
-#define W_DP_BUFF_SIZE K_DP * K_DP * MAX_DP_SZ / P_CH
-
-#define MAX_CIN_SZ 512
-//#define Cin_SZ_bit 5
-#define MAX_COUT_SZ 1024
-#define MAX_DP_SZ 1024
-//#define Cout_SZ_bit 5
-//#define Cin_Iter 4
-//#define Cout_Iter 4
-
-#define P_CIN 32
-#define P_CIN_bit 5
-#define P_COUT 64
-#define P_COUT_bit 6
-
-#define P_CH 16
-#define K_DP 3
-
-#define DATAWIDTH 32
-#define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 typedef uint8_t dtype_u;
 typedef int8_t dtype;
 typedef int16_t dtype_double;
-
 
 struct layerPara{
     uint16_t Ksz;
@@ -79,11 +47,13 @@ struct layerPara{
 
 	uint8_t Anchor;
 	uint8_t Anchor_dp;
+    uint8_t w_cnt;
 
 	bool pool;
 
     public:
     layerPara(
+            const int p_in, const int p_out, const int kernel_dp, const int data_width,
             uint16_t Ksz_,
             uint16_t X_n_,
             uint16_t X_SZ_,
@@ -103,12 +73,12 @@ struct layerPara{
         Y_SZ = Y_SZ_;
         Cin_n = Cin_n_;
         Cin_SZ = Cin_SZ_;
-        Cin_Iter = Cin_SZ/P_CIN;
+        Cin_Iter = Cin_SZ/p_in;
 
 
         Cout_n = Cout_n_;
         Cout_SZ = Cout_SZ_;
-        Cout_Iter = Cout_SZ / P_COUT;
+        Cout_Iter = Cout_SZ / p_out;
 
 
         Stride = Stride_;
@@ -132,12 +102,14 @@ struct layerPara{
 
         Chin = Cin_n * Cin_SZ;
         Chout = Cout_n * Cout_SZ;
-        Cin_chunk = Chin/DATAWIDTH;
-        Cout_chunk = Chout/DATAWIDTH;
+        Cin_chunk = Chin/data_width;
+        Cout_chunk = Chout/data_width;
 
         Anchor = (Ksz - 1) >> 1;
-        Anchor_dp = (K_DP - 1)>>1;
+        Anchor_dp = (kernel_dp- 1)>>1;
         prePad = 0;
+
+        w_cnt = p_in * p_out / data_width;
     }
 };
 

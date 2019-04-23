@@ -8,23 +8,23 @@
 #define HW_COSIM
 
 
-#define ROWS 14//68
+/*#define ROWS 14//68
 #define COLS 14//68
 #define ICH 128//32,8
 #define OCH 128//16,8
 #define FS 1
 #define FS_DP 3
 #define STRIDE 1
-
+*/
 #ifndef DATAWIDTH
 #define DATAWIDTH 32
 #endif
-
+/*
 #define XN 1
 #define YN 2
 #define CINN 4
 #define COUTN 1
-
+*/
 #ifndef dtype
 #define dtype int8_t
 #endif
@@ -32,9 +32,10 @@
 #ifndef dtype_double
 #define dtype_double int16_t
 #endif
-
+/*
 typedef uint16_t t;
 typedef uint32_t rt;
+*/
 using namespace std;
 
 dtype max(dtype a, dtype b);
