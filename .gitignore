@@ -3,4 +3,5 @@ hls_cnn_db
 *.app
 *.jou
 out*
+error
 src/zynq_host/run_zynq
