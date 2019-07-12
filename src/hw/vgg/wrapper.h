@@ -293,6 +293,48 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
+static void FeatureAddrGenLib(hls::stream<uint32_t> &out, layerPara para){
+
+	struct tilingID iter;
+
+    const uint8_t ext_x = para.oX_SZ;
+    const uint8_t ext_y = para.oY_SZ;
+    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+
+    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+
+    const uint8_t rng[6] = {(uint8_t)(para.Cin_Iter),
+        (uint8_t)(para.Ksz), (uint8_t)(para.Ksz),
+        (uint8_t)(para.Cout_Iter), ext_x, ext_y};
+    const uint8_t st[6] = {1, (uint8_t)(para.Cin_Iter),
+        (uint8_t)(bound_x * para.Cin_Iter),
+        0,
+        (uint8_t)(para.Cin_Iter),
+        (uint8_t)(para.Cin_Iter*bound_x)};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
+        //TODO: add another input config for the conv stride
+        AddrGenTemp<6>(out, num_iter, rng, st);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
 
 static void WeightAddrGen(hls::stream<uint32_t> &out_id,
         hls::stream<uint32_t> &out_addr, layerPara para){

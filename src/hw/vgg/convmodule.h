@@ -23,7 +23,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
 #pragma HLS STREAM variable=ld depth=1
 #pragma HLS STREAM variable=st depth=1
 
-    FeatureAddrGen(feature_addr, para);
+    FeatureAddrGenLib(feature_addr, para);
     WeightAddrGen(weight_id, weight_addr, para);
     OutputAddrGen(output_addr, ld, st, para);
 

@@ -292,11 +292,16 @@ void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFF
         hls::stream<uint32_t>& bram_addr,
 		const uint32_t feed_bound, const uint8_t load_bound_y,
         const uint8_t load_bound_x, const uint8_t load_bound_ch) {
-#pragma HLS inline
+#pragma HLS inline off
+
 	if (flag) {
 		this->feedStream(_db_1, bram_addr, out_stream, feed_bound);
 		this->loadFromDRAM(in, _db_0, load_bound_y, load_bound_x, load_bound_ch);
 	} else {
+        if (cnt == 0){
+            this->loadFromDRAM(in, _db_0, load_bound_y, load_bound_x, load_bound_ch);
+            cnt += 1;
+        }
 		this->feedStream(_db_0, bram_addr, out_stream, feed_bound);
 		this->loadFromDRAM(in, _db_1, load_bound_y, load_bound_x, load_bound_ch);
 	}
@@ -354,7 +359,6 @@ void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFF
 #pragma HLS inline off
 	if (this->cnt == loop_cnt)
 		return;
-
 	//load_feature: for (int input_y = 0; input_y < para.Y_SZ + para.Ksz + (para.prePad<<1) - 1;input_y++) {
 load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18

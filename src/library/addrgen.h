@@ -33,6 +33,36 @@ void shuffleAddrGen(hls::stream<uint32_t> & addr, const uint32_t num_iter,
     }
 }
 
+template<int DIM>
+void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
+        const uint8_t rng[DIM],
+        const uint8_t st[DIM]
+        ) {
+    static_assert(DIM <= 6, "Access pattern dimension should less than 6!\n");
+    uint8_t idx[DIM];
+    for (int i = 0; i < DIM; i ++) {
+#pragma HLS UNROLL
+        idx[i] = 0;
+    }
+
+    for (int  i = 0; i < num_iter; i ++) {
+#pragma HLS pipeline II=1
+        uint32_t addr = 0;
+        for (int dimension = 0; dimension < DIM; dimension ++) {
+            addr += idx[dimension] * st[dimension];
+        }
+        addr_stream.write(addr);
+
+        for (int dimension  = 0; dimension < DIM; dimension ++) {
+            idx[dimension] ++;
+            if (idx[dimension] ==  rng[dimension])
+                idx[dimension] = 0;
+            else
+                break;
+        }
+    }
+}
+
 void FeatureAddrGen1D(hls::stream<uint32_t> & addr, const uint32_t num_iter,
         const uint8_t ext_x, const uint8_t stride,
         const uint8_t off_x, const uint8_t off_y,

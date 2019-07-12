@@ -1,7 +1,8 @@
 hls_cnn_db
+test*
 *.log
 *.app
 *.jou
 out*
-error
+error*
 src/zynq_host/run_zynq
