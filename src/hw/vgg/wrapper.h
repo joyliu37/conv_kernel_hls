@@ -303,14 +303,14 @@ static void FeatureAddrGenLib(hls::stream<uint32_t> &out, layerPara para){
 
     const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
 
-    const uint8_t rng[6] = {(uint8_t)(para.Cin_Iter),
-        (uint8_t)(para.Ksz), (uint8_t)(para.Ksz),
-        (uint8_t)(para.Cout_Iter), ext_x, ext_y};
-    const uint8_t st[6] = {1, (uint8_t)(para.Cin_Iter),
-        (uint8_t)(bound_x * para.Cin_Iter),
+    const uint16_t rng[6] = {(uint16_t)(para.Cin_Iter),
+        (uint16_t)(para.Ksz), (uint16_t)(para.Ksz),
+        (uint16_t)(para.Cout_Iter), ext_x, ext_y};
+    const uint16_t st[6] = {1, (uint16_t)(para.Cin_Iter),
+        (uint16_t)(bound_x * para.Cin_Iter),
         0,
-        (uint8_t)(para.Cin_Iter),
-        (uint8_t)(para.Cin_Iter*bound_x)};
+        (uint16_t)(para.Cin_Iter),
+        (uint16_t)(para.Cin_Iter*bound_x)};
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -336,6 +336,41 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
+static void FeatureAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
+
+	struct tilingID iter;
+
+    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
+    const uint32_t num_iter = bound_x * bound_y * para.Cin_Iter;
+
+
+    const uint16_t rng[1] = {(uint16_t)num_iter};
+    const uint16_t st[1] = {1};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
+        //TODO: add another input config for the conv stride
+        AddrGenTemp<1>(out, num_iter, rng, st);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
 static void WeightAddrGen(hls::stream<uint32_t> &out_id,
         hls::stream<uint32_t> &out_addr, layerPara para){
 
@@ -877,6 +912,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 */
 
+/*
 static void shuffle_buff(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> & padded_feature,
         hls::stream<uint32_t> &bram_addr,
         Doublebuffer_feature<1, 1, 1, P_CH, P_CH, SHUFFLE_SIZE, dtype> &shuffle,
@@ -908,8 +944,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
   }
  }
 }
-
+*/
 static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
+        hls::stream<uint32_t> &load_addr,
         hls::stream<uint32_t> &bram_addr,
 		Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
@@ -919,8 +956,9 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
     const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
     const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
     const uint8_t bound_ch = para.Cin_Iter;
+    const uint32_t load_bound = bound_y * bound_x * bound_ch;
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	feature.call_start(padded_feature, bound_y, bound_x, para.Cin_Iter);
+	//feature.call_start(padded_feature, bound_y, bound_x, para.Cin_Iter);
 
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -939,7 +977,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature inter false
 //#pragma HLS DEPENDENCE variable=feature intra false
 
-		feature.call(padded_feature, feature_stream, bram_addr, feed_bound, bound_y, bound_x, para.Cin_Iter);
+		feature.call(padded_feature, feature_stream, load_addr, bram_addr, load_bound, feed_bound);
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel

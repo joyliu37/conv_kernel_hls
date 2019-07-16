@@ -35,25 +35,25 @@ void shuffleAddrGen(hls::stream<uint32_t> & addr, const uint32_t num_iter,
 
 template<int DIM>
 void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
-        const uint8_t rng[DIM],
-        const uint8_t st[DIM]
+        const uint16_t rng[DIM],
+        const uint16_t st[DIM]
         ) {
     static_assert(DIM <= 6, "Access pattern dimension should less than 6!\n");
-    uint8_t idx[DIM];
-    for (int i = 0; i < DIM; i ++) {
+    uint16_t idx[DIM];
+    for (uint8_t i = 0; i < DIM; i ++) {
 #pragma HLS UNROLL
         idx[i] = 0;
     }
 
-    for (int  i = 0; i < num_iter; i ++) {
+    for (uint32_t i = 0; i < num_iter; i ++) {
 #pragma HLS pipeline II=1
         uint32_t addr = 0;
-        for (int dimension = 0; dimension < DIM; dimension ++) {
+        for (uint8_t dimension = 0; dimension < DIM; dimension ++) {
             addr += idx[dimension] * st[dimension];
         }
         addr_stream.write(addr);
 
-        for (int dimension  = 0; dimension < DIM; dimension ++) {
+        for (uint8_t dimension  = 0; dimension < DIM; dimension ++) {
             idx[dimension] ++;
             if (idx[dimension] ==  rng[dimension])
                 idx[dimension] = 0;
