@@ -31,7 +31,7 @@ void top(
         int write_size,
         int read_size
         ){
-#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
+#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 2048
 #pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 28224
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control

@@ -275,7 +275,7 @@ void Doublebuffer_feature<T, BUFFER_EXTENT,
             hls::stream<PackedStencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>> & read_bank,
             const uint32_t load_bound,
             const uint32_t feed_bound){
-#pragma HLS inline
+#pragma HLS inline off
 	if (flag) {
 		this->feedStream(_db_1, read_addr, read_bank, out_stream, feed_bound);
 		this->loadFromDRAM(_feature_stream, write_addr, write_bank, _db_0, load_bound);
@@ -349,7 +349,7 @@ void Doublebuffer_feature<T, BUFFER_EXTENT,
         const uint32_t feed_bound){
 #pragma HLS inline off
 feed_stream_feature: for (int itr = 0; itr < feed_bound; itr ++) {
-#pragma PIPELINE II=1
+#pragma HLS PIPELINE II=1
         uint32_t buffAddr = read_addr.read();
         Stencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3> bank_id_stencil = read_bank.read();
         Stencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
