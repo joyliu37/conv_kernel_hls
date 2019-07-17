@@ -2,7 +2,7 @@
 #define DOUBLEBUFFER_H
 
 #include "util.h"
-
+/*
 template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t S_EXTENT_0, size_t L_EXTENT_0, size_t BUFFER_EXTENT, typename T>
 class Doublebuffer_feature {
@@ -44,12 +44,68 @@ public:
 	void call_start(hls::stream<PackedStencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
             const uint8_t bound_0, const uint8_t bound_1, const uint8_t bound_2,
             const uint8_t stride_0, const uint8_t stride_1, const uint8_t stride_2);
+};*/
+
+/*
+ The unified double buffer library with different input/output port, use double buffer
+ to support different rate
+
+ */
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
+    size_t IN_MUL_0 = 1, size_t IN_MUL_1 = 1, size_t IN_MUL_2 = 1, size_t IN_MUL_3 = 1,
+    size_t OUT_MUL_0 = 1, size_t OUT_MUL_1 = 1, size_t OUT_MUL_2 = 1, size_t OUT_MUL_3 = 1>
+class Doublebuffer_feature {
+private:
+    const static size_t OUT_BANK_EXTENT = OUT_MUL_0 * OUT_MUL_1 * OUT_MUL_2 * OUT_MUL_3;
+    const static size_t IN_BANK_EXTENT =  IN_MUL_0 * IN_MUL_1 * IN_MUL_2 * IN_MUL_3;
+    const static size_t BANK_EXTENT = OUT_BANK_EXTENT * IN_BANK_EXTENT;
+	PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_0[BANK_EXTENT][BUFFER_EXTENT];
+	PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_1[BANK_EXTENT][BUFFER_EXTENT];
+    //partiotion the double buffer to handle the difference between in/out rate
+
+	bool flag;
+	int cnt;
+    int loop_cnt;
+public:
+	Doublebuffer_feature(const int loop_cnt_) {
+#pragma HLS ARRAY_PARTITION variable=_db_0 block factor=BANK_EXTENT dim=1
+#pragma HLS ARRAY_PARTITION variable=_db_1 block factor=BANK_EXTENT dim=1
+		flag = false;
+		cnt = 0;
+        loop_cnt = loop_cnt_;
+	}
+
+	void loadFromDRAM(
+			hls::stream<PackedStencil<T, IN_MUL_0*EXTENT_0, IN_MUL_1*EXTENT_1,
+            IN_MUL_2*EXTENT_2, IN_MUL_3*EXTENT_3>> &_feature_stream,
+            hls::stream<uint32_t> & write_addr,
+            hls::stream<PackedStencil<uint32_t, IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3>> & write_bank,
+			PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> (*_feature_buf)[BUFFER_EXTENT],
+            const uint32_t load_bound);
+
+    void feedStream(
+            PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> (*_feature_buf)[BUFFER_EXTENT],
+            hls::stream<uint32_t>& read_addr,
+            hls::stream<PackedStencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>> & read_bank,
+			hls::stream<PackedStencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
+            OUT_MUL_2*EXTENT_2, OUT_MUL_3*EXTENT_3>> & out_stream,
+            const uint32_t feed_bound);
+
+	void call(
+			hls::stream<PackedStencil<T, IN_MUL_0*EXTENT_0, IN_MUL_1*EXTENT_1,
+            IN_MUL_2*EXTENT_2, IN_MUL_3*EXTENT_3>> &_feature_stream,
+			hls::stream<PackedStencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
+            OUT_MUL_2*EXTENT_2, OUT_MUL_3*EXTENT_3>> & out_stream,
+            hls::stream<uint32_t>& write_addr,
+            hls::stream<uint32_t>& read_addr,
+            hls::stream<PackedStencil<uint32_t, IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3>> & write_bank,
+            hls::stream<PackedStencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>> & read_bank,
+            const uint32_t load_bound,
+            const uint32_t feed_bound);
 };
 
-
-template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t BUFFER_EXTENT, typename T>
-class Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFFER_EXTENT, T> {
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+class Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> {
 private:
 	PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_0[BUFFER_EXTENT];
 	PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _db_1[BUFFER_EXTENT];
@@ -199,72 +255,128 @@ public:
 			const uint8_t, const uint8_t, const uint8_t);
 };
 
-template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t S_EXTENT_0, size_t L_EXTENT_0, size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, S_EXTENT_0, L_EXTENT_0, BUFFER_EXTENT, T>::call(
-		hls::stream<PackedStencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
-		hls::stream<PackedStencil<T, L_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
-        hls::stream<uint32_t>& bram_addr,
-		const uint32_t feed_bound,
-        const uint8_t bound_0, const uint8_t bound_1, const uint8_t bound_2,
-        const uint8_t stride_0, const uint8_t stride_1, const uint8_t stride_2) {
+
+
+
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
+    size_t IN_MUL_0 , size_t IN_MUL_1, size_t IN_MUL_2, size_t IN_MUL_3,
+    size_t OUT_MUL_0 , size_t OUT_MUL_1, size_t OUT_MUL_2, size_t OUT_MUL_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT,
+     EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3,
+     IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3,
+     OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>::call(
+			hls::stream<PackedStencil<T, IN_MUL_0*EXTENT_0, IN_MUL_1*EXTENT_1,
+            IN_MUL_2*EXTENT_2, IN_MUL_3*EXTENT_3>> &_feature_stream,
+			hls::stream<PackedStencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
+            OUT_MUL_2*EXTENT_2, OUT_MUL_3*EXTENT_3>> & out_stream,
+            hls::stream<uint32_t>& write_addr,
+            hls::stream<uint32_t>& read_addr,
+            hls::stream<PackedStencil<uint32_t, IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3>> & write_bank,
+            hls::stream<PackedStencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>> & read_bank,
+            const uint32_t load_bound,
+            const uint32_t feed_bound){
 #pragma HLS inline
 	if (flag) {
-		this->feedStream(_db_1, bram_addr, out_stream, feed_bound);
-		this->loadFromDRAM(in, _db_0, bound_0, bound_1, bound_2, stride_0, stride_1, stride_2);
+		this->feedStream(_db_1, read_addr, read_bank, out_stream, feed_bound);
+		this->loadFromDRAM(_feature_stream, write_addr, write_bank, _db_0, load_bound);
 	} else {
-		this->feedStream(_db_0, bram_addr, out_stream, feed_bound);
-		this->loadFromDRAM(in, _db_1, bound_0, bound_1, bound_2, stride_0, stride_1, stride_2);
+        if (cnt == 0) {
+            this->loadFromDRAM(_feature_stream, write_addr, write_bank,_db_0, load_bound);
+            cnt += 1;
+        }
+		this->feedStream(_db_0, read_addr, read_bank, out_stream, feed_bound);
+		this->loadFromDRAM(_feature_stream, write_addr, write_bank, _db_1, load_bound);
 	}
 	cnt += 1;
 	flag = 1 - flag;
 }
 
-template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t S_EXTENT_0, size_t L_EXTENT_0, size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, S_EXTENT_0, L_EXTENT_0, BUFFER_EXTENT, T>::call_start(
-		hls::stream<PackedStencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
-        const uint8_t bound_0, const uint8_t bound_1, const uint8_t bound_2,
-        const uint8_t stride_0, const uint8_t stride_1, const uint8_t stride_2) {
-#pragma HLS inline
-	this->loadFromDRAM(in, _db_0, bound_0, bound_1, bound_2, stride_0, stride_1, stride_2);
-	cnt += 1;
-}
-
-template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t S_EXTENT_0, size_t L_EXTENT_0, size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, S_EXTENT_0, L_EXTENT_0, BUFFER_EXTENT, T>::loadFromDRAM(
-		hls::stream<PackedStencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &_feature_stream,
-		PackedStencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
-        const uint8_t bound_0, const uint8_t bound_1, const uint8_t bound_2,
-        const uint8_t stride_0, const uint8_t stride_1, const uint8_t stride_2) {
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
+    size_t IN_MUL_0 , size_t IN_MUL_1, size_t IN_MUL_2, size_t IN_MUL_3,
+    size_t OUT_MUL_0 , size_t OUT_MUL_1, size_t OUT_MUL_2, size_t OUT_MUL_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT,
+     EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3,
+     IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3,
+     OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>::loadFromDRAM(
+             hls::stream<PackedStencil<T, IN_MUL_0*EXTENT_0, IN_MUL_1*EXTENT_1,
+            IN_MUL_2*EXTENT_2, IN_MUL_3*EXTENT_3>> &_feature_stream,
+            hls::stream<uint32_t> & write_addr,
+            hls::stream<PackedStencil<uint32_t, IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3>> & write_bank,
+			PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> (*_feature_buf)[BUFFER_EXTENT],
+            const uint32_t load_bound) {
 #pragma HLS inline off
 	if (this->cnt == loop_cnt)
 		return;
 
-    uint8_t input_0 = 0, input_1 = 0, input_2 = 0;
-load_feature: for(int itr = 0; itr < bound_0 * bound_1 * bound_2; itr ++){
+load_feature: for(size_t itr = 0; itr < load_bound; itr ++){
 #pragma HLS PIPELINE II=1
 
-        //uint32_t buffAddr = input_x + input_c * bound_x + input_y * bound_ch * bound_x;
-		uint32_t buffAddr = input_0 * stride_0 +\
-                           input_1 * stride_1 +\
-                           input_2 * stride_2 ;
-		Stencil<T, S_EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> data = _feature_stream.read();
-		_feature_buf[buffAddr] = data;
+		uint32_t buffAddr = write_addr.read();
+        Stencil<uint32_t, IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3> bank_id_stencil = write_bank.read();
+		Stencil<T, IN_MUL_0*EXTENT_0, IN_MUL_1*EXTENT_1,
+            IN_MUL_2*EXTENT_2, IN_MUL_3*EXTENT_3> data = _feature_stream.read();
 
-        input_0 ++;
-        if(input_0 == bound_0){
-            input_0 = 0;
-            input_1 ++;
-            if(input_1 == bound_1){
-                input_1 = 0;
-                input_2 ++;
-            }
+        for (size_t bank_idx3 = 0; bank_idx3 < IN_MUL_3; bank_idx3 ++ )
+        for (size_t bank_idx2 = 0; bank_idx2 < IN_MUL_2; bank_idx2 ++ )
+        for (size_t bank_idx1 = 0; bank_idx1 < IN_MUL_1; bank_idx1 ++ )
+        for (size_t bank_idx0 = 0; bank_idx0 < IN_MUL_0; bank_idx0 ++ )
+        for(size_t idx3 = 0; idx3 < EXTENT_3; idx3 ++)
+        for(size_t idx2 = 0; idx2 < EXTENT_2; idx2 ++)
+        for(size_t idx1 = 0; idx1 < EXTENT_1; idx1 ++)
+        for(size_t idx0 = 0; idx0 < EXTENT_0; idx0 ++){
+            uint32_t bank_id = bank_id_stencil(bank_idx0, bank_idx1, bank_idx2, bank_idx3);
+            _feature_buf[bank_id][buffAddr](idx0, idx1, idx2, idx3) = data(
+                    idx0  + bank_idx0 *EXTENT_0,
+                    idx1  + bank_idx1 *EXTENT_1,
+                    idx2  + bank_idx2 *EXTENT_2,
+                    idx3  + bank_idx3 *EXTENT_3);
         }
     }
 }
 
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
+    size_t IN_MUL_0 , size_t IN_MUL_1, size_t IN_MUL_2, size_t IN_MUL_3,
+    size_t OUT_MUL_0 , size_t OUT_MUL_1, size_t OUT_MUL_2, size_t OUT_MUL_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT,
+     EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3,
+     IN_MUL_0, IN_MUL_1, IN_MUL_2, IN_MUL_3,
+     OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>::feedStream(
+        PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> (*_feature_buf)[BUFFER_EXTENT],
+        hls::stream<uint32_t>& read_addr,
+        hls::stream<PackedStencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3>> & read_bank,
+        hls::stream<PackedStencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
+        OUT_MUL_2*EXTENT_2, OUT_MUL_3*EXTENT_3>> & out_stream,
+        const uint32_t feed_bound){
+#pragma HLS inline off
+feed_stream_feature: for (int itr = 0; itr < feed_bound; itr ++) {
+#pragma PIPELINE II=1
+        uint32_t buffAddr = read_addr.read();
+        Stencil<uint32_t, OUT_MUL_0, OUT_MUL_1, OUT_MUL_2, OUT_MUL_3> bank_id_stencil = read_bank.read();
+        Stencil<T, OUT_MUL_0*EXTENT_0, OUT_MUL_1*EXTENT_1,
+            OUT_MUL_2*EXTENT_2, OUT_MUL_3*EXTENT_3> data_out;
+
+        for (size_t bank_idx3 = 0; bank_idx3 < OUT_MUL_3; bank_idx3 ++ )
+        for (size_t bank_idx2 = 0; bank_idx2 < OUT_MUL_2; bank_idx2 ++ )
+        for (size_t bank_idx1 = 0; bank_idx1 < OUT_MUL_1; bank_idx1 ++ )
+        for (size_t bank_idx0 = 0; bank_idx0 < OUT_MUL_0; bank_idx0 ++ )
+        for(size_t idx3 = 0; idx3 < EXTENT_3; idx3 ++)
+        for(size_t idx2 = 0; idx2 < EXTENT_2; idx2 ++)
+        for(size_t idx1 = 0; idx1 < EXTENT_1; idx1 ++)
+        for(size_t idx0 = 0; idx0 < EXTENT_0; idx0 ++){
+            uint32_t bank_id = bank_id_stencil(bank_idx0, bank_idx1, bank_idx2, bank_idx3);
+            data_out(
+                    idx0 + bank_idx0 * EXTENT_0,
+                    idx1 + bank_idx1 * EXTENT_1,
+                    idx2 + bank_idx2 * EXTENT_2,
+                    idx3 + bank_idx3 * EXTENT_3
+                    ) =
+                _feature_buf[bank_id][buffAddr](idx0, idx1, idx2, idx3);
+        }
+
+        out_stream.write(data_out);
+    }
+}
+/*
 template<size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t S_EXTENT_0, size_t L_EXTENT_0, size_t BUFFER_EXTENT, typename T>
 void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, S_EXTENT_0, L_EXTENT_0, BUFFER_EXTENT, T>::feedStream(
@@ -296,12 +408,11 @@ feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 
 	}
 }
-
+*/
 //original double buffer function definition with same I/O rate
 
-template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFFER_EXTENT, T>::call(
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::call(
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
         hls::stream<uint32_t>& write_addr,
@@ -380,9 +491,8 @@ void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFF
 */
 
 
-template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFFER_EXTENT, T>::loadFromDRAM(
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::loadFromDRAM(
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &_feature_stream,
         hls::stream<uint32_t> & addr_stream,
 		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
@@ -500,9 +610,8 @@ load_feature: for (int input_y = 0; input_y < bound_y;input_y++) {
 	}
 }
 */
-template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
-    size_t BUFFER_EXTENT, typename T>
-void Doublebuffer_feature<EXTENT_1, EXTENT_2, EXTENT_3, EXTENT_0, EXTENT_0, BUFFER_EXTENT, T>::feedStream(
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::feedStream(
         PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
         hls::stream<uint32_t>& bram_addr,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,

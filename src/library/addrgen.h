@@ -33,12 +33,13 @@ void shuffleAddrGen(hls::stream<uint32_t> & addr, const uint32_t num_iter,
     }
 }
 
-template<int DIM>
+template<size_t DIM>
 void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
         const uint16_t rng[DIM],
         const uint16_t st[DIM]
         ) {
-    static_assert(DIM <= 6, "Access pattern dimension should less than 6!\n");
+    //The generator did not responsible for valid check itself
+    static_assert(DIM <= 6, "Access pattern dimension should less equal than 6!\n");
     uint16_t idx[DIM];
     for (uint8_t i = 0; i < DIM; i ++) {
 #pragma HLS UNROLL
@@ -62,6 +63,52 @@ void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
         }
     }
 }
+
+template<typename T, size_t DIM,
+    size_t BANK_EXTENT_0, size_t BANK_EXTENT_1, size_t BANK_EXTENT_2, size_t BANK_EXTENT_3>
+void BankIDGenTemp(
+        hls::stream<PackedStencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3>> & bank_stream,
+        const Stencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3> start_bank,
+        const uint32_t num_iter,
+        const uint16_t rng[DIM],
+        const uint16_t st[DIM]) {
+    //The generator did not responsible for valid check itself
+    static_assert(DIM <= 6, "BANK ID pattern dimension should less equal than 6!\n");
+    uint16_t idx[DIM];
+    //Stencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3> start_bank_stencil = start_bank;
+    for (uint8_t i = 0; i < DIM; i ++){
+#pragma HLS unroll
+        idx[i] = 0;
+    }
+
+    for (uint32_t i = 0; i < num_iter; i ++) {
+#pragma HLS pipeline II=1
+        T offset = 0;
+        Stencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3> out_bank_id;
+        for (uint8_t dimension = 0; dimension < DIM; dimension ++) {
+            offset += idx[dimension] * st[dimension];
+        }
+
+        for(size_t idx_3 = 0; idx_3 < BANK_EXTENT_3; idx_3++)
+        for(size_t idx_2 = 0; idx_2 < BANK_EXTENT_2; idx_2++)
+        for(size_t idx_1 = 0; idx_1 < BANK_EXTENT_1; idx_1++)
+        for(size_t idx_0 = 0; idx_0 < BANK_EXTENT_0; idx_0++) {
+            out_bank_id(idx_0, idx_1, idx_2, idx_3) =
+                offset + start_bank(idx_0, idx_1, idx_2, idx_3);
+        }
+
+        bank_stream.write((PackedStencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3>) (out_bank_id));
+
+        for (uint8_t dimension  = 0; dimension < DIM; dimension ++) {
+            idx[dimension] ++;
+            if (idx[dimension] ==  rng[dimension])
+                idx[dimension] = 0;
+            else
+                break;
+        }
+    }
+}
+
 
 void FeatureAddrGen1D(hls::stream<uint32_t> & addr, const uint32_t num_iter,
         const uint8_t ext_x, const uint8_t stride,

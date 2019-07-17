@@ -1,5 +1,5 @@
 hls_cnn_db
-test*
+test_*
 *.log
 *.app
 *.jou
