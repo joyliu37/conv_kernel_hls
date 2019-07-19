@@ -293,7 +293,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
-static void FeatureAddrGenLib(hls::stream<uint32_t> &out, layerPara para){
+static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
 
@@ -336,6 +336,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
+
 static void FeatureAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
@@ -369,8 +370,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
-
 }
+
+
 static void WeightAddrGen(hls::stream<uint32_t> &out_id,
         hls::stream<uint32_t> &out_addr, layerPara para){
 
@@ -946,9 +948,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 */
 static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded_feature,
-        hls::stream<uint32_t> &write_addr,
-        hls::stream<uint32_t> &read_addr,
-		Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> &feature,
+        hls::stream<uint32_t> &load_addr,
+        hls::stream<uint32_t> &bram_addr,
+		Doublebuffer_feature<dtype, IFM_BUFF_SIZE,  P_CIN, 1, 1, 1> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
 
@@ -970,7 +972,6 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
-
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -978,7 +979,6 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 //#pragma HLS DEPENDENCE variable=feature intra false
 
 		feature.call(padded_feature, feature_stream, load_addr, bram_addr, load_bound, feed_bound);
-        feature.call(inStream, outStream, )
         //debug
         //std::cout <<"input iter no." << iter.tilingIDc_i <<std::endl;
     }//for tiling Input channel

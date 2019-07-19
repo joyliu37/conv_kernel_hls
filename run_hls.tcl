@@ -22,7 +22,7 @@ puts "Halide include dir: $halide_include"
 set hls_support "$::env(HALIDE_HLS_ROOT)/apps/hls_examples/hls_support"
 puts "HLS support dir: $hls_support"
 
-open_project -reset hls_cnn_db
+open_project -reset hls_cnn_db_${app}
 #open_project hls_cnn_db
 set_top hls_target
 #add_files $srcdir/library/doublebuffer.h -cflags "-std=c++0x -I$halide_include -I$hls_support"
@@ -36,7 +36,7 @@ add_files $hwdir/hls_target.cpp -cflags "-std=c++0x -I$libdir -I$halide_include 
 #add_files $srcdir/hw/mobilenet/hls_target.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 #add_files $srcdir/host/conv_test.h -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
 add_files -tb $hwdir/hls_test.cpp -cflags "-std=c++0x -I$hwdir -I$hostdir -I$libdir -I$halide_include -I$hls_support"
-open_solution "test_merge"
+open_solution "test_unified"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
 #source "./hls_cnn_db/solution_conf1/directives.tcl"

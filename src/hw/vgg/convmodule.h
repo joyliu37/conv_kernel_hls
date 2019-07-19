@@ -25,7 +25,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
 #pragma HLS STREAM variable=ld depth=1
 #pragma HLS STREAM variable=st depth=1
 
-    FeatureAddrGenLib(feature_feed_addr, para);
+    FeatureAddrReadLib(feature_feed_addr, para);
     FeatureAddrLoadLib(feature_load_addr, para);
     WeightAddrGen(weight_id, weight_addr, para);
     OutputAddrGen(output_addr, ld, st, para);
@@ -48,7 +48,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
 
     //define the BRAM
     //Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
-    Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
+    Doublebuffer_feature<dtype, IFM_BUFF_SIZE, P_CIN, 1, 1, 1> feature(para.loop_cnt);
     Doublebuffer_weight<P_CIN, P_COUT, 1, 1, W_BUFF_SIZE, W_BUFF_BANK, dtype> weight(para.loop_cnt);
     Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum(para.Cin_n);
 
