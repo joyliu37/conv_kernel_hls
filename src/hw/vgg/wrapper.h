@@ -293,6 +293,41 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
+
+static void WeightAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
+
+	struct tilingID iter;
+
+    const uint8_t ext_x = para.oX_SZ;
+    const uint8_t ext_y = para.oY_SZ;
+    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+
+    const uint16_t rng[3] = {(uint16_t)(para.Cin_Iter*para.Ksz*para.Ksz*para.Cout_Iter), ext_x, ext_y};
+    const uint16_t st[3] = {1, 0, 0};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
+        //TODO: add another input config for the conv stride
+        AddrGenTemp<5>(out, num_iter, rng, st);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+}
+
 static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
@@ -336,6 +371,37 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
+
+static void WeightAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
+
+	struct tilingID iter;
+    const uint32_t num_iter = para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+
+    const uint16_t rng[3] = {(uint16_t)(para.Ksz * para.Ksz), para.Cin_Iter, para.Cout_Iter};
+    const uint16_t st[3] = {para.Cin_Iter, 1, (uint16_t)(para.Cin_Iter*para.Ksz*para.Ksz)};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
+	{
+#pragma HLS LOOP_TRIPCOUNT max=2
+        //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
+        //TODO: add another input config for the conv stride
+        AddrGenTemp<3>(out, num_iter, rng, st);
+
+    }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+}
 
 static void FeatureAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
 
@@ -1034,16 +1100,17 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 static void read_weight(
         hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weightMemStream,
-        hls::stream<uint32_t> & weight_id,
-        hls::stream<uint32_t> & weight_addr,
-		Doublebuffer_weight<P_CIN, P_COUT,1 ,1, W_BUFF_SIZE, W_BUFF_BANK, dtype> &weight,
+        hls::stream<uint32_t> & write_addr,
+        hls::stream<uint32_t> & read_addr,
+		Doublebuffer_feature<dtype, W_BUFF_SIZE*W_BUFF_BANK, P_CIN, P_COUT, 1 ,1> &weight,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		layerPara para){
 
 	struct tilingID iter;
 
     const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-	weight.call_start(weightMemStream, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
+    const uint32_t load_bound = para.Cout_Iter * para.Cin_Iter * para.Ksz * para.Ksz;
+	//weight.call_start(weightMemStream, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -1060,7 +1127,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 //#pragma HLS DEPENDENCE variable=weight inter false
 //#pragma HLS DEPENDENCE variable=weight intra false
-		weight.call(weightMemStream, weight_stream, weight_id, weight_addr, feed_bound, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
+		weight.call(weightMemStream, weight_stream, write_addr, read_addr, load_bound, feed_bound);
 
     }//for tiling Input channel
    } // for _output_s0_c_co

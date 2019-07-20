@@ -147,8 +147,8 @@ public:
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
         hls::stream<uint32_t>& write_addr,
         hls::stream<uint32_t>& bram_addr,
-		const uint32_t feed_bound,
-        const uint32_t load_bound);
+		const uint32_t load_bound,
+        const uint32_t feed_bound);
     /*
 	void call(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
 			hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,
