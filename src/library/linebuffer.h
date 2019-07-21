@@ -77,8 +77,11 @@ static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT
     PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT_3> in_stencil;
     PackedStencil<T, EXTENT_1, OUT_EXTENT_0, EXTENT_2, EXTENT_3> out_stencil;
 
- LB1D_shiftreg:for (size_t i = 0; i < img_ext; i += IN_EXTENT_0*Stride)
-                   for (size_t st = 0; st < Stride; st++){
+    //flatten st with iterator
+    size_t st = 0;
+
+ LB1D_shiftreg:for (size_t i = 0; i < img_ext * Stride; i += IN_EXTENT_0*Stride){
+                   //for (size_t st = 0; st < Stride; st++){
 #pragma HLS DEPENDENCE array inter false
 #pragma HLS LOOP_FLATTEN off
 #pragma HLS PIPELINE II=1
@@ -92,7 +95,7 @@ static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT
         in_stencil = in_stream.read();
         buffer[BUFFER_EXTENT - 1] = in_stencil;
         if (st == 0){
-        if (i >= OUT_EXTENT_0 - IN_EXTENT_0) {
+        if (i >= (OUT_EXTENT_0 - IN_EXTENT_0) * Stride) {
             // convert buffer to out_stencil, doing bit shuffling essentially
             for (size_t idx_3 = 0; idx_3 < EXTENT_3; idx_3++)
             for (size_t idx_2 = 0; idx_2 < EXTENT_2; idx_2++)
@@ -105,6 +108,9 @@ static void call(stream<PackedStencil<T, EXTENT_1, IN_EXTENT_0, EXTENT_2, EXTENT
             out_stream.write(out_stencil);
         }
         }
+        st ++;
+        if (st == Stride)
+            st = 0;
     }
     }
 };
