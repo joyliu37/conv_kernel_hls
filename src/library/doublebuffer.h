@@ -126,6 +126,11 @@ public:
             hls::stream<uint32_t> & write_addr,
 			PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
             const uint32_t write_iter); //TODO come up with all the parameter needed by load
+    void loadFromVal(
+        T default_val,
+        hls::stream<uint32_t> & addr_stream,
+        PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
+        const uint32_t write_iter);
     /*
 	void loadFromDRAM(
 			hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &_feature_stream,
@@ -143,12 +148,42 @@ public:
 			hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,
             const uint32_t bound);
 
+
+    void receive_stream(
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & in_stream,
+        hls::stream<uint32_t> & bram_addr,
+		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _psum_buf,
+        const uint32_t bound);
+
     void call(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
         hls::stream<uint32_t>& write_addr,
         hls::stream<uint32_t>& bram_addr,
 		const uint32_t load_bound,
         const uint32_t feed_bound);
+
+
+    void call(
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &kernel_stream,
+        hls::stream<uint32_t>& write_addr,
+        hls::stream<uint32_t>& read_addr,
+        hls::stream<uint32_t>& update_addr,
+        const uint32_t load_bound,
+		const uint32_t feed_bound,
+		const uint32_t update_bound);
+
+    void call(
+        T default_val,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &kernel_stream,
+        hls::stream<uint32_t>& write_addr,
+        hls::stream<uint32_t>& read_addr,
+        hls::stream<uint32_t>& update_addr,
+        const uint32_t load_bound,
+		const uint32_t feed_bound,
+		const uint32_t update_bound);
     /*
 	void call(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
 			hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,
@@ -192,6 +227,7 @@ public:
             hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &_weight_stream,
             PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>  (*_weight_buf)[BUFFER_EXTENT_0],
 			const uint8_t, const uint8_t, const uint8_t, const uint8_t); //TODO add parameter
+
 	void feedStream(
             PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> (*_weight_buf)[BUFFER_EXTENT_0],
             hls::stream<uint32_t> & bram_id,
@@ -410,7 +446,6 @@ feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 }
 */
 //original double buffer function definition with same I/O rate
-
 template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
 void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::call(
 		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
@@ -508,6 +543,31 @@ void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT
 
 		}
 	}
+
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::loadFromVal(
+		T default_val,
+        hls::stream<uint32_t> & addr_stream,
+		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _feature_buf,
+        const uint32_t write_iter) {
+#pragma HLS inline off
+	if (this->cnt == loop_cnt)
+		return;
+    for (int i = 0; i < write_iter; i ++){
+#pragma HLS PIPELINE II=1
+        uint32_t buffAddr = addr_stream.read();
+        Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> temp;
+
+        for(size_t idx3 = 0; idx3 < EXTENT_3; idx3++)
+        for(size_t idx2 = 0; idx2 < EXTENT_2; idx2++)
+        for(size_t idx1 = 0; idx1 < EXTENT_1; idx1++)
+        for(size_t idx0 = 0; idx0 < EXTENT_0; idx0++){
+                temp(idx0, idx1, idx2, idx3) = default_val;
+        }
+        _feature_buf[buffAddr] = temp;
+    }
+}
+
 /*
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT, typename T>
@@ -630,6 +690,127 @@ feed_stream_feature: for (int iter = 0; iter < bound; iter++) {
 
 	}
 }
+
+
+//update double buffer function definition with same I/O rate
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::call(
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &kernel_stream,
+        hls::stream<uint32_t>& write_addr,
+        hls::stream<uint32_t>& read_addr,
+        hls::stream<uint32_t>& update_addr,
+        const uint32_t load_bound,
+		const uint32_t feed_bound,
+		const uint32_t update_bound
+        ) {
+#pragma HLS inline off
+
+	if (flag) {
+        this->receive_stream(kernel_stream, update_addr, _db_1, update_bound);
+		this->loadFromDRAM(in_stream, write_addr, _db_0, load_bound);
+		this->feedStream(_db_1, read_addr, out_stream, feed_bound);
+	} else {
+        if (cnt == 0){
+            this->loadFromDRAM(in_stream, write_addr, _db_0, load_bound);
+            cnt += 1;
+        }
+		this->receive_stream(kernel_stream, update_addr, _db_0, update_bound);
+		this->loadFromDRAM(in_stream, write_addr, _db_1, load_bound);
+		this->feedStream(_db_0, read_addr, out_stream, feed_bound);
+	}
+	cnt += 1;
+	flag = 1 - flag;
+}
+
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::call(
+        const T default_val,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &kernel_stream,
+        hls::stream<uint32_t>& write_addr,
+        hls::stream<uint32_t>& read_addr,
+        hls::stream<uint32_t>& update_addr,
+        const uint32_t load_bound,
+		const uint32_t feed_bound,
+		const uint32_t update_bound
+        ) {
+#pragma HLS inline off
+
+	if (flag) {
+        this->receive_stream(kernel_stream, update_addr, _db_1, update_bound);
+		this->loadFromVal(default_val, write_addr, _db_0, load_bound);
+		this->feedStream(_db_1, read_addr, out_stream, feed_bound);
+	} else {
+        if (cnt == 0){
+            this->loadFromVal(default_val, write_addr, _db_0, load_bound);
+            cnt += 1;
+        }
+		this->receive_stream(kernel_stream, update_addr, _db_0, update_bound);
+		this->loadFromVal(default_val, write_addr, _db_1, load_bound);
+		this->feedStream(_db_0, read_addr, out_stream, feed_bound);
+	}
+	cnt += 1;
+	flag = 1 - flag;
+}
+
+/**********************************
+ * data need to transfer:
+ * 1. addr
+ * 2. init the buff
+ * 3. write back data
+***********************************/
+template<typename T, size_t BUFFER_EXTENT, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3>
+void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>::receive_stream(
+		hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & in_stream,
+        hls::stream<uint32_t> & bram_addr,
+		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _psum_buf,
+        const uint32_t bound) {
+#pragma HLS inline off
+
+	Stencil<T, EXTENT_0, EXTENT_1 ,EXTENT_2, EXTENT_3> data_reg;
+    uint32_t addr_reg;
+    /*move initialization into a separate function
+	for (size_t id3 = 0; id3 < EXTENT_3; id3++)
+	for (size_t id2 = 0; id2 < EXTENT_2; id2++)
+	for (size_t id1 = 0; id1 < EXTENT_1; id1++)
+    for (size_t id0 = 0; id0 < EXTENT_0; id0++){
+#pragma HLS UNROLL
+		reg(id0, id1, id2, id3) = 0;
+	}*/
+
+
+receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT max=36864
+#pragma HLS DEPENDENCE variable=_psum_buf inter false
+#pragma HLS DEPENDENCE variable=_psum_buf intra false
+    const uint32_t outBuffAddr = bram_addr.read();
+    bool update = (outBuffAddr != addr_reg);
+    if (update){
+        if(itr != 0)
+            _psum_buf[addr_reg] = data_reg;
+        data_reg = _psum_buf[outBuffAddr];
+    }
+    addr_reg = outBuffAddr;
+   	Stencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3> _temp = in_stream.read();
+
+    //Further virtualize the reduction  operator, not only +
+    for (size_t id3 = 0; id3 < EXTENT_3; id3++)
+    for (size_t id2 = 0; id2 < EXTENT_2; id2++)
+    for (size_t id1 = 0; id1 < EXTENT_1; id1++)
+    for (size_t id0 = 0; id0 < EXTENT_0; id0++){
+#pragma HLS UNROLL
+        data_reg(id0, id1, id2, id3) += _temp(id0, id1, id2, id3);
+    }
+    }
+
+    _psum_buf[addr_reg] = data_reg;
+
+}
+
+
 
 template<size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
     size_t BUFFER_EXTENT_0, size_t BUFFER_EXTENT_1, typename T>

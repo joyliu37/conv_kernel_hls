@@ -1,0 +1,89 @@
+#include "top.h"
+#include "addrgen.h"
+#include "doublebuffer.h"
+#include "acc.h"
+
+static void read_input(PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *in,
+        hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &inStream,
+        int size) {
+mem_rd: for (int i = 0; i < size; i ++) {
+#pragma HLS PIPELINE II=1
+            inStream.write(in[i]);
+        }
+}
+
+static void write_result(PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *out,
+        hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &outStream,
+        int size) {
+mem_wr: for (int i = 0; i < size; i ++) {
+#pragma HLS PIPELINE II=1
+            out[i] = outStream.read();
+        }
+}
+
+/*
+ * unit test for feature buffer
+ * read a stream of data put into double buffer
+ * and read out with pattern
+ */
+void top(
+        PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_in,
+        PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_out,
+        int write_size,
+        int read_size,
+        int output_size
+        ){
+#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
+#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 28224
+#pragma HLS INTERFACE s_axilite port = data_in bundle = control
+#pragma HLS INTERFACE s_axilite port = data_out bundle = control
+#pragma HLS INTERFACE s_axilite port = read_size bundle = control
+#pragma HLS INTERFACE s_axilite port = write_size bundle = control
+#pragma HLS INTERFACE s_axilite port=return bundle=control
+    hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> inStream("input");
+    hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> outStream("output");
+    hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> kernelStream("kernel");
+#pragma HLS STREAM variable = inStream depth = 1
+#pragma HLS STREAM variable = outStream depth = 1
+#pragma HLS STREAM variable = kernelStream depth = 1
+    hls::stream<uint32_t> addr_read("addr_out");
+    hls::stream<uint32_t> addr_write("addr_in");
+    hls::stream<uint32_t> addr_update("addr_up");
+    hls::stream<uint32_t> addr_psum_read("addr_p_read");
+    hls::stream<uint32_t> addr_psum_write("addr_p_write");
+#pragma HLS STREAM variable = addr_read depth = 1
+#pragma HLS STREAM variable = addr_write depth = 1
+#pragma HLS STREAM variable = addr_update depth = 1
+#pragma HLS STREAM variable = addr_psum_read depth = 1
+#pragma HLS STREAM variable = addr_psum_writee depth = 1
+
+    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> feature_buf(4);
+    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> psum_buffer(2);
+    uint16_t rng_read[6] = {4,3,3,4,14,14};
+    uint16_t st_read[6] = {1,4,4*16,0,4,4*16};
+    uint16_t rng_write[1] = {(uint16_t)write_size};
+    uint16_t st_write[1] = {1};
+    uint16_t rng_update[6] = {36,4,14,14};
+    uint16_t st_update[6] = {0,1,4,4*16};
+    uint16_t rng_output[1] = {(uint16_t)output_size};
+    uint16_t st_output[1] = {1};
+#pragma HLS dataflow
+    for (int i = 0; i < 4; i ++) {
+        read_input(data_in, inStream, write_size);
+        AddrGenTemp<6>(addr_read, read_size, rng_read, st_read);
+        AddrGenTemp<1>(addr_write, write_size, rng_write, st_write);
+        AddrGenTemp<4>(addr_update, read_size, rng_update, st_update);
+        feature_buf.call(inStream, kernelStream, addr_write, addr_read, write_size, read_size);
+    }
+    //feature_buf.call_start(inStream, 16, 16, 4);
+
+    for (int i = 0; i < 2; i ++) {
+        AddrGenTemp<1>(addr_psum_write, output_size, rng_output, st_output);
+        AddrGenTemp<1>(addr_psum_read, output_size, rng_output, st_output);
+    }
+
+    psum_wrapper(outStream, kernelStream, addr_psum_write, addr_psum_read, addr_update, output_size, read_size);
+
+    for (int i = 0; i < 2; i ++)
+        write_result(data_out, outStream, output_size);
+}
