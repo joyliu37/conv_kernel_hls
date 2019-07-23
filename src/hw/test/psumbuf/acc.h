@@ -11,8 +11,8 @@ void psum_wrapper(
         const uint32_t write_size,
         const uint32_t update_size
         ){
-    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> psum_buf(2);
-    for (int acc_blk = 0; acc_blk < 2; acc_blk ++) {
+    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> psum_buf(1);
+    for (int acc_blk = 0; acc_blk < 1; acc_blk ++) {
             psum_buf.call(0, out_stream, kernel_out,
                     addr_write, addr_read, addr_update,
                     write_size, write_size, update_size);

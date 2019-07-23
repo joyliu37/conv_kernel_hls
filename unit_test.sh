@@ -13,7 +13,8 @@ if [ -z "$HALIDE_HLS_ROOT"  ]; then
     exit 1
 fi
 
-vivado_hls=/nobackup/xuany/xilinx/Vivado_HLS/2016.4/bin/vivado_hls 
+#vivado_hls=/nobackup/xuany/xilinx/Vivado_HLS/2016.4/bin/vivado_hls 
+vivado_hls=/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/bin/vivado_hls
 
 if [ "$TEST_MODE" == "a" ]; then
     echo "Test all test case."

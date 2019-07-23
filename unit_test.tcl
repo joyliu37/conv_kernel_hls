@@ -31,6 +31,6 @@ set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
 #source "./hls_cnn_db/solution_conf1/directives.tcl"
 csim_design -clean -compiler clang
-csynth_design
-cosim_design -trace_level all
+#csynth_design
+#cosim_design -trace_level all
 export_design -rtl verilog -format ip_catalog

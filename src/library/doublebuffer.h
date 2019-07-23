@@ -780,7 +780,6 @@ void Doublebuffer_feature<T, BUFFER_EXTENT, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT
 		reg(id0, id1, id2, id3) = 0;
 	}*/
 
-
 receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS PIPELINE II=1
 #pragma HLS LOOP_TRIPCOUNT max=36864
@@ -788,9 +787,10 @@ receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
 #pragma HLS DEPENDENCE variable=_psum_buf intra false
     const uint32_t outBuffAddr = bram_addr.read();
     bool update = (outBuffAddr != addr_reg);
-    if (update){
-        if(itr != 0)
+    if (update || itr ==0){
+        if(itr != 0){
             _psum_buf[addr_reg] = data_reg;
+        }
         data_reg = _psum_buf[outBuffAddr];
     }
     addr_reg = outBuffAddr;
@@ -805,7 +805,6 @@ receive_stream_psum: for (int itr = 0; itr < bound; itr++) {
         data_reg(id0, id1, id2, id3) += _temp(id0, id1, id2, id3);
     }
     }
-
     _psum_buf[addr_reg] = data_reg;
 
 }
