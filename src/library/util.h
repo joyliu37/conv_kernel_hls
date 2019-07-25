@@ -2,7 +2,7 @@
 #define UTIL_H
 
 #define AP_INT_MAX_W 16384
-#include "/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/include/gmp.h"
+//#include "/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/include/gmp.h"
 #include "Stencil.h"
 
 #include <assert.h>

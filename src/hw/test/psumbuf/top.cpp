@@ -33,7 +33,7 @@ void top(
         int read_size,
         int output_size
         ){
-#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
+#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 4096
 #pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 28224
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control
@@ -55,9 +55,9 @@ void top(
 #pragma HLS STREAM variable = addr_write depth = 1
 #pragma HLS STREAM variable = addr_update depth = 1
 #pragma HLS STREAM variable = addr_psum_read depth = 1
-#pragma HLS STREAM variable = addr_psum_writee depth = 1
+#pragma HLS STREAM variable = addr_psum_write depth = 1
 
-    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> feature_buf(1);
+    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> feature_buf(2);
     uint16_t rng_read[6] = {4,3,3,4,14,14};
     uint16_t st_read[6] = {1,4,4*16,0,4,4*16};
     uint16_t rng_write[1] = {(uint16_t)write_size};
@@ -67,25 +67,34 @@ void top(
     uint16_t rng_output[1] = {(uint16_t)output_size};
     uint16_t st_output[1] = {1};
 #pragma HLS dataflow
-    for (int i = 0; i < 1; i ++) {
+    for (int i = 0; i < 4; i ++) {
         read_input(data_in, inStream, write_size);
+    }
+    for (int i = 0; i < 4; i ++) {
         AddrGenTemp<6>(addr_read, read_size, rng_read, st_read);
-        AddrGenTemp<1>(addr_write, write_size, rng_write, st_write);
-        AddrGenTemp<4>(addr_update, read_size, rng_update, st_update);
     }
 
-    for (int i = 0; i < 1; i ++) {
+    for (int i = 0; i < 4; i ++) {
+        AddrGenTemp<1>(addr_write, write_size, rng_write, st_write);
+    }
+     for (int i = 0; i < 4; i ++) {
+        AddrGenTemp<4>(addr_update, read_size, rng_update, st_update);
+    }
+    for (int i = 0; i < 4; i ++) {
         feature_buf.call(inStream, kernelStream, addr_write, addr_read, write_size, read_size);
     }
     //feature_buf.call_start(inStream, 16, 16, 4);
 
-    for (int i = 0; i < 1; i ++) {
+    for (int i = 0; i < 2; i ++) {
         AddrGenTemp<1>(addr_psum_write, output_size, rng_output, st_output);
+    }
+
+    for (int i = 0; i < 2; i ++) {
         AddrGenTemp<1>(addr_psum_read, output_size, rng_output, st_output);
     }
 
-    psum_wrapper(outStream, kernelStream, addr_psum_write, addr_psum_read, addr_update, output_size, read_size);
 
-    for (int i = 0; i < 1; i ++)
-        write_result(data_out, outStream, output_size);
+    psum_wrapper(outStream, kernelStream, addr_psum_write, addr_psum_read, addr_update, output_size, 2*read_size);
+
+    write_result(data_out, outStream, 2*output_size);
 }

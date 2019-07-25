@@ -9,15 +9,15 @@
 
 int main() {
     dtype RAM[RAM_SIZE];
-    dtype OUT[RAM_OUT_SIZE];
+    dtype OUT[2*RAM_OUT_SIZE];
     srand(1995);
     for (int i = 0; i < RAM_SIZE; i ++) {
-        //dtype seed = rand() % 64-32;
-        //RAM[i] = (dtype)(seed);
-        RAM[i] = 1;
+        dtype seed = rand() % 64-32;
+        RAM[i] = (dtype)(seed);
+        //RAM[i] = 1;
     }
 
-    for (int i = 0; i < RAM_OUT_SIZE; i ++) {
+    for (int i = 0; i < 2*RAM_OUT_SIZE; i ++) {
         OUT[i] = 0;
     }
 
@@ -32,6 +32,8 @@ int main() {
     //HLS kernel
     top(image, HLSout, RAM_SIZE/DATAWIDTH, READ_SIZE/DATAWIDTH, RAM_OUT_SIZE/DATAWIDTH);
                             std::cout<<"finished"<<std::endl;
+    for (int acc = 0; acc < 2; acc ++)
+    for (int itr = 0; itr < 2; itr ++)
     for (int y = 0; y < 14; y ++) {
         for (int x = 0; x < 14; x ++) {
             for (int cout = 0; cout < 4; cout ++) {
@@ -41,7 +43,7 @@ int main() {
                             for (int idx = 0; idx < DATAWIDTH; idx ++){
 
                                 int read_addr = (y+ky) * 16*64 + (x+kx) * 64 + cin*16 + idx;
-                                int pos = y*14*64 + x*64 + cout*16 + idx;
+                                int pos = acc*14*14*64 + y*14*64 + x*64 + cout*16 + idx;
                                 OUT[pos] += RAM[read_addr];
 
                             }
@@ -55,7 +57,7 @@ int main() {
 
     //check if matching
     int err_cnt = 0;
-    for (int i = 0; i < RAM_OUT_SIZE/DATAWIDTH; i ++) {
+    for (int i = 0; i < 2*RAM_OUT_SIZE/DATAWIDTH; i ++) {
         for (int ii = 0; ii < DATAWIDTH; ii ++) {
             if ((dtype)HLSout[i](ii) != OUT[i*DATAWIDTH + ii]){
                 std::cout << "ERROR, pos[" << i <<":" <<ii << "]"<< "does not match\n";
