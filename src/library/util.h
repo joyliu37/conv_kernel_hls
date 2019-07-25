@@ -36,6 +36,7 @@ struct layerPara{
     uint16_t Ch_Iter;
     uint16_t Stride;
     uint16_t loop_cnt;
+    uint16_t loop_out_cnt;
     uint16_t prePad;
 
 	uint16_t Height;
@@ -90,6 +91,7 @@ struct layerPara{
 
 
         loop_cnt = X_n * Y_n * Cin_n * Cout_n;
+        loop_out_cnt = X_n * Y_n * Cout_n;
 
         pool = pool_;
 

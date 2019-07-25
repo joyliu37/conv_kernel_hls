@@ -471,10 +471,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }
 
-static void OutputAddrGen(
+static void OutputAddrUpdateLib(
         hls::stream<uint32_t> &addr,
-        hls::stream<bool> & load_sig,
-        hls::stream<bool> & store_sig,
         layerPara para){
 
 	struct tilingID iter;
@@ -484,6 +482,9 @@ static void OutputAddrGen(
 	iter.tilingIDy = 0;
 
     const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+
+    const uint16_t rng[4] = {(uint16_t)(para.Ksz * para.Ksz * para.Cin_Iter), para.Cout_Iter, para.oX_SZ, para.oY_SZ};
+    const uint16_t st[4] = {0, 1, (uint16_t)(para.Cout_Iter), (uint16_t)(para.Cout_Iter * para.oX_SZ)};
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -497,10 +498,68 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        const uint8_t ext_x = para.oX_SZ;
-        OutputAddrGen1D(addr, load_sig, store_sig, num_iter, iter.tilingIDc_i, ext_x, para.Ksz, para.Ksz, para.Cin_Iter, para.Cout_Iter, ext_x, para.Cout_Iter);
+        AddrGenTemp<4>(addr, num_iter, rng, st);
 
     }//for tiling Input channel
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+static void OutputAddrLoadLib(
+        hls::stream<uint32_t> &addr,
+        layerPara para){
+
+	struct tilingID iter;
+
+    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+
+    const uint16_t rng[1] = {(uint16_t)num_iter};
+    const uint16_t st[1] = {1};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+        AddrGenTemp<1>(addr, num_iter, rng, st);
+
+   } // for _output_s0_c_co
+  } // for _output_s0_x_xo
+ } // for _output_s0_y_yo
+
+}
+
+
+static void OutputAddrFeedLib(
+        hls::stream<uint32_t> &addr,
+        layerPara para){
+
+	struct tilingID iter;
+
+    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+
+    const uint16_t rng[1] = {(uint16_t)num_iter};
+    const uint16_t st[1] = {1};
+
+for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
+ {
+#pragma HLS LOOP_TRIPCOUNT max=2
+  for (iter.tilingIDx = 0; iter.tilingIDx < 0 + para.X_n; iter.tilingIDx++)
+  {
+#pragma HLS LOOP_TRIPCOUNT max=2
+   for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
+   {
+#pragma HLS LOOP_TRIPCOUNT max=2
+
+        AddrGenTemp<1>(addr, num_iter, rng, st);
+
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
@@ -1171,10 +1230,10 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 static void write_back(
         hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &_output,
         hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &in_stream,
-        hls::stream<uint32_t> & bram_addr,
-        hls::stream<bool> & load_sig,
-        hls::stream<bool> & store_sig,
-		Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> &psum,
+        hls::stream<uint32_t> & write_addr,
+        hls::stream<uint32_t> & read_addr,
+        hls::stream<uint32_t> & update_addr,
+		Doublebuffer_feature<dtype_double, OFM_BUFF_SIZE, P_COUT, 1, 1, 1> &psum,
 		layerPara para){
 //#pragma HLS inline
 
@@ -1182,7 +1241,8 @@ static void write_back(
     const uint8_t bound_y = para.oX_SZ;
     const uint8_t bound_x = para.oY_SZ;
     const uint8_t bound_ch = para.Cout_Iter;
-    const uint32_t feed_bound = bound_x * bound_y * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+    const uint32_t load_bound = bound_x * bound_y * para.Cout_Iter;
+    const uint32_t feed_bound = para.Cin_n * bound_x * bound_y * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -1194,28 +1254,19 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
-	{
-#pragma HLS LOOP_TRIPCOUNT max=2
 
 //#pragma HLS DEPENDENCE variable=psum inter false
 //#pragma HLS DEPENDENCE variable=psum intra false
 
-
-		psum.call(in_stream, _output, bram_addr, load_sig, store_sig, feed_bound, bound_y, bound_x, bound_ch);
+        psum.call(0, _output, in_stream, write_addr, read_addr, update_addr, load_bound, load_bound, feed_bound);
+		//psum.call(in_stream, _output, bram_addr, load_sig, store_sig, feed_bound, bound_y, bound_x, bound_ch);
         //debug
         //std::cout <<"output iter no." << iter.tilingIDc_i <<std::endl;
 
-    }//for tiling Input channel
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
  } // for _output_s0_y_yo
 
-/*iter.tilingIDc_i = 0;
-iter.tilingIDc_o = para.Cout_n;
-iter.tilingIDx = para.X_n - 1;
-iter.tilingIDy = para.Y_n - 1;*/
-psum.call_finish(_output, bound_y, bound_x, bound_ch);
 }
 
 #endif

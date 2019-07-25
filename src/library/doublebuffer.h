@@ -167,7 +167,7 @@ public:
 		PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>* _psum_buf,
         hls::stream<uint32_t> & write_addr,
         hls::stream<uint32_t> & read_addr,
-        const T default_val,
+        hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & in_stream,
         hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> & out_stream,
         const uint32_t bound);
 

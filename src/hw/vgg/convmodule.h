@@ -14,22 +14,24 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
     hls::stream<uint32_t> feature_feed_addr("f_feed_addr");
     hls::stream<uint32_t> weight_load_addr("w_load_addr");
     hls::stream<uint32_t> weight_feed_addr("w_feed_addr");
-    hls::stream<uint32_t> output_addr("o_addr");
-    hls::stream<bool> ld("ld");
-    hls::stream<bool> st("st");
+    hls::stream<uint32_t> output_load_addr("o_load_addr");
+    hls::stream<uint32_t> output_feed_addr("o_feed_addr");
+    hls::stream<uint32_t> output_update_addr("o_update_addr");
 #pragma HLS STREAM variable=feature_load_addr depth=1
 #pragma HLS STREAM variable=feature_feed_addr depth=1
 #pragma HLS STREAM variable=weight_load_addr depth=1
 #pragma HLS STREAM variable=weight_feed_addr depth=1
-#pragma HLS STREAM variable=output_addr depth=1
-#pragma HLS STREAM variable=ld depth=1
-#pragma HLS STREAM variable=st depth=1
+#pragma HLS STREAM variable=output_load_addr depth=1
+#pragma HLS STREAM variable=output_feed_addr depth=1
+#pragma HLS STREAM variable=output_update_addr depth=1
 
     FeatureAddrReadLib(feature_feed_addr, para);
     FeatureAddrLoadLib(feature_load_addr, para);
     WeightAddrReadLib(weight_feed_addr, para);
     WeightAddrLoadLib(weight_load_addr, para);
-    OutputAddrGen(output_addr, ld, st, para);
+    OutputAddrLoadLib(output_load_addr, para);
+    OutputAddrFeedLib(output_feed_addr, para);
+    OutputAddrUpdateLib(output_update_addr, para);
 
     //conv compute
     hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream("conv_f");
@@ -51,14 +53,14 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
     //Doublebuffer_feature<1, 1, 1, P_CH, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
     Doublebuffer_feature<dtype, IFM_BUFF_SIZE, P_CIN, 1, 1, 1> feature(para.loop_cnt);
     Doublebuffer_feature<dtype,  W_BUFF_SIZE * W_BUFF_BANK, P_CIN, P_COUT, 1, 1> weight(para.loop_cnt);
-    Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum(para.Cin_n);
+    Doublebuffer_feature<dtype_double,  OFM_BUFF_SIZE, P_COUT, 1, 1, 1> psum(para.loop_out_cnt);
 
     read_input(in_feature_stencil, feature_load_addr, feature_feed_addr, feature, feature_stream, para);
     read_weight(in_weight_stencil, weight_load_addr, weight_feed_addr, weight, weight_stream, para);
 
     compute(feature_stream, weight_stream, psum_stream, para);
 
-    write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
+    write_back(relu_long, psum_stream, output_load_addr, output_feed_addr, output_update_addr, psum, para);
 
     ReLU(relu_long, output_double, para);
     Truncate(output_double, out_feature_stencil, para);

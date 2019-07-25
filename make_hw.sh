@@ -15,6 +15,6 @@ src_dir=src
 #module load base vivado/2017.2
 #vivado_hls=vivado_hls
 #vivado_hls=/nobackup/xuany/xilinx/Vivado_HLS/2016.4/bin/vivado_hls 
-vivado_hls=/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/bin
+vivado_hls=/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/bin/vivado_hls
 
 $vivado_hls -f run_hls.tcl -tclargs $src_dir $NETWORK
