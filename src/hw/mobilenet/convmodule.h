@@ -16,20 +16,18 @@ void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_s
     hls::stream<uint32_t> weight_write_addr("w_wr_addr");
     hls::stream<PackedStencil<uint32_t, P_CIN/P_CH>> read_bank("bank_id_read");
     hls::stream<PackedStencil<uint32_t, 1>> write_bank("bank_id_write");
-    //hls::stream<uint32_t> weight_id("w_id");
-    //hls::stream<uint32_t> weight_addr("w_addr");
-    hls::stream<uint32_t> output_addr("o_addr");
-    hls::stream<bool> ld("ld");
-    hls::stream<bool> st("st");
+    hls::stream<uint32_t> output_load_addr("o_load_addr");
+    hls::stream<uint32_t> output_feed_addr("o_feed_addr");
+    hls::stream<uint32_t> output_update_addr("o_update_addr");
 #pragma HLS STREAM variable=feature_write_addr depth=1
 #pragma HLS STREAM variable=feature_read_addr depth=1
 #pragma HLS STREAM variable=weight_write_addr depth=1
 #pragma HLS STREAM variable=weight_read_addr depth=1
 #pragma HLS STREAM variable=read_bank depth=1
 #pragma HLS STREAM variable=write_bank depth=1
-#pragma HLS STREAM variable=output_addr depth=1
-#pragma HLS STREAM variable=ld depth=1
-#pragma HLS STREAM variable=st depth=1
+#pragma HLS STREAM variable=output_load_addr depth=1
+#pragma HLS STREAM variable=output_feed_addr depth=1
+#pragma HLS STREAM variable=output_update_addr depth=1
 
     FeatureAddrReadBank(read_bank, para);
     FeatureAddrWriteBank(write_bank, para);
@@ -37,8 +35,9 @@ void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_s
     FeatureAddrWriteLib(feature_write_addr, para);
     WeightAddrReadLib(weight_read_addr, para);
     WeightAddrWriteLib(weight_write_addr, para);
-    //WeightAddrGen(weight_id, weight_addr, para);
-    OutputAddrGen(output_addr, ld, st, para);
+    OutputAddrLoadLib(output_load_addr, para);
+    OutputAddrFeedLib(output_feed_addr, para);
+    OutputAddrUpdateLib(output_update_addr, para);
 
     //conv compute
     hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> feature_stream("conv_f");
@@ -60,7 +59,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_s
     Doublebuffer_feature<dtype, IFM_BUFF_SIZE, P_CH, 1, 1, 1, 1, 1, 1, 1, P_CIN/P_CH, 1, 1, 1> feature(para.loop_cnt);
     //Doublebuffer_feature<1, 1, 1, P_CIN, P_CIN, IFM_BUFF_SIZE, dtype> feature(para.loop_cnt);
     Doublebuffer_feature<dtype, W_BUFF_SIZE*W_BUFF_BANK, P_CIN, P_COUT, 1, 1> weight(para.loop_cnt);
-    Doublebuffer_psum<P_COUT, 1, 1, 1, OFM_BUFF_SIZE, dtype_double> psum(para.Cin_n);
+    Doublebuffer_feature<dtype_double, OFM_BUFF_SIZE, P_COUT, 1, 1, 1> psum(para.loop_out_cnt);
 
     read_input(in_feature_stencil, feature_write_addr, feature_read_addr, write_bank, read_bank,
             feature, feature_stream, para);
@@ -68,7 +67,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1> > & in_feature_s
 
     compute(feature_stream, weight_stream, psum_stream, para);
 
-    write_back(relu_long, psum_stream, output_addr, ld, st, psum, para);
+    write_back(relu_long, psum_stream, output_load_addr, output_feed_addr, output_update_addr, psum, para);
 
     ReLU(relu_long, output_double, para);
     Truncate(output_double, out_feature_stencil, para);
