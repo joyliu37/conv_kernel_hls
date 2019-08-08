@@ -173,10 +173,10 @@
 typedef int8_t dtype;
 typedef uint8_t dtype_u;
 
-    static int row = 14;
-    static int col = 14;
-    static int iCh = 512;
-    static int oCh = 1024;
+    static int row = 56;
+    static int col = 56;
+    static int iCh = 128;
+    static int oCh = 128;
     static int Ksz = 1;
 
     static int test_iter = 1000;
@@ -334,17 +334,17 @@ int main()
     dtype* DestArray_sw = new dtype[OUTPUT_BYTESIZE ];
 
     //define the confiuration
-    uint16_t X_SZ = 14;
-    uint16_t X_n = 1;
-    uint16_t Y_SZ = 14;
-    uint16_t Y_n = 1;
+    uint16_t X_SZ = 28;
+    uint16_t X_n = 2;
+    uint16_t Y_SZ = 28;
+    uint16_t Y_n = 2;
     uint16_t K_SZ = 3;
-    uint16_t Cin_SZ = 128;
+    uint16_t Cin_SZ = 32;
     uint16_t Cin_n = 4;
-    uint16_t Cout_SZ = 1024;
+    uint16_t Cout_SZ = 128;
     uint16_t Cout_n = 1;
     uint16_t Ch_Iter = Cin_SZ/P_CH;
-    uint16_t Stride= 2;
+    uint16_t Stride= 1;
     bool pool = 0;
 
     PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray2_packed[WEIGHT_BYTESIZE/DATAWIDTH];

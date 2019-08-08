@@ -1,10 +1,10 @@
 CROSS_COMPILE=aarch64-linux-gnu-g++
 
 STENCIL_ROOT = ${HALIDE_HLS_ROOT}/apps/hls_examples/hls_support
-XILINX_ROOT = /cad/xilinx/vivado/2016.4/Vivado_HLS/2016.4/include	
+XILINX_ROOT = /cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/include	
 RUNTIME_ROOT = ${HALIDE_HLS_ROOT}/src/runtime
 
-INCLUDE_DIRS := ../host include
+INCLUDE_DIRS := ../ include
 INCLUDE_DIRS +=  ${XILINX_ROOT}
 INCLUDE_DIRS += ${STENCIL_ROOT} ${RUNTIME_ROOT}
 

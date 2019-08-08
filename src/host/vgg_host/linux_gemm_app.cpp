@@ -173,8 +173,8 @@ typedef uint8_t dtype_u;
 
     static int row = 14;
     static int col = 14;
-    static int iCh = 256;
-    static int oCh = 256;
+    static int iCh = 128;
+    static int oCh = 128;
     static int Ksz = 3;
 
     static int test_iter = 1000;
@@ -333,9 +333,9 @@ int main()
     uint16_t Y_SZ = 14;
     uint16_t Y_n = 1;
     uint16_t K_SZ = 3;
-    uint16_t Cin_SZ = 128;
+    uint16_t Cin_SZ = 64;
     uint16_t Cin_n = 2;
-    uint16_t Cout_SZ = 128;
+    uint16_t Cout_SZ = 64;
     uint16_t Cout_n = 2;
     //uint16_t Ch_Iter = Cin_SZ/P_CH;
     uint16_t Stride= 1;
