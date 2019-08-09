@@ -6,6 +6,6 @@
 #define DATAWIDTH 16
 
 void top(PackedStencil<dtype, DATAWIDTH> *data_in,
-        PackedStencil<dtype, DATAWIDTH, 3, 3> *data_out);
+        PackedStencil<dtype, DATAWIDTH, 1, 1> *data_out);
 
 #endif

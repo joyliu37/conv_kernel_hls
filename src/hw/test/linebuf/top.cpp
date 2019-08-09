@@ -11,12 +11,18 @@ mem_rd: for (int i = 0; i < size; i ++) {
         }
 }
 
-static void write_result(PackedStencil<dtype, DATAWIDTH, 3, 3, 1> *out,
+static void write_result(PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *out,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 3, 3 , 1>> &outStream,
         int size) {
 mem_wr: for (int i = 0; i < size; i ++) {
+            PackedStencil<dtype, DATAWIDTH, 3, 3, 1> temp = outStream.read();
+            for (int ky = 0; ky < 3; ky ++) {
+                for (int kx = 0; kx < 3; kx ++) {
 #pragma HLS PIPELINE II=1
-            out[i] = outStream.read();
+                    for (int idx0 = 0; idx0 < DATAWIDTH; idx0++)
+                        out[i*9 + ky*3 + kx](idx0) = temp(idx0, kx, ky);
+                }
+            }
         }
 }
 
@@ -27,13 +33,12 @@ mem_wr: for (int i = 0; i < size; i ++) {
  */
 void top(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_in,
-        PackedStencil<dtype, DATAWIDTH, 3, 3, 1> *data_out
+        PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_out
         ){
 #pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
-#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 28224
+#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 7056
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control
-#pragma HLS INTERFACE s_axilite port = read_size bundle = control
 #pragma HLS INTERFACE s_axilite port=return bundle=control
     hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> inStream("input");
     hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 3, 1>> intermStream("interm");

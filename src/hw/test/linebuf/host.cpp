@@ -5,18 +5,17 @@
 #define RAM_SIZE 16*16*4*16
 #define READ_SIZE 14*14*4*3*3*16
 
-
 int main() {
     dtype RAM[RAM_SIZE];
     dtype OUT[READ_SIZE];
     srand(1995);
     for (int i = 0; i < RAM_SIZE; i ++) {
-        dtype seed = rand() % 256-128;
+        dtype seed = rand() % 256 - 128;
         RAM[i] = (dtype)(seed);
     }
 
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image[RAM_SIZE/DATAWIDTH];
-    static PackedStencil<dtype, DATAWIDTH, 3, 3, 1> HLSout[READ_SIZE/DATAWIDTH/9];
+    static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> HLSout[READ_SIZE/DATAWIDTH];
     for (int i = 0; i < RAM_SIZE/DATAWIDTH; i ++) {
                 for (int ii = 0; ii < DATAWIDTH; ii ++){
                     image[i](ii) = RAM[i*DATAWIDTH + ii];
@@ -52,9 +51,10 @@ int main() {
         for (int ky = 0; ky < 3; ky ++) {
             for (int kx = 0; kx < 3; kx ++) {
                 for (int ii = 0; ii < DATAWIDTH; ii ++) {
-                    if ((dtype)HLSout[i](ii, kx, ky) != OUT[i*DATAWIDTH*9 + ky*DATAWIDTH*3 + kx*DATAWIDTH + ii]){
+                    if ((dtype)(HLSout[i*9 +ky*3 +kx](ii)) != (int)OUT[i*DATAWIDTH*9 + ky*DATAWIDTH*3 + kx*DATAWIDTH + ii]){
                         std::cout << "ERROR, pos[" << i <<":" <<ii << "]"<< "does not match\n";
-                        std::cout << hex << "C value: " << (int)OUT[i*DATAWIDTH*9 +ky*DATAWIDTH*3 + kx*DATAWIDTH+ ii] << '\n' << "HLS value: " <<dec<<sizeof(HLSout[i](ii, kx, ky))<<' '<<hex << HLSout[i](ii, kx, ky)<<std::endl;
+                        std::cout << dec << "C value: " << (int)OUT[i*DATAWIDTH*9 +ky*DATAWIDTH*3 + kx*DATAWIDTH+ ii] << '\n' <<
+                            "HLS value: " <<dec<<sizeof(HLSout[i*9+ky*3+kx](ii))<<' '<<dec << HLSout[i*9+ky*3+kx](ii)<<std::endl;
                         err_cnt ++;
                     }
                 }

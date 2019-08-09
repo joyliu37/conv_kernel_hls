@@ -26,7 +26,7 @@ open_project "test_$app"
 set_top top
 add_files $hwdir/top.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
 add_files -tb $hwdir/host.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$hwdir -I$hostdir -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
-open_solution "unit_test_new"
+open_solution "unit_test_lb"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
 #source "./hls_cnn_db/solution_conf1/directives.tcl"
