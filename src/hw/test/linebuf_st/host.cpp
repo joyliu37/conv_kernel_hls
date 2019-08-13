@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "top.h"
 #include "conv_test.h"
-#define RAM_SIZE 16*16*4*16
+#define RAM_SIZE 30*30*4*16
 #define READ_SIZE 14*14*4*16
 
 int main() {
@@ -11,14 +11,18 @@ int main() {
     srand(1995);
     for (int i = 0; i < RAM_SIZE; i ++) {
         dtype seed = rand() % 256 - 128;
-        RAM[i] = (dtype)(seed);
+        RAM[i] = (dtype)(1);
     }
 
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image[RAM_SIZE/DATAWIDTH];
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> HLSout[READ_SIZE/DATAWIDTH];
-    for (int i = 0; i < RAM_SIZE/DATAWIDTH; i ++) {
+    for (int st = 0; st < 2; st ++){
+        for (int col= 0; col < 30*4; col ++){
+            for (int row = 0; row < 15; row++) {
                 for (int ii = 0; ii < DATAWIDTH; ii ++){
-                    image[i](ii) = RAM[i*DATAWIDTH + ii];
+                        image[row*2*30*4+col*2+st](ii) = RAM[(row*2+st)*DATAWIDTH*30*4 + col*DATAWIDTH + ii];
+                }
+            }
         }
     }
 
@@ -34,7 +38,7 @@ int main() {
                 for (int cin = 0; cin < 16; cin ++) {
                     for (int ky = 0; ky < 3; ky ++) {
                         for (int kx = 0; kx < 3; kx ++) {
-                            int read_addr = (y+ky) * 16*64 + (x+kx) * 16 + cin + cout * 256;
+                            int read_addr = (y*2+ky)* 4*480 + (x*2+kx)*16 + cin + cout * 480;
                             OUT[pos] += RAM[read_addr];
                         }
                     }

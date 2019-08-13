@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <hls_stream.h>
+using hls::stream;
 
 //New unified buffer interface
 template <size_t BANK_EXTENT, size_t BANK_NUM,
@@ -16,82 +17,56 @@ template <size_t BANK_EXTENT, size_t BANK_NUM,
 class NDShiftReg {
 };
 
-template <size_t BANK_EXTENT, size_t BANK_NUM, size_t EXTENT_0, size_t EXTENT_2, size_t EXTENT_3,
+template <size_t BANK_NUM, size_t EXTENT_0, size_t EXTENT_2, size_t EXTENT_3,
          size_t IN_EXTENT_1, size_t OUT_EXTENT_1, typename T>
-class NDShiftReg<BANK_EXTENT, BANK_NUM, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3,
+class NDShiftReg<1, BANK_NUM, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3,
 EXTENT_0, OUT_EXTENT_1, EXTENT_2, EXTENT_3, T>{
     public:
         static void call(stream<PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> > & in_stream,
                 stream<PackedStencil<T, EXTENT_0, OUT_EXTENT_1, EXTENT_2, EXTENT_3> > & out_stream,
-                stream<PackedStencil<uint32_t, 1>> & in_bank_stream,
-                stream<PackedStencil<uint32_t, OUT_EXTENT_1/IN_EXTENT_1 - 1>> & out_bank_stream,
-                stream<uint32_t> & in_addr_stream,
-                stream<uint32_t> & out_addr_stream,
                 const uint32_t initial_cnt, const uint32_t iter_cnt, const uint32_t in_chunk_cnt) {
             // A special optimization with saving of one more bank, output_stencil = output_chunk
-            PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> buffer[BANK_NUM][BANK_EXTENT];
-#pragma HLS ARRAY_PARTITION variable=buffer complete dim=1
-            size_t in_cnt = in_chunk_cnt - 1;
-            const size_t MUL_FACTOR = OUT_EXTENT_1/ IN_EXTENT_1 - 1;
+            PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> buffer[BANK_NUM];
+#pragma HLS ARRAY_PARTITION variable=buffer complete dim=0
+            size_t in_cnt = 0;
+            const size_t MUL_FACTOR = OUT_EXTENT_1/ IN_EXTENT_1;
 
             PackedStencil<T, EXTENT_0, OUT_EXTENT_1, EXTENT_2, EXTENT_3> slice;
-SR2D_LOOP:  for (size_t i = 0; i < iter_cnt; i ++) {
+            for (size_t i = 0; i < iter_cnt; i ++) {
 #pragma HLS PIPELINE II=1
-#pragma HLS DEPENDENCE array inter false
-                if (i < initial_cnt){//initial the buffer
-                    Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
-                    uint32_t in_addr = in_addr_stream.read();
-                    PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> data = in_stream.read();
-                    buffer[in_bank(0)][in_addr] = data;
+#pragma HLS DEPENDENCE variable=buffer inter false
+                //Shift shift reg
+                for (size_t idx_range = 0; idx_range < BANK_NUM - 1; idx_range ++) {
+                    buffer[idx_range] = buffer[idx_range + 1];
                 }
-                else {// steady state
-                    if ( in_cnt == in_chunk_cnt - 1 ) {
-                       // move input chunk to buffer and output a chunk
-                       Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
-                       uint32_t in_addr = in_addr_stream.read();
-                       PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> data = in_stream.read();
-                       Stencil<uint32_t, MUL_FACTOR> out_bank = out_bank_stream.read();
-                       uint32_t out_addr = out_addr_stream.read();
-
-                        for (size_t idx_line = 0; idx_line < MUL_FACTOR; idx_line++) {
-                            for (size_t st_idx_3 = 0; st_idx_3 < EXTENT_3; st_idx_3++)
-                            for (size_t st_idx_2 = 0; st_idx_2 < EXTENT_2; st_idx_2++)
-                            for (size_t st_idx_1 = 0; st_idx_1 < IN_EXTENT_1; st_idx_1++)
-                            for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_0; st_idx_0++) {
-                                size_t idx_line_in_buffer = out_bank(idx_line);
-                                slice(st_idx_0, idx_line*IN_EXTENT_1 + st_idx_1,  st_idx_2, st_idx_3)
-                                    = buffer[idx_line_in_buffer][out_addr](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
-                            }
-                        }
-
-                        // pass data from input
+                //read data
+                PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> data = in_stream.read();
+                buffer[BANK_NUM - 1] = data;
+                if (i >= initial_cnt) {// steady state
+                    if ( in_cnt == 0) {
+                        for (size_t idx_range = 0; idx_range < MUL_FACTOR; idx_range ++)
                         for (size_t st_idx_3 = 0; st_idx_3 < EXTENT_3; st_idx_3++)
                         for (size_t st_idx_2 = 0; st_idx_2 < EXTENT_2; st_idx_2++)
                         for (size_t st_idx_1 = 0; st_idx_1 < IN_EXTENT_1; st_idx_1++)
-                        for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_0; st_idx_0++)
-                            slice(st_idx_0, MUL_FACTOR*IN_EXTENT_1 + st_idx_1,  st_idx_2, st_idx_3)
-                                = data(st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                        for (size_t st_idx_0 = 0; st_idx_0 < EXTENT_0; st_idx_0++) {
+                            slice(st_idx_0, idx_range*IN_EXTENT_1 + st_idx_1,  st_idx_2, st_idx_3)
+                                = buffer[idx_range](st_idx_0, st_idx_1, st_idx_2, st_idx_3);
+                        }
+
+                        //output stencil
                         out_stream.write(slice);
 
-                        //update buffer
-                        buffer[in_bank(0)][in_addr] = data;
 
-                        //update counter
+                    }
+                    in_cnt ++;
+                    if (in_cnt == in_chunk_cnt)
                         in_cnt = 0;
-                    }
-                    else {
-                       //move input to buffer and wait out stencil to be valid
-                        Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
-                        uint32_t in_addr = in_addr_stream.read();
-                        PackedStencil<T, EXTENT_0, IN_EXTENT_1, EXTENT_2, EXTENT_3> data = in_stream.read();
-                        buffer[in_bank(0)][in_addr] = data;
-                        in_cnt ++;
-                    }
                 }
             }
 
     }
 };
+
 //The new unified buffer
 template <size_t BANK_EXTENT, size_t BANK_NUM, size_t EXTENT_0, size_t EXTENT_1, size_t EXTENT_3,
          size_t IN_EXTENT_2, size_t OUT_EXTENT_2, typename T>
@@ -108,13 +83,13 @@ class NDShiftReg<BANK_EXTENT, BANK_NUM, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_
             // A special optimization with saving of one more bank, output_stencil = output_chunk
             PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> buffer[BANK_NUM][BANK_EXTENT];
 #pragma HLS ARRAY_PARTITION variable=buffer complete dim=1
-            size_t in_cnt = in_chunk_cnt - 1;
+            size_t in_cnt = 0;
             const size_t MUL_FACTOR = (OUT_EXTENT_2/IN_EXTENT_2) - 1;
 
             PackedStencil<T, EXTENT_0, EXTENT_1, OUT_EXTENT_2, EXTENT_3> slice;
-SR2D_LOOP:  for (size_t i = 0; i < iter_cnt; i ++) {
+            for (size_t i = 0; i < iter_cnt; i ++) {
 #pragma HLS PIPELINE II=1
-#pragma HLS DEPENDENCE array inter false
+#pragma HLS DEPENDENCE variable=buffer inter false
                // std::cout << i << in_cnt<<" initial_cnt: " << initial_cnt<<std::endl;
                 if (i < initial_cnt){//initial the buffer
                     Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
@@ -124,12 +99,15 @@ SR2D_LOOP:  for (size_t i = 0; i < iter_cnt; i ++) {
                 }
                 else {// steady state
                         //std::cout << "enter steady state, "<< in_cnt<<", " <<in_chunk_cnt<<std::endl;
-                    if ( in_cnt == in_chunk_cnt-1) {
+                    Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
+                    uint32_t in_addr = in_addr_stream.read();
+                    PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> data = in_stream.read();
+                    if ( in_cnt == 0) {
                         //std::cout << "enter here"<<std::endl;
                        // move input chunk to buffer and output a chunk
-                       Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
-                       uint32_t in_addr = in_addr_stream.read();
-                       PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> data = in_stream.read();
+                       //Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
+                       //uint32_t in_addr = in_addr_stream.read();
+                       //PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> data = in_stream.read();
                        Stencil<uint32_t, MUL_FACTOR> out_bank = out_bank_stream.read();
                        uint32_t out_addr = out_addr_stream.read();
 
@@ -156,20 +134,19 @@ SR2D_LOOP:  for (size_t i = 0; i < iter_cnt; i ++) {
                         //std::cout << in_bank(0)<< "addr: " << in_addr<<std::endl;
 
                         //update buffer
-                        buffer[in_bank(0)][in_addr] = data;
+                        //buffer[in_bank(0)][in_addr] = data;
 
                         //update counter
-                        in_cnt = 0;
+                        //in_cnt = 0;
                     }
-                    else {
+                    //else {
                         //std::cout << "enter wrong place"<<std::endl;
                        //move input to buffer and wait out stencil to be valid
-                        Stencil<uint32_t, 1> in_bank = in_bank_stream.read();
-                        uint32_t in_addr = in_addr_stream.read();
-                        PackedStencil<T, EXTENT_0, EXTENT_1, IN_EXTENT_2, EXTENT_3> data = in_stream.read();
                         buffer[in_bank(0)][in_addr] = data;
                         in_cnt ++;
-                    }
+                        if (in_cnt == in_chunk_cnt)
+                            in_cnt = 0;
+                    //}
                 }
             }
 
@@ -177,7 +154,6 @@ SR2D_LOOP:  for (size_t i = 0; i < iter_cnt; i ++) {
 };
 //Modified from Jing Pu's Linebuffer.h
 
-using hls::stream;
 template <size_t IMG_EXTENT_0, size_t EXTENT_1, size_t EXTENT_2, size_t EXTENT_3,
 	  size_t IN_EXTENT_0,  size_t OUT_EXTENT_0, typename T>
 class Linebuffer1D {

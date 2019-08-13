@@ -39,7 +39,7 @@ void top(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_in,
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_out
         ){
-#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
+#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 3600
 #pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 784
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control
@@ -60,13 +60,15 @@ void top(
 #pragma HLS STREAM variable = bank_in_2D depth = 1
 #pragma HLS STREAM variable = bank_out_2D depth = 1
 
+
 #pragma HLS dataflow
-    read_input(data_in, inStream, 64*16);
+    read_input(data_in, inStream, 120*30);
     //AddrGenTemp<1>(addr_write, write_size, {write_size}, {1});
-    uint16_t rng_in_2d[2] = {64,16};
-    uint16_t st_in_2d[2] = {1,0};
-    uint16_t rng_out_2d[2] = {64,14};
+    uint16_t rng_in_2d[3] = {2,120,15};
+    uint16_t st_in_2d[3] = {0, 1,0};
+    uint16_t rng_out_2d[2] = {120,14};
     uint16_t st_out_2d[2] = {1,0};
+
 
 
     Stencil<uint32_t, 1> write_start;
@@ -74,21 +76,21 @@ void top(
     Stencil<uint32_t, 2> read_start;
     read_start(0) = 0;
     read_start(1) = 1;
-    uint16_t rng_write_bank_2d[3] = {64, 2, 8};
-    uint16_t st_write_bank_2d[3] = {0, 1, 0};
-    uint16_t rng_read_bank_2d[3] = {64, 2, 7};
-    uint16_t st_read_bank_2d[3] = {0, 1, 0};
+    uint16_t rng_write_bank_2d[3] = {2, 120, 15};
+    uint16_t st_write_bank_2d[3] = {1, 0, 0};
+    uint16_t rng_read_bank_2d[3] = {120, 2, 7};
+    uint16_t st_read_bank_2d[3] = {0, 0, 0};
 
 
-    AddrGenTemp<2>(addr_in_2D, 64*16 , rng_in_2d, st_in_2d);
-    AddrGenTemp<2>(addr_out_2D, 64*14, rng_out_2d, st_out_2d);
+    AddrGenTemp<3>(addr_in_2D, 120*30 , rng_in_2d, st_in_2d);
+    AddrGenTemp<2>(addr_out_2D, 120*14, rng_out_2d, st_out_2d);
 
-    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1>(bank_in_2D, write_start, 64*16, 2, rng_write_bank_2d, st_write_bank_2d);
-    BankIDGenCircular<uint32_t, 3, 2, 1, 1, 1>(bank_out_2D, read_start, 64*14, 2, rng_read_bank_2d, st_read_bank_2d);
+    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1>(bank_in_2D, write_start, 120*30, 2, rng_write_bank_2d, st_write_bank_2d);
+    BankIDGenCircular<uint32_t, 3, 2, 1, 1, 1>(bank_out_2D, read_start, 120*14, 2, rng_read_bank_2d, st_read_bank_2d);
 
-    NDShiftReg<64, 2, DATAWIDTH, 1, 1, 1, DATAWIDTH, 1, 3, 1, dtype>::call(inStream, intermStream, bank_in_2D, bank_out_2D, addr_in_2D, addr_out_2D, 2*64, 16*64, 1);
+    NDShiftReg<120, 2, DATAWIDTH, 1, 1, 1, DATAWIDTH, 1, 3, 1, dtype>::call(inStream, intermStream, bank_in_2D, bank_out_2D, addr_in_2D, addr_out_2D, 2*120, 30*120, 2);
     for (int i = 0; i < 56; i ++)
-        NDShiftReg<1, 3, DATAWIDTH, 1, 3, 1, DATAWIDTH, 3, 3, 1, dtype>::call(intermStream, outStream, 2, 16, 1);
+        NDShiftReg<1, 3, DATAWIDTH, 1, 3, 1, DATAWIDTH, 3, 3, 1, dtype>::call(intermStream, outStream, 2, 30, 2);
 
     write_result(data_out, outStream, 56*14);
 }
