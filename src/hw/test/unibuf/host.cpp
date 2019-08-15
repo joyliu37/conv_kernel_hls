@@ -31,10 +31,10 @@ int main() {
     for (int y = 0; y < 14; y ++) {
         for (int cout = 0; cout < 4; cout ++) {
             for (int x = 0; x < 14; x ++) {
-                for (int cin = 0; cin < 16; cin ++) {
+                for (int cin = 0; cin < DATAWIDTH; cin ++) {
                     for (int ky = 0; ky < 3; ky ++) {
                         for (int kx = 0; kx < 3; kx ++) {
-                            int read_addr = (y+ky) * 16*64 + (x+kx) * 16 + cin + cout * 256;
+                            int read_addr = (y+ky) * DATAWIDTH*64 + (x+kx) * DATAWIDTH + cin + cout * 16 * DATAWIDTH;
                             OUT[pos] += RAM[read_addr];
                         }
                     }

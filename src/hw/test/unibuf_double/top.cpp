@@ -1,11 +1,12 @@
 #include "top.h"
 #include "addrgen.h"
-#include "doublebuffer.h"
+#include "linebuffer.h"
 
 static void read_input(PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *in,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &inStream,
         int size) {
-mem_rd: for (int i = 0; i < size; i ++) {
+mem_rd: for (int i = 0; i < 4; i ++)
+    for (int i = 0; i < size; i ++) {
 #pragma HLS PIPELINE II=1
             inStream.write(in[i]);
         }
@@ -20,16 +21,6 @@ mem_wr: for (int i = 0; i < size; i ++) {
         }
 }
 
-static void doublebuffer_call(hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> & inStream,
-        hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> & outStream,
-        hls::stream<uint32_t> & addr_write,
-        hls::stream<uint32_t> & addr_read,
-        uint32_t write_size, uint32_t read_size){
-#pragma HLS inline off
-    Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> feature_buf(1);
-    feature_buf.call(inStream, outStream, addr_write, addr_read, write_size, read_size);
-}
-
 /*
  * unit test for feature buffer
  * read a stream of data put into double buffer
@@ -42,7 +33,7 @@ void top(
         int read_size
         ){
 #pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 1024
-#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 28224
+#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 112896
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control
 #pragma HLS INTERFACE s_axilite port = read_size bundle = control
@@ -57,6 +48,12 @@ void top(
 #pragma HLS STREAM variable = addr_read depth = 1
 #pragma HLS STREAM variable = addr_write depth = 1
 
+    hls::stream<PackedStencil<uint32_t,1> > bank_in("bank_write");
+    hls::stream<PackedStencil<uint32_t, 1> > bank_out("bank_read");
+#pragma HLS STREAM variable = bank_in depth = 1
+#pragma HLS STREAM variable = bank_out depth = 1
+
+    //Doublebuffer_feature<dtype, 1024, DATAWIDTH, 1, 1, 1> feature_buf(1);
 #pragma HLS dataflow
     read_input(data_in, inStream, write_size);
     //AddrGenTemp<1>(addr_write, write_size, {write_size}, {1});
@@ -65,9 +62,22 @@ void top(
     uint16_t st_read[6] = {1,4,4*16,0,4,4*16};
     uint16_t rng_write[1] = {(uint16_t)write_size};
     uint16_t st_write[1] = {1};
-    AddrGenTemp<6>(addr_read, read_size, rng_read, st_read);
-    AddrGenTemp<1>(addr_write, write_size, rng_write, st_write);
-    //feature_buf.call_start(inStream, 16, 16, 4);
-    doublebuffer_call(inStream, outStream, addr_write, addr_read, write_size, read_size);
-    write_result(data_out, outStream, read_size);
+    for (int i = 0; i < 4; i ++)
+        AddrGenTemp<6>(addr_read, read_size, rng_read, st_read);
+    for (int i = 0; i < 4; i ++)
+        AddrGenTemp<1>(addr_write, write_size, rng_write, st_write);
+
+    Stencil<uint32_t, 1> write_start;
+    write_start(0) = 0;
+    Stencil<uint32_t, 1> read_start;
+    read_start(0) = 0;
+    uint16_t rng_write_bank[3] = {(uint16_t)write_size, 2, 2};
+    uint16_t st_write_bank[3] = {0, 1, 0};
+    uint16_t rng_read_bank[3] = {(uint16_t)read_size, 2, 2};
+    uint16_t st_read_bank[3] = {0, 1, 0};
+    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1> (bank_in, write_start, write_size*4,2, rng_write_bank, st_write_bank);
+    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1> (bank_out, read_start, read_size*4,2, rng_read_bank, st_read_bank);
+    U_BUFFER<1024, 2, DATAWIDTH, 1, 1, 1,1, dtype>::call(inStream, outStream, bank_in, bank_out, addr_write, addr_read, write_size, write_size+4*read_size, 4*write_size,
+            write_size, read_size);
+    write_result(data_out, outStream, 4*read_size);
 }
