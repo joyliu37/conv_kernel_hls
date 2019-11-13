@@ -2,7 +2,7 @@
 //#include "hls_target.h"
 #include "convmodule.h"
 #include "wrapper.h"
-#include "config.h"
+#include "config_tiny.h"
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"

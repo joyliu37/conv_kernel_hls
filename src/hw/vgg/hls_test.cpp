@@ -1,6 +1,6 @@
 #include "conv_test.h"
 #include "hls_target.h"
-#include "config.h"
+#include "config_tiny.h"
 
 int main()
 {
