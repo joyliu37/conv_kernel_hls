@@ -3,9 +3,9 @@
 
 #include "util.h"
 
-#define DATAWIDTH 16
+#define DATAWIDTH 1
 
 void top(PackedStencil<dtype, DATAWIDTH> *data_in,
-        PackedStencil<dtype, DATAWIDTH, 1, 1> *data_out);
+        PackedStencil<dtype, DATAWIDTH> *data_out);
 
 #endif
