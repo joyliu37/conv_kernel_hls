@@ -14,6 +14,7 @@ static void DMA_feature_tiling_wrapper(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* _clamped,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1>> &featureStream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -49,6 +50,7 @@ static void DMA_weight_tiling_wrapper(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* _weight,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1>> &weightStream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -82,6 +84,7 @@ static void DMA_weightDP(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> * _weight,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> & weightStream,
         size_t Ch_Iter){
+#pragma HLS inline
 
 		Stream2Mem_weight_continous<dtype, DATAWIDTH>(_weight, weightStream, K_DP * K_DP * P_CH * Ch_Iter / DATAWIDTH);
 
@@ -91,6 +94,7 @@ static void datawidth_convert_weightDP1(
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &weight_stream,
         hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> & weight_buff,
         size_t Ch_Iter){
+#pragma HLS inline
 
     const size_t num_iter = K_DP * K_DP * P_CH * Ch_Iter/DATAWIDTH;
     //hls::stream<PackedStencil<dtype, P_CH , 1, 1, 1>> weight_short_temp;
@@ -111,6 +115,7 @@ static void datawidth_convert_weightDP2(
         hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &weight_stream,
         hls::stream<PackedStencil<dtype, P_CH*K_DP*K_DP, 1, 1, 1>> &weight_buff,
         size_t Ch_Iter){
+#pragma HLS inline
 
     const size_t num_iter_temp = K_DP * K_DP *  Ch_Iter;
     StreamDataWidthConverter<dtype, P_CH, P_CH*K_DP*K_DP>(weight_stream, weight_buff, P_CH, P_CH*K_DP*K_DP, num_iter_temp);
@@ -122,6 +127,7 @@ static void DMA_output_tiling_wrapper(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1>* _output,
         hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1>> &outputStream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -150,6 +156,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void feature_pad(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &in,
         hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -224,6 +231,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 }*/
 static void shuffleAddr(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -258,6 +266,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 static void FeatureAddrGen(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -295,6 +304,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 
 static void WeightAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -329,6 +339,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -373,6 +384,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 
 static void WeightAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
     const uint32_t num_iter = para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
@@ -404,6 +416,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 }
 
 static void FeatureAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -441,6 +454,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 
 static void WeightAddrGen(hls::stream<uint32_t> &out_id,
         hls::stream<uint32_t> &out_addr, layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -474,6 +488,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void OutputAddrUpdateLib(
         hls::stream<uint32_t> &addr,
         layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -510,6 +525,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void OutputAddrLoadLib(
         hls::stream<uint32_t> &addr,
         layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -540,6 +556,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void OutputAddrFeedLib(
         hls::stream<uint32_t> &addr,
         layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -570,6 +587,7 @@ template<typename T, typename T_truc, size_t EXTENT_0, size_t EXTENT_1, size_t E
 static void Truncate(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
         hls::stream<PackedStencil<T_truc, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -598,6 +616,7 @@ template<typename T, typename T_truc, size_t EXTENT_0, size_t EXTENT_1, size_t E
 static void Truncate(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &in,
         hls::stream<PackedStencil<T_truc, EXTENT_0, EXTENT_1, EXTENT_2, EXTENT_3>> &out,
 		layerPara para, const size_t Ch_Iter){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -631,6 +650,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void ReLU(hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &in,
         hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -658,6 +678,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void ReLU(hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> &in,
         hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> &out,
 		layerPara para, size_t Ch_Iter){
+#pragma HLS inline
 
 	struct tilingID iter;
 	iter.tilingIDc_i = 0;
@@ -694,6 +715,7 @@ static void datawidth_convert_feature(
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 		iter.tilingIDc_i = 0;
@@ -732,6 +754,7 @@ static void datawidth_convert_weight(
 		hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 		iter.tilingIDc_i = 0;
@@ -766,6 +789,7 @@ static void stencil_convert_weight(
 		hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 		iter.tilingIDc_i = 0;
@@ -800,6 +824,7 @@ static void datawidth_convert_feature_dp(
 		hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -834,6 +859,7 @@ static void datawidth_convert_output(
 		hls::stream<PackedStencil<dtype, in_width, 1, 1, 1>> &in,
 		hls::stream<PackedStencil<dtype, out_width, 1, 1, 1>> &out,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 		iter.tilingIDc_i = 0;
@@ -897,6 +923,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void read_inputLB2D(hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> &padded_feature,
 		hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &feature_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -931,6 +958,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 static void read_inputLB1D(hls::stream<PackedStencil<dtype, P_CH, 1, K_DP, 1>> &padded_feature,
 		hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &feature_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
     const size_t Y_Iter = para.oY_SZ * para.Ch_Iter;
@@ -967,6 +995,7 @@ static void computeDP(hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &fe
 		hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> &weight_stream,
 		hls::stream<PackedStencil<dtype_double, P_CH, 1, 1, 1>> &output_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -1078,6 +1107,7 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
 		Doublebuffer_feature<dtype, IFM_BUFF_SIZE,  P_CIN, 1, 1, 1> &feature,
 		hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
     const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
@@ -1117,6 +1147,7 @@ static void read_weightDP(
         PackedStencil<dtype, P_CH, K_DP, K_DP, 1> *buffer,
         hls::stream<PackedStencil<dtype, P_CH, K_DP, K_DP, 1>> & weightStream,
         layerPara para){
+#pragma HLS inline
     struct tilingID iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -1164,6 +1195,7 @@ static void read_weight(
 		Doublebuffer_feature<dtype, W_BUFF_SIZE*W_BUFF_BANK, P_CIN, P_COUT, 1 ,1> &weight,
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -1199,6 +1231,7 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 		hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> &weight_stream,
 		hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &psum_stream,
 		layerPara para){
+#pragma HLS inline
 
 	struct tilingID iter;
 
@@ -1235,6 +1268,7 @@ static void write_back(
         hls::stream<uint32_t> & update_addr,
 		Doublebuffer_feature<dtype_double, OFM_BUFF_SIZE, P_COUT, 1, 1, 1> &psum,
 		layerPara para){
+#pragma HLS inline
 //#pragma HLS inline
 
 	struct tilingID iter;

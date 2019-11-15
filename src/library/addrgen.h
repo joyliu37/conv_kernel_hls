@@ -64,6 +64,37 @@ void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
     }
 }
 
+template<size_t DIM>
+void AddrGenLight(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
+        const uint16_t abs_rng[DIM],
+        const uint16_t st[DIM]
+        ) {
+    //The generator did not responsible for valid check itself
+    static_assert(DIM <= 6, "Access pattern dimension should less equal than 6!\n");
+    uint16_t idx[DIM];
+    for (uint8_t i = 0; i < DIM; i ++) {
+#pragma HLS UNROLL
+        idx[i] = 0;
+    }
+
+    for (uint32_t i = 0; i < num_iter; i ++) {
+#pragma HLS pipeline II=1
+        uint32_t addr = 0;
+        for (uint8_t dimension = 0; dimension < DIM; dimension ++) {
+            addr += idx[dimension];
+        }
+        addr_stream.write(addr);
+
+        for (uint8_t dimension  = 0; dimension < DIM; dimension ++) {
+            idx[dimension] +=  st[dimension];
+            if (idx[dimension] == abs_rng[dimension])
+                idx[dimension] = 0;
+            else
+                break;
+        }
+    }
+}
+
 template<typename T, size_t DIM,
     size_t BANK_EXTENT_0, size_t BANK_EXTENT_1, size_t BANK_EXTENT_2, size_t BANK_EXTENT_3>
 void BankIDGenTemp(

@@ -36,7 +36,7 @@ add_files $hwdir/hls_target.cpp -cflags "-std=c++0x -I$libdir -I$halide_include 
 #add_files $srcdir/hw/mobilenet/hls_target.h -cflags "-std=c++0x -I$libdir -I$halide_include -I$hls_support"
 #add_files $srcdir/host/conv_test.h -cflags "-std=c++0x -I$hwdir -I$libdir -I$halide_include -I$hls_support"
 add_files -tb $hwdir/hls_test.cpp -cflags "-std=c++0x -I$hwdir -I$hostdir -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
-open_solution "test_pynq"
+open_solution "test_pynq_debug"
 #set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 set_part {xc7z020clg484-1} -tool vivado
 
