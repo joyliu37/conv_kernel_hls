@@ -54,7 +54,7 @@ bool pool)
  //PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_weightDP = arg_3;
 
  //FIXME initial parameter of depthwise kernel with 3 and dp kernel input with 0.
- layerPara para(P_CIN, P_COUT, 3, DATAWIDTH,
+ layerPara para(P_CIN_BIT, P_COUT_BIT, 3, DATAWIDTH_BIT,
          Ksz, X_n, Xsz, Y_n, Ysz, Cin_n, Cin_SZ, Cout_n, Cout_SZ, Stride, 1, pool);
 
  //define the stream

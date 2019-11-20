@@ -3,7 +3,7 @@
 
 #include "util.h"
 
-template<typename T, int data_width>
+template<typename T, int data_width, uint8_t DATAWIDTH_BIT>
 void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
         layerPara para, tilingID iter) {
@@ -16,18 +16,24 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
     const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor_dp + para.prePad);
     const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor_dp + para.prePad);
     const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor_dp + para.prePad);
+    const ap_uint<4> cin_bit = para.Cin_SZ_bit - DATAWIDTH_BIT;
+    const ap_uint<4>  cin_chunk_bit = para.Cin_SZ_bit - DATAWIDTH_BIT + para.Cin_n_bit;
+    const uint16_t bound_c =  1 << cin_bit;
+    const uint16_t ddrC_offset =  iter.tilingIDc_i << cin_bit;
+    const uint16_t ddrX_offset = (iter.tilingIDx * para.X_SZ) << cin_chunk_bit;
+    const uint16_t ddrY_offset = ((iter.tilingIDy * para.Y_SZ) << cin_chunk_bit) * para.Width;
 
-	load_feature2Stream: for (int input_y = y_low; input_y < y_high; input_y++) {
+	load_feature2Stream: for (int8_t input_y = y_low; input_y < y_high; input_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-		for (int input_x = x_low; input_x < x_high; input_x++) {
+		for (int8_t input_x = x_low; input_x < x_high; input_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-			for (int input_c = 0; input_c < (para.Cin_SZ / data_width); input_c++) {
+			for (uint8_t input_c = 0; input_c < bound_c; input_c++) {
 #pragma HLS LOOP_TRIPCOUNT max=2
 #pragma HLS PIPELINE II=1
-				int32_t ddrC = input_c + iter.tilingIDc_i * para.Cin_SZ / data_width;
-				int32_t ddrAddr = ddrC +\
-                                  (input_x + iter.tilingIDx * para.X_SZ) * para.Cin_chunk +\
-                                  (input_y + iter.tilingIDy * para.Y_SZ) * para.Cin_chunk * para.Width ;
+				uint32_t ddrC = input_c + ddrC_offset;
+				uint32_t ddrAddr = ddrC + (input_x << cin_chunk_bit) + (input_y << cin_chunk_bit) * para.Width + ddrX_offset + ddrY_offset;
+                                  //((input_x + iter.tilingIDx * para.X_SZ) << cin_chunk_bit)+\
+                                  //((input_y + iter.tilingIDy * para.Y_SZ) << cin_chunk_bit) * para.Width ;
 				temp = _feature[ddrAddr];
 				out.write(temp);
 			}

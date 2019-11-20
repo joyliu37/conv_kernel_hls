@@ -35,7 +35,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-		Mem2Stream_feature<dtype, DATAWIDTH>(_clamped, featureStream, para, iter);
+		Mem2Stream_feature<dtype, DATAWIDTH, DATAWIDTH_BIT>(_clamped, featureStream, para, iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -330,7 +330,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenTemp<5>(out, num_iter, rng, st);
+        AddrGenLight<5>(out, num_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -373,7 +373,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenTemp<6>(out, num_iter, rng, st);
+        AddrGenLight<6>(out, num_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -407,7 +407,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenTemp<3>(out, num_iter, rng, st);
+        AddrGenLight<3>(out, num_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -443,7 +443,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenTemp<1>(out, num_iter, rng, st);
+        AddrGenLight<1>(out, num_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -513,7 +513,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        AddrGenTemp<4>(addr, num_iter, rng, st);
+        AddrGenLight<4>(addr, num_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -544,7 +544,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-        AddrGenTemp<1>(addr, num_iter, rng, st);
+        AddrGenLight<1>(addr, num_iter, rng, st);
 
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
@@ -575,7 +575,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
 
-        AddrGenTemp<1>(addr, num_iter, rng, st);
+        AddrGenLight<1>(addr, num_iter, rng, st);
 
    } // for _output_s0_c_co
   } // for _output_s0_x_xo

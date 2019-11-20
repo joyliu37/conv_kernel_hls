@@ -25,15 +25,30 @@ struct layerPara{
 	uint16_t Y_n;
 	uint16_t Y_SZ;
     uint16_t oY_SZ;
-	uint16_t Cin_n;
+
+    uint16_t Cin_n_bit;
+    uint16_t Cin_SZ_bit;
+    uint16_t Cin_Iter_bit;
+    uint16_t Cin_chunk_bit;
+
+    uint16_t Cout_n_bit;
+    uint16_t Cout_SZ_bit;
+    uint16_t Cout_Iter_bit;
+    uint16_t Cout_chunk_bit;
+
+    uint16_t Cin_n;
     uint16_t Cin_SZ;
     uint16_t Cin_Iter;
     uint16_t Cin_chunk;
-	uint16_t Cout_n;
+
+    uint16_t Cout_n;
     uint16_t Cout_SZ;
     uint16_t Cout_Iter;
     uint16_t Cout_chunk;
+
     uint16_t Ch_Iter;
+    uint16_t Ch_Iter_bit;
+
     uint16_t Stride;
     uint16_t loop_cnt;
     uint16_t loop_out_cnt;
@@ -54,37 +69,42 @@ struct layerPara{
 
     public:
     layerPara(
-            const int p_in, const int p_out, const int kernel_dp, const int data_width,
+            const int p_in_bit, const int p_out_bit, const int kernel_dp, const int data_width_bit,
             uint16_t Ksz_,
             uint16_t X_n_,
             uint16_t X_SZ_,
             uint16_t Y_n_,
             uint16_t Y_SZ_,
-            uint16_t Cin_n_,
-            uint16_t Cin_SZ_,
-            uint16_t Cout_n_,
-            uint16_t Cout_SZ_,
+            uint16_t Cin_n_bit_,
+            uint16_t Cin_SZ_bit_,
+            uint16_t Cout_n_bit_,
+            uint16_t Cout_SZ_bit_,
             uint16_t Stride_,
-            uint16_t Ch_Iter_,
+            uint16_t Ch_Iter_bit_,
             bool pool_){
         Ksz = Ksz_;
         X_n = X_n_;
         X_SZ = X_SZ_;
         Y_n = Y_n_;
         Y_SZ = Y_SZ_;
-        Cin_n = Cin_n_;
-        Cin_SZ = Cin_SZ_;
-        Cin_Iter = Cin_SZ/p_in;
+        Cin_n_bit = Cin_n_bit_;
+        Cin_SZ_bit = Cin_SZ_bit_;
+        Cin_n = 1 << Cin_n_bit;
+        Cin_SZ = 1 << Cin_SZ_bit;
+        Cin_Iter = Cin_SZ >> p_in_bit;
 
 
-        Cout_n = Cout_n_;
-        Cout_SZ = Cout_SZ_;
-        Cout_Iter = Cout_SZ / p_out;
+        Cout_n_bit= Cout_n_bit_;
+        Cout_SZ_bit = Cout_SZ_bit_;
+        Cout_n = 1 << Cout_n_bit;
+        Cout_SZ = 1 << Cout_SZ_bit;
+        Cout_Iter = Cout_SZ >> p_out_bit;
 
 
         Stride = Stride_;
 
-        Ch_Iter = Ch_Iter_;
+        Ch_Iter_bit = Ch_Iter_bit_;
+        Ch_Iter = 1 << Ch_Iter_bit;
 
         oX_SZ = X_SZ / Stride;
         oY_SZ = Y_SZ / Stride;
@@ -102,16 +122,16 @@ struct layerPara{
         oWidth = Width / Stride;
         oHeight = Height / Stride;
 
-        Chin = Cin_n * Cin_SZ;
-        Chout = Cout_n * Cout_SZ;
-        Cin_chunk = Chin/data_width;
-        Cout_chunk = Chout/data_width;
+        Chin =  1 << (Cin_n_bit + Cin_SZ_bit);
+        Chout = 1 << (Cout_n_bit + Cout_SZ_bit);
+        Cin_chunk = Chin >> data_width_bit;
+        Cout_chunk = Chout >> data_width_bit;
 
         Anchor = (Ksz - 1) >> 1;
         Anchor_dp = (kernel_dp- 1)>>1;
         prePad = 0;
 
-        w_cnt = p_in * p_out / data_width;
+        w_cnt = 1 << (p_in_bit + p_out_bit - data_width_bit);
     }
 };
 

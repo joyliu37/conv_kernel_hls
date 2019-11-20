@@ -66,12 +66,14 @@ void AddrGenTemp(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
 
 template<size_t DIM>
 void AddrGenLight(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
-        const uint16_t abs_rng[DIM],
+        const uint16_t rng[DIM],
         const uint16_t st[DIM]
         ) {
     //The generator did not responsible for valid check itself
     static_assert(DIM <= 6, "Access pattern dimension should less equal than 6!\n");
     uint16_t idx[DIM];
+    bool flag[DIM];
+    bool update_flag[DIM];
     for (uint8_t i = 0; i < DIM; i ++) {
 #pragma HLS UNROLL
         idx[i] = 0;
@@ -81,16 +83,24 @@ void AddrGenLight(hls::stream<uint32_t> & addr_stream, const uint32_t num_iter,
 #pragma HLS pipeline II=1
         uint32_t addr = 0;
         for (uint8_t dimension = 0; dimension < DIM; dimension ++) {
-            addr += idx[dimension];
+            addr += idx[dimension] * st[dimension];
+            flag[dimension] = (idx[dimension] == rng[dimension] - 1);
         }
         addr_stream.write(addr);
 
         for (uint8_t dimension  = 0; dimension < DIM; dimension ++) {
-            idx[dimension] +=  st[dimension];
-            if (idx[dimension] == abs_rng[dimension])
-                idx[dimension] = 0;
-            else
-                break;
+            bool reset = true;
+            for (uint8_t cur_dim= 0; cur_dim < dimension; cur_dim ++)
+                reset &= flag[cur_dim];
+
+            if (dimension == 0)
+                idx[dimension] ++;
+            else {
+                if (reset) {
+                    idx[dimension - 1] = 0;
+                    idx[dimension] ++;
+                }
+            }
         }
     }
 }
