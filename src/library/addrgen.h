@@ -160,9 +160,11 @@ void BankIDGenCircular(
         const uint32_t bank_bound,
         const uint16_t rng[DIM],
         const uint16_t st[DIM]) {
+#pragma HLS array_partition variable=st complete
     //The generator did not responsible for valid check itself
     static_assert(DIM <= 6, "BANK ID pattern dimension should less equal than 6!\n");
     uint16_t idx[DIM];
+#pragma HLS array_partition variable=idx complete
     //Stencil<T, BANK_EXTENT_0, BANK_EXTENT_1, BANK_EXTENT_2, BANK_EXTENT_3> start_bank_stencil = start_bank;
     for (uint8_t i = 0; i < DIM; i ++){
 #pragma HLS unroll

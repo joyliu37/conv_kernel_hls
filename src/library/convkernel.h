@@ -8,6 +8,7 @@ template <size_t SIMD_NUM, size_t PE_NUM, typename type, typename type_double>
 void conv_kernel(hls::stream<PackedStencil<type, SIMD_NUM, 1, 1, 1>> & feature_stream,
 		hls::stream<PackedStencil<type, SIMD_NUM, PE_NUM, 1, 1>> & weight_stream,
 		hls::stream<PackedStencil<type_double, PE_NUM, 1, 1, 1>> & psum_stream,
+        uint32_t num_iter,
 		layerPara para){
 #pragma HLS inline off
 
@@ -19,7 +20,7 @@ void conv_kernel(hls::stream<PackedStencil<type, SIMD_NUM, 1, 1, 1>> & feature_s
 #pragma HLS ARRAY_PARTITION variable=psum_reg.value complete dim=0
 
     //The iterator order here does not matter, the kernel is virtualized.
-    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    //const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
 	computation:for (int itr = 0; itr < num_iter; itr++){
 	#pragma HLS PIPELINE II=1

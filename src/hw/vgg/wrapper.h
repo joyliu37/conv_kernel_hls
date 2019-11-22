@@ -71,7 +71,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-		Mem2Stream_weight<dtype, DATAWIDTH>(_weight, weightStream, para, iter);
+		Mem2Stream_weight<dtype, DATAWIDTH, P_CIN_BIT, P_COUT_BIT, DATAWIDTH_BIT>(_weight, weightStream, para, iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -144,7 +144,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
    for (iter.tilingIDc_o = 0; iter.tilingIDc_o < 0 + para.Cout_n; iter.tilingIDc_o++)
    {
 #pragma HLS LOOP_TRIPCOUNT max=2
-		Stream2Mem_output<dtype, DATAWIDTH>(_output, outputStream, para, iter);
+		Stream2Mem_output<dtype, DATAWIDTH, DATAWIDTH_BIT>(_output, outputStream, para, iter);
 
    } // for _output_s0_c_co
   } // for _output_s0_x_xo
@@ -270,11 +270,11 @@ static void FeatureAddrGen(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
 
-    const uint8_t ext_x = para.oX_SZ;
-    const uint8_t ext_y = para.oY_SZ;
-    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    //const uint8_t ext_x = para.oX_SZ;
+    //const uint8_t ext_y = para.oY_SZ;
+    //const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
-    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    //const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -291,9 +291,9 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        FeatureAddrGen1D(out, num_iter,
-                ext_x, 1, para.Ksz, para.Ksz,
-                para.Cin_Iter, para.Cout_Iter, bound_x, para.Cin_Iter);
+        FeatureAddrGen1D(out, para.blk_comp_iter,
+                para.oX_SZ, 1, para.Ksz, para.Ksz,
+                para.Cin_Iter, para.Cout_Iter, para.bound_x, para.Cin_Iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -310,9 +310,9 @@ static void WeightAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
 
     const uint8_t ext_x = para.oX_SZ;
     const uint8_t ext_y = para.oY_SZ;
-    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    //const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
-    const uint16_t rng[3] = {(uint16_t)(para.Cin_Iter*para.Ksz*para.Ksz*para.Cout_Iter), ext_x, ext_y};
+    const uint16_t rng[3] = {(uint16_t)(para.weight_sz), ext_x, ext_y};
     const uint16_t st[3] = {1, 0, 0};
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -330,7 +330,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenLight<5>(out, num_iter, rng, st);
+        AddrGenLight<5>(out, para.blk_comp_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -345,18 +345,19 @@ static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
 
     const uint8_t ext_x = para.oX_SZ;
     const uint8_t ext_y = para.oY_SZ;
-    const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    //const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
-    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    //const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    const uint8_t bound_x = para.bound_x;
 
     const uint16_t rng[6] = {(uint16_t)(para.Cin_Iter),
         (uint16_t)(para.Ksz), (uint16_t)(para.Ksz),
         (uint16_t)(para.Cout_Iter), ext_x, ext_y};
     const uint16_t st[6] = {1, (uint16_t)(para.Cin_Iter),
-        (uint16_t)(bound_x * para.Cin_Iter),
+        (uint16_t)(para.acc_dim_cx),
         0,
         (uint16_t)(para.Cin_Iter),
-        (uint16_t)(para.Cin_Iter*bound_x)};
+        (uint16_t)(para.acc_dim_cx)};
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -373,7 +374,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenLight<6>(out, num_iter, rng, st);
+        AddrGenLight<6>(out, para.blk_comp_iter, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -387,10 +388,10 @@ static void WeightAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
 #pragma HLS inline
 
 	struct tilingID iter;
-    const uint32_t num_iter = para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+    //const uint32_t num_iter = para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
 
-    const uint16_t rng[3] = {(uint16_t)(para.Ksz * para.Ksz), para.Cin_Iter, para.Cout_Iter};
-    const uint16_t st[3] = {para.Cin_Iter, 1, (uint16_t)(para.Cin_Iter*para.Ksz*para.Ksz)};
+    const uint16_t rng[3] = {(uint16_t)(para.kernel_sz), para.Cin_Iter, para.Cout_Iter};
+    const uint16_t st[3] = {para.Cin_Iter, 1, (uint16_t)(para.weight_sz_3)};
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -407,7 +408,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenLight<3>(out, num_iter, rng, st);
+        AddrGenLight<3>(out, para.weight_sz, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -420,12 +421,12 @@ static void FeatureAddrLoadLib(hls::stream<uint32_t> &out, layerPara para){
 
 	struct tilingID iter;
 
-    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
-    const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
-    const uint32_t num_iter = bound_x * bound_y * para.Cin_Iter;
+    //const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    //const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
+    //const uint32_t num_iter = bound_x * bound_y * para.Cin_Iter;
 
 
-    const uint16_t rng[1] = {(uint16_t)num_iter};
+    const uint16_t rng[1] = {(uint16_t)para.input_sz};
     const uint16_t st[1] = {1};
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -443,7 +444,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
         //for Mobilenet 1x1 conv can only have stride=1, just hardcode here
         //TODO: add another input config for the conv stride
-        AddrGenLight<1>(out, num_iter, rng, st);
+        AddrGenLight<1>(out, para.input_sz, rng, st);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -462,7 +463,7 @@ static void WeightAddrGen(hls::stream<uint32_t> &out_id,
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
 
-    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t num_iter = para.blk_comp_iter;//para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -476,7 +477,8 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	for (iter.tilingIDc_i = 0; iter.tilingIDc_i < 0 + para.Cin_n; iter.tilingIDc_i++)
 	{
 #pragma HLS LOOP_TRIPCOUNT max=2
-        WeightAddrGen2D(out_id, out_addr, num_iter, para.Cin_Iter * para.Ksz * para.Ksz, para.Cout_Iter);
+        //WeightAddrGen2D(out_id, out_addr, num_iter, para.Cin_Iter * para.Ksz * para.Ksz, para.Cout_Iter);
+        WeightAddrGen2D(out_id, out_addr, num_iter, para.weight_sz_3, para.Cout_Iter);
 
     }//for tiling Input channel
    } // for _output_s0_c_co
@@ -496,10 +498,10 @@ static void OutputAddrUpdateLib(
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
 
-    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t num_iter = para.blk_comp_iter;//para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
-    const uint16_t rng[4] = {(uint16_t)(para.Ksz * para.Ksz * para.Cin_Iter), para.Cout_Iter, para.oX_SZ, para.oY_SZ};
-    const uint16_t st[4] = {0, 1, (uint16_t)(para.Cout_Iter), (uint16_t)(para.Cout_Iter * para.oX_SZ)};
+    const uint16_t rng[4] = {(uint16_t)(para.weight_sz_3), para.Cout_Iter, para.oX_SZ, para.oY_SZ};
+    const uint16_t st[4] = {0, 1, (uint16_t)(para.Cout_Iter), (uint16_t)(para.output_dim_cx)};
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
 #pragma HLS LOOP_TRIPCOUNT max=2
@@ -529,7 +531,7 @@ static void OutputAddrLoadLib(
 
 	struct tilingID iter;
 
-    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+    const uint32_t num_iter = para.output_sz;//para.oX_SZ * para.oY_SZ * para.Cout_Iter;
 
     const uint16_t rng[1] = {(uint16_t)num_iter};
     const uint16_t st[1] = {1};
@@ -560,7 +562,7 @@ static void OutputAddrFeedLib(
 
 	struct tilingID iter;
 
-    const uint32_t num_iter = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+    const uint16_t num_iter = para.output_sz;//para.oX_SZ * para.oY_SZ * para.Cout_Iter;
 
     const uint16_t rng[1] = {(uint16_t)num_iter};
     const uint16_t st[1] = {1};
@@ -594,7 +596,7 @@ static void Truncate(hls::stream<PackedStencil<T, EXTENT_0, EXTENT_1, EXTENT_2, 
 	iter.tilingIDc_o = 0;
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
-	int size = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+	int size = para.output_sz;//para.oX_SZ * para.oY_SZ * para.Cout_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -657,7 +659,7 @@ static void ReLU(hls::stream<PackedStencil<dtype_double, P_COUT, 1, 1, 1>> &in,
 	iter.tilingIDc_o = 0;
 	iter.tilingIDx = 0;
 	iter.tilingIDy = 0;
-	int size = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+	int size = para.output_sz;//para.oX_SZ * para.oY_SZ * para.Cout_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {
@@ -740,7 +742,7 @@ static void datawidth_convert_feature(
 	#pragma HLS LOOP_TRIPCOUNT max=2
     const uint8_t x_edge = ((iter.tilingIDx != 0) + (iter.tilingIDx != (para.X_n - 1))) * (para.Anchor + para.prePad);
     const uint8_t y_edge = ((iter.tilingIDy != 0) + (iter.tilingIDy != (para.Y_n - 1))) * (para.Anchor + para.prePad);
-    int32_t input_count = (para.X_SZ + x_edge) * (para.Y_SZ + y_edge) * para.Cin_SZ / DATAWIDTH;
+    int32_t input_count = ((para.X_SZ + x_edge) * (para.Y_SZ + y_edge) * para.Cin_SZ) >> DATAWIDTH_BIT;
 	        StreamDataWidthConverter<dtype, DATAWIDTH, P_CIN>(in, out, DATAWIDTH, P_CIN, input_count);
 
 	    }//for tiling Input channel
@@ -762,7 +764,8 @@ static void datawidth_convert_weight(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = para.Ksz * para.Ksz * para.Cin_SZ * para.Cout_SZ / DATAWIDTH;
+    //int32_t input_count = para.Ksz * para.Ksz * para.Cin_SZ * para.Cout_SZ / DATAWIDTH;
+    int32_t input_count = para.weight_sz << (P_CIN_BIT + P_COUT_BIT - DATAWIDTH_BIT);
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -797,7 +800,7 @@ static void stencil_convert_weight(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    int32_t input_count = para.weight_sz;//para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 	 {
@@ -867,7 +870,7 @@ static void datawidth_convert_output(
 		iter.tilingIDx = 0;
 		iter.tilingIDy = 0;
 
-    int32_t input_count = para.oX_SZ * para.oY_SZ * para.Cout_Iter;
+    int32_t input_count = para.output_sz;//para.oX_SZ * para.oY_SZ * para.Cout_Iter;
     //int32_t input_count = (para.oX_SZ + para.prePad*2) * (para.oY_SZ + para.prePad*2) * para.Cout_Iter;
 
 	for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -1110,11 +1113,11 @@ static void read_input(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &padded
 #pragma HLS inline
 
 	struct tilingID iter;
-    const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
-    const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
-    const uint8_t bound_ch = para.Cin_Iter;
-    const uint32_t load_bound = bound_y * bound_x * bound_ch;
-    const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    //const uint8_t bound_y = para.oY_SZ + para.Ksz - 1;
+    //const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
+    //const uint8_t bound_ch = para.Cin_Iter;
+    const uint32_t load_bound = para.input_sz;//bound_y * bound_x * bound_ch;
+    const uint32_t feed_bound = para.blk_comp_iter;//para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 	//feature.call_start(padded_feature, bound_y, bound_x, para.Cin_Iter);
 
 
@@ -1199,8 +1202,8 @@ static void read_weight(
 
 	struct tilingID iter;
 
-    const uint32_t feed_bound = para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
-    const uint32_t load_bound = para.Cout_Iter * para.Cin_Iter * para.Ksz * para.Ksz;
+    const uint32_t feed_bound = para.blk_comp_iter;//para.oX_SZ * para.oY_SZ * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
+    const uint32_t load_bound = para.weight_sz;//para.Cout_Iter * para.Cin_Iter * para.Ksz * para.Ksz;
 	//weight.call_start(weightMemStream, para.Cout_Iter, para.Cin_Iter, para.Ksz, para.Ksz);
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
@@ -1249,7 +1252,7 @@ static void compute(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> &feature_s
 		{
 	#pragma HLS LOOP_TRIPCOUNT max=2
 
-			conv_kernel(feature_stream, weight_stream, psum_stream, para);
+			conv_kernel(feature_stream, weight_stream, psum_stream, para.blk_comp_iter, para);
 
         //debug
         //std::cout <<"conv iter no." << iter.tilingIDc_i <<std::endl;
@@ -1272,11 +1275,11 @@ static void write_back(
 //#pragma HLS inline
 
 	struct tilingID iter;
-    const uint8_t bound_y = para.oX_SZ;
-    const uint8_t bound_x = para.oY_SZ;
-    const uint8_t bound_ch = para.Cout_Iter;
-    const uint32_t load_bound = bound_x * bound_y * para.Cout_Iter;
-    const uint32_t feed_bound = para.Cin_n * bound_x * bound_y * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
+    //const uint8_t bound_y = para.oX_SZ;
+    //const uint8_t bound_x = para.oY_SZ;
+    //const uint8_t bound_ch = para.Cout_Iter;
+    const uint32_t load_bound = para.output_sz;//bound_x * bound_y * para.Cout_Iter;
+    const uint32_t feed_bound = para.blk_comp_iter << para.Cin_n_bit;;//para.Cin_n * bound_x * bound_y * para.Ksz * para.Ksz * para.Cout_Iter * para.Cin_Iter;
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {

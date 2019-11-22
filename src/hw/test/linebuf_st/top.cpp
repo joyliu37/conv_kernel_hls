@@ -89,7 +89,7 @@ void top(
     AddrGenTemp<2>(addr_out_2D, 256*127, rng_out_2d, st_out_2d);
 
     BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1>(bank_in_2D, write_start, 256*256, 2, rng_write_bank_2d, st_write_bank_2d);
-    BankIDGenCircular<uint32_t, 3, 2, 1, 1, 1>(bank_out_2D, read_start, 256*127, 2, rng_read_bank_2d, st_read_bank_2d);
+    BankIDGenCircular<uint32_t, 2, 2, 1, 1, 1>(bank_out_2D, read_start, 256*127, 2, rng_read_bank_2d, st_read_bank_2d);
 
     NDShiftReg<256, 2, DATAWIDTH, 1, 1, 1, DATAWIDTH, 1, 3, 1, dtype>::call(inStream, intermStream, bank_in_2D, bank_out_2D, addr_in_2D, addr_out_2D, 2*256, 256*256, 2);
     for (int i = 0; i < 127; i ++)

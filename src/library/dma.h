@@ -101,6 +101,38 @@ void Mem2Stream_feature_debug(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 	}
 }*/
 
+template<typename T, int data_width, uint8_t p_in_bit, uint8_t p_out_bit, uint8_t data_width_bit>
+void Mem2Stream_weight(
+        PackedStencil<T, data_width, 1, 1, 1> *_weight,
+        hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &out,
+        layerPara para, tilingID iter){
+//#pragma HLS inline
+
+
+    const uint16_t stride = (para.Ksz * para.Ksz) << (para.Cin_SZ_bit + para.Cin_n_bit + p_out_bit  - data_width_bit);
+    const uint16_t range = stride >> para.Cin_n_bit;
+    const uint16_t starting_addr = range * iter.tilingIDc_i + (stride << (para.Cout_SZ_bit - p_out_bit)) * iter.tilingIDc_o;
+    //const uint16_t starting_addr = ((iter.tilingIDc_i * para.Ksz * para.Ksz) << (para.Cin_SZ_bit + p_out_bit -data_width_bit)) + ((iter.tilingIDc_o * para.Ksz * para.Ksz) << (para.Cin_SZ_bit + para.Cin_n_bit + para.Cout_SZ_bit - data_width_bit));
+
+
+    Stencil<T, data_width, 1, 1, 1> temp;
+load_weight2Stream: for (uint8_t output_c = 0; output_c < para.Cout_Iter; output_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=16
+//#pragma HLS DATAFLOW
+            for (uint16_t input_c = 0; input_c < range; input_c++) {
+#pragma HLS LOOP_TRIPCOUNT max=72
+
+#pragma HLS PIPELINE II=1
+                        //TODO: change the hardcode 4 to a param
+    					int32_t ddrAddr = starting_addr + output_c * stride + input_c;
+                        temp = _weight[ddrAddr];
+					    out.write(temp);
+
+	    }
+    }
+}
+
+
 template<typename T, int data_width>
 void Mem2Stream_weight(
         PackedStencil<T, data_width, 1, 1, 1> *_weight,
@@ -141,30 +173,36 @@ load_weight2Stream_continous: for (size_t ddrAddr = 0; ddrAddr < length; ddrAddr
 
 
 
-template<typename T, int data_width>
+template<typename T, int data_width, uint8_t DATAWIDTH_BIT>
 void Stream2Mem_output(
 		PackedStencil<T, data_width, 1, 1, 1> *_output,
 		hls::stream<PackedStencil<T, data_width, 1, 1, 1>> &in,
 		layerPara para, tilingID iter){
 //#pragma HLS inline
+    const ap_uint<4> cout_bit = para.Cout_SZ_bit - DATAWIDTH_BIT;
+    const ap_uint<4> cout_chunk_bit = para.Cout_SZ_bit - DATAWIDTH_BIT + para.Cout_n_bit;
+    const uint16_t bound_c =  1 << cout_bit;
+    const uint16_t ddrC_offset =  iter.tilingIDc_o << cout_bit;
+    const uint16_t ddrX_offset = (iter.tilingIDx * para.oX_SZ) << cout_chunk_bit;
+    const uint16_t ddrY_offset = ((iter.tilingIDy * para.oY_SZ) << cout_chunk_bit) * para.oWidth;
 
 	Stencil<T, data_width, 1, 1, 1> temp;
 #pragma ARRAY_PARTITION variable=temp.value complete dim=0
-store_stream2out: for (int output_y = 0; output_y < para.oY_SZ; output_y++) {
+store_stream2out: for (uint8_t output_y = 0; output_y < para.oY_SZ; output_y++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-	for (int output_x = 0; output_x < para.oX_SZ; output_x++) {
+	for (uint8_t output_x = 0; output_x < para.oX_SZ; output_x++) {
 #pragma HLS LOOP_TRIPCOUNT max=18
-		for (int output_c = 0; output_c < para.Cout_SZ/data_width; output_c++) {
+		for (uint8_t output_c = 0; output_c < bound_c; output_c++) {
 //#pragma HLS LOOP_TRIPCOUNT max=4
 #pragma HLS PIPELINE II=1
 			temp = in.read();
             //TODO: fix bug change para.width to output width in case of stride
             //if (( output_y <1 ) || (output_x < 1) || (output_y > para.oY_SZ ) || (output_x > para.oX_SZ))
             //        continue;
-            int32_t ddrC = output_c + para.Cout_SZ / data_width * iter.tilingIDc_o;
-			int32_t outputAddr = ddrC +
-					(iter.tilingIDx * para.oX_SZ + output_x) * para.Cout_chunk +
-					(iter.tilingIDy * para.oY_SZ + output_y) * para.Cout_chunk * para.oWidth;
+            int32_t ddrC = output_c + ddrC_offset;
+			int32_t outputAddr = ddrC + (output_x << cout_chunk_bit) + (output_y << cout_chunk_bit) * para.oWidth +ddrX_offset + ddrY_offset;
+					//(iter.tilingIDx * para.oX_SZ + output_x) * para.Cout_chunk +
+					//(iter.tilingIDy * para.oY_SZ + output_y) * para.Cout_chunk * para.oWidth;
 			_output[outputAddr] = temp;
 
 	        }

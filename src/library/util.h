@@ -16,6 +16,7 @@
 typedef uint8_t dtype_u;
 typedef int8_t dtype;
 typedef int16_t dtype_double;
+typedef ap_uint<4> type_bit;
 
 struct layerPara{
     uint16_t Ksz;
@@ -26,15 +27,15 @@ struct layerPara{
 	uint16_t Y_SZ;
     uint16_t oY_SZ;
 
-    uint16_t Cin_n_bit;
-    uint16_t Cin_SZ_bit;
-    uint16_t Cin_Iter_bit;
-    uint16_t Cin_chunk_bit;
+    type_bit Cin_n_bit;
+    type_bit Cin_SZ_bit;
+    type_bit Cin_Iter_bit;
+    type_bit Cin_chunk_bit;
 
-    uint16_t Cout_n_bit;
-    uint16_t Cout_SZ_bit;
-    uint16_t Cout_Iter_bit;
-    uint16_t Cout_chunk_bit;
+    type_bit Cout_n_bit;
+    type_bit Cout_SZ_bit;
+    type_bit Cout_Iter_bit;
+    type_bit Cout_chunk_bit;
 
     uint16_t Cin_n;
     uint16_t Cin_SZ;
@@ -66,6 +67,17 @@ struct layerPara{
     uint8_t w_cnt;
 
 	bool pool;
+
+    uint8_t bound_x;
+    uint8_t bound_y;
+    uint8_t kernel_sz;
+    uint16_t input_sz;
+    uint16_t weight_sz_3;
+    uint16_t weight_sz;
+    uint32_t blk_comp_iter;
+    uint16_t acc_dim_cx;
+    uint16_t output_dim_cx;
+    uint16_t output_sz;
 
     public:
     layerPara(
@@ -132,14 +144,30 @@ struct layerPara{
         prePad = 0;
 
         w_cnt = 1 << (p_in_bit + p_out_bit - data_width_bit);
+
+        //pre compute data
+        bound_x = X_SZ + Ksz - 1;
+        bound_y = Y_SZ + Ksz - 1;
+        acc_dim_cx = bound_x * Cin_Iter;
+        input_sz = bound_y * acc_dim_cx;
+
+        kernel_sz = Ksz * Ksz;
+        weight_sz_3 = kernel_sz * Cin_Iter;
+        weight_sz = weight_sz_3 * Cout_Iter;
+
+        blk_comp_iter = oX_SZ * oY_SZ * weight_sz;
+
+        output_dim_cx = oX_SZ * Cout_Iter;
+        output_sz = oY_SZ * output_dim_cx;
+
     }
 };
 
 struct tilingID{
-	int tilingIDx;
-	int tilingIDy;
-	int tilingIDc_o;
-	int tilingIDc_i;
+	type_bit tilingIDx;
+	type_bit tilingIDy;
+	type_bit tilingIDc_o;
+	type_bit tilingIDc_i;
 };
 
 
