@@ -51,6 +51,7 @@ struct layerPara{
     uint16_t Ch_Iter_bit;
 
     uint16_t Stride;
+    bool Stride_bit;
     uint16_t loop_cnt;
     uint16_t loop_out_cnt;
     uint16_t prePad;
@@ -114,6 +115,7 @@ struct layerPara{
 
 
         Stride = Stride_;
+        Stride_bit = Stride_ / 2;
 
         Ch_Iter_bit = Ch_Iter_bit_;
         Ch_Iter = 1 << Ch_Iter_bit;

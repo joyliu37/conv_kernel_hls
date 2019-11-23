@@ -9,7 +9,7 @@
 #define OCH 128//16,8
 #define FS 1
 //#define FS_DP 3
-#define STRIDE 1
+#define STRIDE 2
 
 #define XN 2
 #define YN 2

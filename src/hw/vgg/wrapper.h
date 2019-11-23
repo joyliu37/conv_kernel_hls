@@ -348,7 +348,6 @@ static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
     //const uint32_t num_iter = ext_x * ext_y * para.Ksz * para.Ksz * para.Cin_Iter * para.Cout_Iter;
 
     //const uint8_t bound_x = para.oX_SZ + para.Ksz - 1;
-    const uint8_t bound_x = para.bound_x;
 
     const uint16_t rng[6] = {(uint16_t)(para.Cin_Iter),
         (uint16_t)(para.Ksz), (uint16_t)(para.Ksz),
@@ -356,8 +355,10 @@ static void FeatureAddrReadLib(hls::stream<uint32_t> &out, layerPara para){
     const uint16_t st[6] = {1, (uint16_t)(para.Cin_Iter),
         (uint16_t)(para.acc_dim_cx),
         0,
-        (uint16_t)(para.Cin_Iter),
-        (uint16_t)(para.acc_dim_cx)};
+        (uint16_t)(para.Cin_Iter * para.Stride),
+        (uint16_t)(para.acc_dim_cx * para.Stride)};
+    printf("%d",para.Cin_Iter << para.Stride_bit);
+    printf("%d",para.acc_dim_cx<< para.Stride_bit);
 
 for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
  {

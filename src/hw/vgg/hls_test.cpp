@@ -42,12 +42,12 @@ int main()
     initial_buf(res_sw_pool, (ROWS * COLS * OCH)>>2);
 
     //conv_dp_sw((dtype*)image, weight_0, res_sw_1, ROWS, COLS, ICH, FS_DP, STRIDE);
-    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, ICH, FS, 1, false, 0);
+    conv_sw((dtype*)image, weight_0, res_sw_0, ROWS, COLS, OCH, ICH, FS, STRIDE, false, 0);
     //image2stencil(res_sw_0, res_sw_0_stencil, ROWS, COLS, OCH);
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 1, 14, 14, 2, 2, 0, 6, 1, 6, 1, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, FS, 14, 14, 2, 2, 0, 6, 1, 6, STRIDE, false);
 	stencil2image(res_0, res_stencil, ROWS/STRIDE, COLS/STRIDE, OCH);
 
     check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);

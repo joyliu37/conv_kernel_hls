@@ -241,16 +241,16 @@ void conv_sw(dtype* input, dtype* weight, dtype* res, \
     	  for (int c = 0; c < iCh; c++) {
     		for (int fy = 0; fy < fs; fy++) {
     		  for (int fx = 0; fx < fs; fx++){
-    			  if( (y+fy >=anchor + prepad ) && (y+fy < rows+anchor+prepad) && (x+fx >= anchor+ prepad) && (x+fx < cols+anchor+prepad) )
-    				  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * cols * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
+    			  if( (y*stride+fy >=anchor + prepad ) && (y*stride+fy < rows+anchor+prepad) && (x*stride+fx >= anchor+ prepad) && (x*stride+fx < cols+anchor+prepad) )
+    				  res_sw_tmp[ y*col_pad/stride*oCh+x*oCh + k] += input[(y*stride+fy-anchor) * cols * iCh + (x*stride+fx-anchor)*iCh + c] * weight[k*fs*fs*iCh + fy*fs*iCh + fx*iCh + c ];
     		  }
     		}
     	  }
     	  //add ReLU
     	  //cout << (int)(res_sw_tmp[ y*cols*oCh+x*oCh + k]) <<endl;
-    	  if (res_sw_tmp[ y*col_pad*oCh+x*oCh + k] < 0 ){
+    	  if (res_sw_tmp[ y*col_pad/stride*oCh+x*oCh + k] < 0 ){
     		  //cout<<"enter ReLU"<<endl;
-    		  res_sw_tmp[ y*col_pad*oCh+x*oCh + k] = 0;
+    		  res_sw_tmp[ y*col_pad/stride*oCh+x*oCh + k] = 0;
     	  }
     	}
       }
