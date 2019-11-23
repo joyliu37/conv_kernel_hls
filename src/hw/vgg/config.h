@@ -3,13 +3,13 @@
 
 //Test Runtime configuration
 
-#define ROWS 14//68
-#define COLS 14//68
+#define ROWS 28//68
+#define COLS 28//68
 #define ICH 128//32,8
 #define OCH 128//16,8
 #define FS 3
 //#define FS_DP 3
-#define STRIDE 1
+#define STRIDE 2
 
 #define XN 2
 #define YN 2
@@ -27,11 +27,11 @@
 //Hardware Kernel Configuration
 #define MAX_X_SZ 14
 #define MAX_Y_SZ 14
-#define MAX_K_SZ 1
+#define MAX_K_SZ 3
 
 #define IFM_BUFF_SIZE (MAX_X_SZ + MAX_K_SZ - 1) * (MAX_Y_SZ + MAX_K_SZ - 1) * MAX_CIN_SZ / P_CIN
 #define OFM_BUFF_SIZE (MAX_X_SZ) * (MAX_Y_SZ) * MAX_COUT_SZ / P_COUT
-#define W_BUFF_SIZE MAX_K_SZ * MAX_K_SZ * MAX_CIN_SZ / P_CIN * 4
+#define W_BUFF_SIZE MAX_CIN_SZ / P_CIN * 4
 #define W_BUFF_BANK MAX_COUT_SZ / P_COUT
 #define LINEBUFFER_SIZE 32*32
 #define SHUFFLE_SIZE 256
@@ -47,14 +47,15 @@
 //#define Cout_Iter 4
 
 #define P_CIN 32
-#define P_CIN_bit 5
+#define P_CIN_BIT 5
 #define P_COUT 64
-#define P_COUT_bit 6
+#define P_COUT_BIT 6
 
 #define P_CH 16
 #define K_DP 3
 
 #define DATAWIDTH 32
+#define DATAWIDTH_BIT 5
 #define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 #endif

@@ -1,6 +1,7 @@
 #include "conv_test.h"
 #include "hls_target.h"
-#include "config_tiny.h"
+//#include "config_tiny.h"
+#include "config.h"
 
 int main()
 {
@@ -47,7 +48,7 @@ int main()
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, FS, 14, 14, 2, 2, 0, 6, 1, 6, STRIDE, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, FS, 14, 14, 2, 2, 1, 6, 1, 6, STRIDE, false);
 	stencil2image(res_0, res_stencil, ROWS/STRIDE, COLS/STRIDE, OCH);
 
     check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);

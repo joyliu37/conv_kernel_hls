@@ -2,7 +2,8 @@
 //#include "hls_target.h"
 #include "convmodule.h"
 #include "wrapper.h"
-#include "config_tiny.h"
+//#include "config_tiny.h"
+#include "config.h"
 
 //#include "Linebuffer.h"
 //#include "halide_math.h"
@@ -40,9 +41,9 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Stride bundle=control
 //#pragma HLS INTERFACE s_axilite port=Ch_Iter bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
-#pragma HLS INTERFACE m_axi depth = 196  port=arg_0
-#pragma HLS INTERFACE m_axi depth = 392  port=arg_1
-#pragma HLS INTERFACE m_axi depth = 256  port=arg_2
+#pragma HLS INTERFACE m_axi depth = 196 port=arg_0
+#pragma HLS INTERFACE m_axi depth = 392 port=arg_1
+#pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
 //#pragma HLS INTERFACE m_axi depth = 144 port=arg_3
 
 

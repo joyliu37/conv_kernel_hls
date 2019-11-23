@@ -7,7 +7,9 @@
 #include "convkernel.h"
 #include "addrgen.h"
 #include "linebuffer.h"
-#include "config_tiny.h"
+//#include "config_tiny.h"
+#include "config.h"
+
 
 //TODO: implement a function pointer and lambda to simplify this function
 static void DMA_feature_tiling_wrapper(
