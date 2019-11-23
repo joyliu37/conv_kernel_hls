@@ -47,7 +47,7 @@ int main()
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, 3, 7, 7, 2, 2, 1, 6, 1, 6, 1, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, 1, 14, 14, 2, 2, 0, 6, 1, 6, 1, false);
 	stencil2image(res_0, res_stencil, ROWS/STRIDE, COLS/STRIDE, OCH);
 
     check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);

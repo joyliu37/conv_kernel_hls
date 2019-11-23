@@ -79,8 +79,8 @@ void top(
     uint16_t st_write_bank_2d[3] = {0, 1, 0};
     uint16_t rng_read_bank_2d[2] = {256, 128};
     uint16_t st_read_bank_2d[2] = {0, 0};
-#pragma HLS RESOURCE variable=rng_read_bank_2d core=RAM_1P_LUTRAM
-#pragma HLS RESOURCE variable=st_read_bank_2d core=RAM_1P_LUTRAM
+#pragma HLS RESOURCE variable=rng_read_bank_2d core=RAM_2P_LUTRAM
+#pragma HLS RESOURCE variable=st_read_bank_2d core=RAM_2P_LUTRAM
 
     AddrGenTemp<2>(addr_in_2D, 256*256, rng_in_2d, st_in_2d);
     AddrGenTemp<2>(addr_out_2D, 256*128, rng_out_2d, st_out_2d);

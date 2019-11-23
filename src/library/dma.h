@@ -12,7 +12,7 @@ void Mem2Stream_feature(PackedStencil<T, data_width, 1, 1, 1>* _feature,
 	Stencil<T, data_width, 1, 1, 1> temp;
 
     //handle the edge case for blocking the feature map
-    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor_dp+ para.prePad);
+    const int8_t x_low = -(iter.tilingIDx > 0) * (para.Anchor_dp + para.prePad);
     const int8_t y_low = -(iter.tilingIDy > 0) * (para.Anchor_dp + para.prePad);
     const int8_t x_high = para.X_SZ + (iter.tilingIDx < (para.X_n - 1)) * (para.Anchor_dp + para.prePad);
     const int8_t y_high = para.Y_SZ + (iter.tilingIDy < (para.Y_n - 1)) * (para.Anchor_dp + para.prePad);

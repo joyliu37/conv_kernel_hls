@@ -146,13 +146,13 @@
 //#define DDR_WRITE_OFFSET 0x10000000
 
 
-#define WEIGHT_BYTESIZE 3*3*512*512
-#define OUTPUT_BYTESIZE 28*28*1024*2
-#define INPUT_BYTESIZE 56*56*512*2//1048576
+#define WEIGHT_BYTESIZE 1*1*256*256
+#define OUTPUT_BYTESIZE 28*28*128
+#define INPUT_BYTESIZE 14*14*256//1048576
 //#define DATAWIDTH 32
 
-#define P_COUT 64
-#define P_CIN 32
+#define P_COUT 16
+#define P_CIN 16
 //#define BUFFER_BYTESIZE         262144  // Length of the buffers for DMA transfer
 
 /*void clearcache(char* begin, char* end)
@@ -173,9 +173,9 @@ typedef uint8_t dtype_u;
 
     static int row = 28;
     static int col = 28;
-    static int iCh = 512;
-    static int oCh = 512;
-    static int Ksz = 2;
+    static int iCh = 128;
+    static int oCh = 256;
+    static int Ksz = 1;
 
     static int test_iter = 1000;
 
@@ -332,13 +332,15 @@ int main()
     uint16_t X_n = 2;
     uint16_t Y_SZ = 14;
     uint16_t Y_n = 2;
-    uint16_t K_SZ = 3;
-    uint16_t Cin_SZ = 128;
-    uint16_t Cin_n = 4;
-    uint16_t Cout_SZ = 128;
-    uint16_t Cout_n = 4;
+    uint16_t K_SZ = 1;
+    uint16_t Cin_SZ = 6;
+    uint16_t Cin_n = 2;
+    uint16_t Cin_n_bit = 1;
+    uint16_t Cout_SZ = 7;
+    uint16_t Cout_n = 2;
+    uint16_t Cout_n_bit = 1;
     //uint16_t Ch_Iter = Cin_SZ/P_CH;
-    uint16_t Stride= 1;
+    uint16_t Stride= 2;
     bool pool = 0;
 
     PackedStencil<dtype, DATAWIDTH, 1, 1, 1> SrcArray2_packed[WEIGHT_BYTESIZE/DATAWIDTH];
@@ -490,9 +492,9 @@ int main()
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_Y_N_DATA)) = (unsigned long)Y_n;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_KSZ_DATA)) = (unsigned long)Ksz;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_SZ_DATA)) = (unsigned long)Cin_SZ;
-    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA)) = (unsigned long)Cin_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CIN_N_DATA)) = (unsigned long)Cin_n_bit;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_SZ_DATA)) = (unsigned long)Cout_SZ;
-    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_N_DATA)) = (unsigned long)Cout_n;
+    *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_COUT_N_DATA)) = (unsigned long)Cout_n_bit;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_STRIDE_DATA)) = (unsigned long)Stride;
     //*((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_CH_ITER_DATA)) = (unsigned long)Ch_Iter;
     *((volatile unsigned long*) (mapped_dev_base + XHLS_TARGET_CONTROL_ADDR_POOL_DATA)) = (unsigned long)pool;
