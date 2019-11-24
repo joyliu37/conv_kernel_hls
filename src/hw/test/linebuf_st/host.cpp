@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include "top.h"
 #include "conv_test.h"
-#define RAM_SIZE 256*256*DATAWIDTH
-#define READ_SIZE 127*127*DATAWIDTH
+#define RAM_SIZE IMG_SIZE*IMG_SIZE*DATAWIDTH
+#define READ_SIZE (IMG_SIZE-2)*(IMG_SIZE-2)*DATAWIDTH/4
 
 int main() {
     dtype RAM[RAM_SIZE];
@@ -21,10 +21,10 @@ int main() {
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image[RAM_SIZE/DATAWIDTH];
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> HLSout[READ_SIZE/DATAWIDTH];
     for (int st = 0; st < 2; st ++){
-        for (int col= 0; col < 256; col ++){
-            for (int row = 0; row < 128; row++) {
+        for (int col= 0; col < IMG_SIZE; col ++){
+            for (int row = 0; row < IMG_SIZE/2; row++) {
                 for (int ii = 0; ii < DATAWIDTH; ii ++){
-                        image[row*2*256+col*2+st](ii) = RAM[(row*2+st)*DATAWIDTH*256+ col*DATAWIDTH + ii];
+                        image[row*2*IMG_SIZE+col*2+st](ii) = RAM[(row*2+st)*DATAWIDTH*IMG_SIZE+ col*DATAWIDTH + ii];
                 }
             }
         }
@@ -36,12 +36,13 @@ int main() {
     std::cout<<"finished"<<std::endl;
 
     int pos = 0;
-    for (int y = 0; y < 127; y ++) {
-            for (int x = 0; x < 127; x ++) {
+    int output_size = (IMG_SIZE-2) / 2;
+    for (int y = 0; y < output_size; y ++) {
+            for (int x = 0; x < output_size; x ++) {
                 for (int cin = 0; cin < DATAWIDTH; cin ++) {
                     for (int ky = 0; ky < 3; ky ++) {
                         for (int kx = 0; kx < 3; kx ++) {
-                            int read_addr = (y*2+ky)* 256*DATAWIDTH+ (x*2+kx)*DATAWIDTH+ cin;
+                            int read_addr = (y*2+ky)* IMG_SIZE*DATAWIDTH+ (x*2+kx)*DATAWIDTH+ cin;
                             OUT[pos] += RAM[read_addr]*(1+kx+ky*3);
                         }
                     }

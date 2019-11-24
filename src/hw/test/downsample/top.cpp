@@ -38,8 +38,8 @@ void top(
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_in,
         PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *data_out
         ){
-#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 65536
-#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 16384
+#pragma HLS INTERFACE m_axi port = data_in offset = slave bundle = gmem depth = 46656
+#pragma HLS INTERFACE m_axi port = data_out offset = slave bundle = gmem depth = 11664
 #pragma HLS INTERFACE s_axilite port = data_in bundle = control
 #pragma HLS INTERFACE s_axilite port = data_out bundle = control
 #pragma HLS INTERFACE s_axilite port=return bundle=control
@@ -61,12 +61,12 @@ void top(
 
 
 #pragma HLS dataflow
-    read_input(data_in, inStream, 256*256);
+    read_input(data_in, inStream, IMG_SIZE*IMG_SIZE*C_SIZE);
     //AddrGenTemp<1>(addr_write, write_size, {write_size}, {1});
-    uint16_t rng_in_2d[2] = {256, 256};
+    uint16_t rng_in_2d[2] = {IMG_SIZE, IMG_SIZE*C_SIZE};
     uint16_t st_in_2d[2] = {1, 0};
-    uint16_t rng_out_2d[2] = {256, 128};
-    uint16_t st_out_2d[2] = { 1, 0};
+    uint16_t rng_out_2d[2] = {IMG_SIZE, IMG_SIZE*C_SIZE>>1};
+    uint16_t st_out_2d[2] = {1, 0};
 
 
 
@@ -75,22 +75,23 @@ void top(
     Stencil<uint32_t, 2> read_start;
     read_start(0) = 0;
     read_start(1) = 1;
-    uint16_t rng_write_bank_2d[3] = {256, 2, 128};
+    uint16_t rng_write_bank_2d[3] = {IMG_SIZE, 2, IMG_SIZE*C_SIZE>>1};
     uint16_t st_write_bank_2d[3] = {0, 1, 0};
-    uint16_t rng_read_bank_2d[2] = {256, 128};
+    uint16_t rng_read_bank_2d[2] = {IMG_SIZE, IMG_SIZE*C_SIZE>>1};
     uint16_t st_read_bank_2d[2] = {0, 0};
 #pragma HLS RESOURCE variable=rng_read_bank_2d core=RAM_2P_LUTRAM
 #pragma HLS RESOURCE variable=st_read_bank_2d core=RAM_2P_LUTRAM
 
-    AddrGenTemp<2>(addr_in_2D, 256*256, rng_in_2d, st_in_2d);
-    AddrGenTemp<2>(addr_out_2D, 256*128, rng_out_2d, st_out_2d);
+    AddrGenTemp<2>(addr_in_2D, IMG_SIZE*IMG_SIZE*C_SIZE, rng_in_2d, st_in_2d);
+    AddrGenTemp<2>(addr_out_2D, IMG_SIZE*IMG_SIZE*C_SIZE>>1, rng_out_2d, st_out_2d);
 
-    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1>(bank_in_2D, write_start, 256*256, 2, rng_write_bank_2d, st_write_bank_2d);
-    BankIDGenCircular<uint32_t, 2, 2, 1, 1, 1>(bank_out_2D, read_start, 256*128, 2, rng_read_bank_2d, st_read_bank_2d);
+    BankIDGenCircular<uint32_t, 3, 1, 1, 1, 1>(bank_in_2D, write_start, IMG_SIZE*IMG_SIZE*C_SIZE, 2, rng_write_bank_2d, st_write_bank_2d);
+    BankIDGenCircular<uint32_t, 2, 2, 1, 1, 1>(bank_out_2D, read_start, IMG_SIZE*(IMG_SIZE>>1) * C_SIZE, 2, rng_read_bank_2d, st_read_bank_2d);
 
-    U_BUFFER<256, 2, DATAWIDTH, 1, 1, 1, 2, dtype>::call(inStream, intermStream, bank_in_2D, bank_out_2D, addr_in_2D, addr_out_2D, 256*2, 256*258, 256*256, 256*2, 256);
-    for (int i = 0; i < 128; i ++)
-        NDShiftReg<1, 2, DATAWIDTH, 1, 2, 1, DATAWIDTH, 2, 2, 1, dtype>::call(intermStream, outStream, 1, 256, 2);
+    for (int i = 0; i < C_SIZE; i ++)
+        U_BUFFER<IMG_SIZE, 2, DATAWIDTH, 1, 1, 1, 2, dtype>::call(inStream, intermStream, bank_in_2D, bank_out_2D, addr_in_2D, addr_out_2D, IMG_SIZE*2, IMG_SIZE*(IMG_SIZE+2), IMG_SIZE*IMG_SIZE, IMG_SIZE*2, IMG_SIZE);
+    for (int i = 0; i < C_SIZE*(IMG_SIZE>>1); i ++)
+        NDShiftReg<1, 2, DATAWIDTH, 1, 2, 1, DATAWIDTH, 2, 2, 1, dtype>::call(intermStream, outStream, 1, IMG_SIZE, 2);
 
-    write_result(data_out, outStream, 128*128);
+    write_result(data_out, outStream, C_SIZE*IMG_SIZE*IMG_SIZE >>2);
 }

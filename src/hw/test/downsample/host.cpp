@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include "top.h"
 #include "conv_test.h"
-#define RAM_SIZE 256*256*DATAWIDTH
-#define READ_SIZE 128*128*DATAWIDTH
+#define RAM_SIZE IMG_SIZE*IMG_SIZE*C_SIZE*DATAWIDTH
+#define READ_SIZE IMG_SIZE*IMG_SIZE*C_SIZE*DATAWIDTH/4
 
 int main() {
     dtype RAM[RAM_SIZE];
@@ -20,10 +20,14 @@ int main() {
 
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> image[RAM_SIZE/DATAWIDTH];
     static PackedStencil<dtype, DATAWIDTH, 1, 1, 1> HLSout[READ_SIZE/DATAWIDTH];
-        for (int col= 0; col < 256; col ++){
-            for (int row = 0; row < 256; row++) {
+    for (int channel= 0; channel < C_SIZE; channel++){
+        for (int col= 0; col < IMG_SIZE; col ++){
+            for (int row = 0; row < IMG_SIZE; row++) {
                 for (int ii = 0; ii < DATAWIDTH; ii ++){
-                        image[row*256+col](ii) = RAM[row*DATAWIDTH*256+ col*DATAWIDTH + ii];
+                        image[channel*IMG_SIZE*IMG_SIZE + row*IMG_SIZE+col](ii) =
+                            RAM[channel*IMG_SIZE*IMG_SIZE*DATAWIDTH + row*DATAWIDTH*IMG_SIZE+ col*DATAWIDTH + ii];
+
+                }
             }
         }
     }
@@ -34,12 +38,14 @@ int main() {
     std::cout<<"finished"<<std::endl;
 
     int pos = 0;
-    for (int y = 0; y < 128; y ++) {
-            for (int x = 0; x < 128; x ++) {
+    int output_sz = IMG_SIZE >> 1;
+    for (int c = 0; c < C_SIZE; c++){
+    for (int y = 0; y < output_sz; y ++) {
+            for (int x = 0; x < output_sz; x ++) {
                 for (int cin = 0; cin < DATAWIDTH; cin ++) {
                     for (int ky = 0; ky < 2; ky ++) {
                         for (int kx = 0; kx < 2; kx ++) {
-                            int read_addr = (y*2+ky)* 256*DATAWIDTH+ (x*2+kx)*DATAWIDTH+ cin;
+                            int read_addr = c*IMG_SIZE*IMG_SIZE*DATAWIDTH+ (y*2+ky)* IMG_SIZE*DATAWIDTH+ (x*2+kx)*DATAWIDTH+ cin;
                             OUT[pos] += RAM[read_addr];
                         }
                     }
@@ -47,7 +53,7 @@ int main() {
                 }
             }
         }
-
+    }
 
     //check if matching
     int err_cnt = 0;

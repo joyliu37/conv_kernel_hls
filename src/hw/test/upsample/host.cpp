@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include "top.h"
 #include "conv_test.h"
-#define RAM_SIZE 64*64*4*DATAWIDTH
-#define READ_SIZE 128*128*4*DATAWIDTH
+#define RAM_SIZE IMG_SIZE*IMG_SIZE*C_SIZE*DATAWIDTH
+#define READ_SIZE IMG_SIZE*IMG_SIZE*C_SIZE*DATAWIDTH*4
 
 
 int main() {
@@ -27,13 +27,13 @@ int main() {
     top(image, HLSout);
                             std::cout<<"finished"<<std::endl;
     int pos = 0;
-    for (int cout = 0; cout < 4; cout ++) {
-    for (int y = 0; y < 64; y ++) {
+    for (int cout = 0; cout < C_SIZE; cout ++) {
+    for (int y = 0; y < IMG_SIZE; y ++) {
     for (int ky = 0; ky < 2; ky++){
-        for (int x = 0; x < 64; x ++) {
+        for (int x = 0; x < IMG_SIZE; x ++) {
         for (int kx = 0; kx < 2; kx++){
                 for (int cin = 0; cin < DATAWIDTH; cin ++) {
-                    int read_addr = y * 64*DATAWIDTH+ x * DATAWIDTH+ cout*DATAWIDTH*4096+ cin;
+                    int read_addr = y * IMG_SIZE*DATAWIDTH+ x * DATAWIDTH+ cout*DATAWIDTH*IMG_SIZE*IMG_SIZE + cin;
                     OUT[pos] = RAM[read_addr];
                     pos ++;
                 }

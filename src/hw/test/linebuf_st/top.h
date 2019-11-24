@@ -4,6 +4,7 @@
 #include "util.h"
 
 #define DATAWIDTH 1
+#define IMG_SIZE 64
 
 void top(PackedStencil<dtype, DATAWIDTH> *data_in,
         PackedStencil<dtype, DATAWIDTH> *data_out);
