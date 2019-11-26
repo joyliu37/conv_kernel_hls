@@ -22,15 +22,15 @@ puts "Halide include dir: $halide_include"
 set hls_support "$::env(HALIDE_HLS_ROOT)/apps/hls_examples/hls_support"
 puts "HLS support dir: $hls_support"
 
-open_project "test_$app"
+open_project -reset "test_$app"
 set_top top
 add_files $hwdir/top.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
 add_files -tb $hwdir/host.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$hwdir -I$hostdir -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
-open_solution "unit_test_64"
+open_solution -reset "unit_test_64"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
 #source "./hls_cnn_db/solution_conf1/directives.tcl"
-#csim_design -clean -compiler clang
-#csynth_design
-#cosim_design -compiler clang -mflags "ExtraCXXFlags=-D_GLIBCXX_USE_CXX11_ABI=0" -trace_level all
+csim_design -clean -compiler clang
+csynth_design
+cosim_design -compiler clang -mflags "ExtraCXXFlags=-D_GLIBCXX_USE_CXX11_ABI=0" -trace_level all
 export_design -rtl verilog -format ip_catalog
