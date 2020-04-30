@@ -26,11 +26,42 @@ open_project "test_$app"
 set_top top
 add_files $hwdir/top.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
 add_files -tb $hwdir/host.cpp -cflags "-std=c++0x -D_GLIBCXX_USE_CXX11_ABI=0 -v -I$hwdir -I$hostdir -I$libdir -I$halide_include -I$hls_support -Wno-parentheses-equality -Wno-deprecated-register -Wno-tautological-compare "
-open_solution "unit_test_64"
+open_solution "unit_test_64_saif"
 set_part {xczu9eg-ffvb1156-2-i-es2} -tool vivado
 create_clock -period 4 -name default
 #source "./hls_cnn_db/solution_conf1/directives.tcl"
 csim_design -clean -compiler clang
 csynth_design
-cosim_design -compiler clang -mflags "ExtraCXXFlags=-D_GLIBCXX_USE_CXX11_ABI=0" -trace_level all
+cosim_design -compiler clang -mflags "ExtraCXXFlags=-D_GLIBCXX_USE_CXX11_ABI=0" -rtl verilog -O -trace_level all
+
+#saif script
+set verilog_dir "test_$app/unit_test_64_saif/sim/verilog"
+puts "set verilog dir: $verilog_dir"
+set script  [list {set cs [current_scope .]} \
+        {current_scope AESL_inst_top} \
+        {open_saif top.saif} \
+        {log_saif [get_objects -r]} \
+        {current_scope $cs} \
+        {run all} \
+        {close_saif} \
+        {quit}]
+puts "set script"
+set f [open "$verilog_dir/top.tcl" w]
+foreach l $script { puts $f $l }
+close $f
+
+set oldpwd [pwd]
+cd $verilog_dir
+puts "Creating SAIF ..."
+exec "./sim.sh"
+puts "SAIF dumping done."
+cd $oldpwd
+set saif [glob -nocomplain -directory $verilog_dir/ *.saif]
+puts "Found SAIFs: $saif"
+
+if {[llength $saif] == 0} {
+    error "ERROR: could not generate SAIF!"
+}
+file copy -force $saif "test_$app/XMM.saif"
+
 export_design -rtl verilog -format ip_catalog

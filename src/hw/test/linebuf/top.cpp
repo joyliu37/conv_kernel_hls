@@ -17,17 +17,18 @@ static void write_result(PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *out,
 mem_wr: for (int i = 0; i < size; i ++) {
 #pragma HLS PIPELINE II=1
             Stencil<dtype, DATAWIDTH, 3, 3, 1> temp = outStream.read();
-            dtype w[9] = {0,1,2,3,4,5,6,7,8};
+            dtype w[9] = {17, 4, 6, 5, 19, 4, 5, 21, 15};
+            //dtype w[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 #pragma HLS array_partition variable=w dim=0 complete
             for (int idx0 = 0; idx0 < DATAWIDTH; idx0++){
-                dtype sum = 0;
+                dtype_double sum = 0;
                 for (int ky = 0; ky < 3; ky ++) {
                     for (int kx = 0; kx < 3; kx ++) {
                         sum += temp(idx0, kx, ky) * w[kx+ky*3];
 
                     }
                 }
-                out[i](idx0) = sum;
+                out[i](idx0) = (dtype)sum;
         }
     }
 }

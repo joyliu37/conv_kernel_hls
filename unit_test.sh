@@ -1,10 +1,11 @@
-if [ "$#" -ne 1 ]; then
+if [ "$#" -ne 2 ]; then
     echo "cmd template: $0 <testcase>" >&2
     echo "<network> = IObuf, featurebuf, a" >&2
     exit 1
 fi
 
 TEST_MODE=$1
+TEST_APP=$2
 SRC_DIR=src
 TEST_CASE=${SRC_DIR}/hw/test
 
@@ -24,8 +25,13 @@ if [ "$TEST_MODE" == "a" ]; then
         $vivado_hls -f unit_test.tcl -tclargs $SRC_DIR $TEST_DIR
         echo "Finish test $TEST_DIR"
     done
+elif [ "$TEST_MODE"  == "saif" ]; then
+    TEST_DIR=${TEST_APP}
+    echo "Test $TEST_DIR. with saif dump"
+    $vivado_hls -f unit_test_saif.tcl -tclargs $SRC_DIR $TEST_DIR
+    echo "Finish test $TEST_DIR with dump saif"
 else
-    TEST_DIR=${TEST_MODE}
+    TEST_DIR=${TEST_APP}
     echo "Test $TEST_DIR."
     $vivado_hls -f unit_test.tcl -tclargs $SRC_DIR $TEST_DIR
     echo "Finish test $TEST_DIR"
