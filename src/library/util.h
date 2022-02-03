@@ -1,17 +1,17 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#define AP_INT_MAX_W 16384
+// #define AP_INT_MAX_W 2048
 //#include "/cad/xilinx/vivado/2017.2/Vivado_HLS/2017.2/include/gmp.h"
-#include "Stencil.h"
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <hls_stream.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <hls_stream.h>
 
+#include "Stencil.h"
 
 typedef uint8_t dtype_u;
 typedef int8_t dtype;

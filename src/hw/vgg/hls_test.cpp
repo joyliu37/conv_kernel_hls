@@ -1,3 +1,7 @@
+#include <mpfr.h>
+
+#include <cmath>
+
 #include "conv_test.h"
 #include "hls_target.h"
 //#include "config_tiny.h"
@@ -48,7 +52,20 @@ int main()
     //conv_sw((int32_t*)image, weight_0, res_sw_pool, ROWS, COLS, OCH, ICH, FS, true);
 
 #ifdef HW_COSIM
-	hls_target(res_stencil, image_stencil, weight_stencil, FS, 14, 14, 2, 2, 1, 6, 1, 6, STRIDE, false);
+	cout << "Starting HW SIM" << endl;
+	// hls_target(res_stencil, image_stencil, weight_stencil, 
+	// 	FS, COLS, ROWS, XN, YN, 
+	// 	CINN, static_cast<uint16_t>(log2(ICH >> CINN)), COUTN, static_cast<uint16_t>(log2(OCH >> COUTN)), 
+	// 	STRIDE, false);
+	// hls_target(res_stencil, image_stencil, weight_stencil, 
+	// 	FS, COLS/XN, ROWS/YN, XN, YN, 
+	// 	CINN, static_cast<uint16_t>(log2(ICH >> CINN)), COUTN, static_cast<uint16_t>(log2(OCH >> COUTN)), 
+	// 	STRIDE, false);
+	// hls_target(res_stencil, image_stencil, weight_stencil,
+	// 	FS, COLS / XN, ROWS / YN, XN, YN,
+	// 	log2(CINN), log2(ICH)-log2(CINN), log2(COUTN), log2(OCH) -log2(COUTN),
+	// 	STRIDE, false);
+	hls_target(res_stencil, image_stencil, weight_stencil, FS, 14, 14, 2, 2, 1, 4, 1, 4, STRIDE, false);
 	stencil2image(res_0, res_stencil, ROWS/STRIDE, COLS/STRIDE, OCH);
 
     check_err(res_0, res_sw_0, ROWS/STRIDE, COLS/STRIDE, OCH, 0, err_cnt);
@@ -57,6 +74,8 @@ int main()
       cout << "ERROR: " << err_cnt << " mismatches detected!" << endl;
    else
       cout << "Test passes." << endl;
+
+	assert(!err_cnt);
 #endif
    return err_cnt;
 

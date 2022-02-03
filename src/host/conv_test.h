@@ -17,7 +17,7 @@
 #define STRIDE 1
 */
 #ifndef DATAWIDTH
-#define DATAWIDTH 32
+#define DATAWIDTH 16
 #endif
 /*
 #define XN 1

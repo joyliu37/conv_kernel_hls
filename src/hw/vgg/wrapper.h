@@ -1,6 +1,8 @@
 #ifndef WRAPPER_H
 #define WRAPPER_H
 
+#include <hls_stream.h>
+
 #include "doublebuffer.h"
 #include "dma.h"
 #include "streamtools.h"
@@ -1224,6 +1226,7 @@ for (iter.tilingIDy = 0; iter.tilingIDy < 0 + para.Y_n; iter.tilingIDy++)
 #pragma HLS LOOP_TRIPCOUNT max=2
 //#pragma HLS DEPENDENCE variable=weight inter false
 //#pragma HLS DEPENDENCE variable=weight intra false
+    std::cout << "read_weight " << iter.tilingIDy << " "  << iter.tilingIDx << " " << iter.tilingIDc_i << " " << iter.tilingIDc_o << std::endl;
 		weight.call(weightMemStream, weight_stream, write_addr, read_addr, load_bound, feed_bound);
 
     }//for tiling Input channel

@@ -1,6 +1,8 @@
 #ifndef CONVMODULE_H
 #define CONVMODULE_H
 
+#include <hls_stream.h>
+
 #include "wrapper.h"
 
 
@@ -8,6 +10,7 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
         hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1> > & in_weight_stencil,
         hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1> > & out_feature_stencil,
         layerPara para){
+            std::cout << "ConvModule 0" << std::endl;
 #pragma HLS inline
     //addr gen
     hls::stream<uint32_t> feature_load_addr("f_load_addr");
@@ -56,11 +59,14 @@ void convModule(hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1> > & in_feature_
     Doublebuffer_feature<dtype_double,  OFM_BUFF_SIZE, P_COUT, 1, 1, 1> psum(para.loop_out_cnt);
 
     read_input(in_feature_stencil, feature_load_addr, feature_feed_addr, feature, feature_stream, para);
+    std::cout << "ConvModule 0a" << std::endl;
     read_weight(in_weight_stencil, weight_load_addr, weight_feed_addr, weight, weight_stream, para);
-
+    std::cout << "ConvModule 0b" << std::endl;
     compute(feature_stream, weight_stream, psum_stream, para);
 
+    std::cout << "ConvModule 1" << std::endl;
     write_back(relu_long, psum_stream, output_load_addr, output_feed_addr, output_update_addr, psum, para);
+    std::cout << "ConvModule 2" << std::endl;
 
     ReLU(relu_long, output_double, para);
     Truncate(output_double, out_feature_stencil, para);

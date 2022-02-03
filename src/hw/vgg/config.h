@@ -5,8 +5,8 @@
 
 #define ROWS 28//68
 #define COLS 28//68
-#define ICH 128//32,8
-#define OCH 128//16,8
+#define ICH 32//32,8
+#define OCH 32//16,8
 #define FS 3
 //#define FS_DP 3
 #define STRIDE 2
@@ -46,16 +46,16 @@
 //#define Cin_Iter 4
 //#define Cout_Iter 4
 
-#define P_CIN 32
-#define P_CIN_BIT 5
-#define P_COUT 64
-#define P_COUT_BIT 6
+#define P_CIN 16
+#define P_CIN_BIT 4
+#define P_COUT 16
+#define P_COUT_BIT 4
 
 #define P_CH 16
 #define K_DP 3
 
-#define DATAWIDTH 32
-#define DATAWIDTH_BIT 5
+#define DATAWIDTH 16
+#define DATAWIDTH_BIT 4
 #define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 #endif

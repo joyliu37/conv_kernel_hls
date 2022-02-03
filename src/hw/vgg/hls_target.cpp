@@ -28,6 +28,7 @@ const uint16_t Stride,
 bool pool)
 
 {
+std::cout << "Hello" << std::endl;
 #pragma HLS INTERFACE s_axilite port=return bundle=control
 #pragma HLS INTERFACE s_axilite port=Ksz bundle=control
 #pragma HLS INTERFACE s_axilite port=Xsz bundle=control
@@ -41,12 +42,15 @@ bool pool)
 #pragma HLS INTERFACE s_axilite port=Stride bundle=control
 //#pragma HLS INTERFACE s_axilite port=Ch_Iter bundle=control
 #pragma HLS INTERFACE s_axilite port=pool bundle=control
-#pragma HLS INTERFACE m_axi depth = 196 port=arg_0
-#pragma HLS INTERFACE m_axi depth = 784 port=arg_1
-#pragma HLS INTERFACE m_axi depth = 1152 port=arg_2
+static const uint32_t arg_0_depth = ROWS*COLS*OCH/DATAWIDTH;
+static const uint32_t arg_1_depth = ROWS*COLS*ICH/DATAWIDTH;
+static const uint32_t arg_2_depth = FS*FS*ICH*OCH/DATAWIDTH;
+#pragma HLS INTERFACE m_axi depth = arg_0_depth port=arg_0 // ROWS*COLS*OCH/DATAWIDTH
+#pragma HLS INTERFACE m_axi depth = arg_1_depth port=arg_1 // ROWS*COLS*ICH/DATAWIDTH
+#pragma HLS INTERFACE m_axi depth = arg_2_depth port=arg_2 // FS*FS*ICH*OCH/DATAWIDTH
 //#pragma HLS INTERFACE m_axi depth = 144 port=arg_3
 
-
+std::cout << "Hello2" << std::endl;
  // alias the arguments
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_clamped = arg_1;
  PackedStencil<dtype, DATAWIDTH, 1, 1, 1> *_output = arg_0;
@@ -63,22 +67,22 @@ bool pool)
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> unpadded_feature_short("in_short_fm");
  hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> padded_feature("out_fm");
 #pragma HLS STREAM variable=unpadded_feature depth=4
-#pragma HLS STREAM variable=padded_feature depth=1
-#pragma HLS STREAM variable=unpadded_feature_short depth=1
+#pragma HLS STREAM variable=padded_feature depth=4
+#pragma HLS STREAM variable=unpadded_feature_short depth=4
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> weight_long("in_wt");
  hls::stream<PackedStencil<dtype, P_CIN*P_COUT, 1, 1, 1>> weight_short("out_wt");
  hls::stream<PackedStencil<dtype, P_CIN, P_COUT, 1, 1>> weight_stencil("stencil_wt");
-#pragma HLS STREAM variable=weight_long depth=1
-#pragma HLS STREAM variable=weight_short depth=1
+#pragma HLS STREAM variable=weight_long depth=4
+#pragma HLS STREAM variable=weight_short depth=4
 #pragma HLS RESOURCE variable=weight_short core=FIFO_LUTRAM
-#pragma HLS STREAM variable=weight_stencil depth=1
+#pragma HLS STREAM variable=weight_stencil depth=4
 #pragma HLS RESOURCE variable=weight_stencil core=FIFO_LUTRAM
 
  hls::stream<PackedStencil<dtype, DATAWIDTH, 1, 1, 1>> output_long("long_ofm");
  hls::stream<PackedStencil<dtype, P_COUT, 1, 1, 1>> output_short("short_ofm");
-#pragma HLS STREAM variable=output_long depth=1
-#pragma HLS STREAM variable=output_short depth=1
+#pragma HLS STREAM variable=output_long depth=4
+#pragma HLS STREAM variable=output_short depth=4
 
  //hls::stream<PackedStencil<dtype, P_CIN, 1, 1, 1>> output_dp("out_dp");
 //#pragma HLS STREAM variable=output_dp depth=1
@@ -88,17 +92,23 @@ bool pool)
 //hls::stream<PackedStencil<dtype, P_CH, 1, 1, 1>> output_stream_short("output_short");
 //#pragma HLS STREAM variable=output_stream_short depth=1
 
+std::cout << "Hello3" << std::endl;
+
 #pragma HLS dataflow
 
 //load feature and pad
 DMA_feature_tiling_wrapper(_clamped, unpadded_feature, para);
+std::cout << "Hello3a" << std::endl;
 datawidth_convert_feature(unpadded_feature, unpadded_feature_short, para);
+std::cout << "Hello3b" << std::endl;
 feature_pad(unpadded_feature_short, padded_feature, para);
 
+std::cout << "Hello4" << std::endl;
 //load weight
 DMA_weight_tiling_wrapper(_weight, weight_long, para);
 datawidth_convert_weight(weight_long, weight_short, para);
 stencil_convert_weight(weight_short, weight_stencil, para);
+std::cout << "Hello5" << std::endl;
 
 //depthwise conv
 //convDPModule(padded_feature, weight_dp, output_stream_short, para);
@@ -106,10 +116,12 @@ stencil_convert_weight(weight_short, weight_stencil, para);
 //pointwise convolution module
 //convModule(output_dp, weight_stencil, output_short, para);
 convModule(padded_feature, weight_stencil, output_short, para);
+std::cout << "Hello5a" << std::endl;
 
 //post processing
 datawidth_convert_output(output_short, output_long, para);
+std::cout << "Hello5b" << std::endl;
 //datawidth_convert_output(output_short, output_long, para, Ch_Iter);
 DMA_output_tiling_wrapper(_output, output_long, para);
-
+std::cout << "Hello6" << std::endl;
 }

@@ -5,8 +5,8 @@
 
 #define ROWS 28//68
 #define COLS 28//68
-#define ICH 64//32,8
-#define OCH 128//16,8
+#define ICH 32//32,8
+#define OCH 32//16,8
 #define FS 1
 //#define FS_DP 3
 #define STRIDE 2
@@ -59,3 +59,4 @@
 #define W_CNT P_CIN*P_COUT/DATAWIDTH
 
 #endif
+
