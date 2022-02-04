@@ -8,7 +8,7 @@
 #include "addrgen.h"
 #include "linebuffer.h"
 //#include "config_tiny.h"
-#include "config.h"
+#include "config_amber.h"
 
 
 //TODO: implement a function pointer and lambda to simplify this function
